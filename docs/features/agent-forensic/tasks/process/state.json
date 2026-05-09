@@ -1,14 +1,14 @@
 {
-  "task_id": "2.3",
-  "key": "2.3-sanitizer",
-  "title": "Sensitive Content Sanitizer",
+  "task_id": "2.4",
+  "key": "2.4-i18n",
+  "title": "i18n System",
   "priority": "P0",
-  "estimatedTime": "1.5h",
+  "estimatedTime": "2h",
   "dependencies": [
     "1.gate"
   ],
-  "file": "2.3-sanitizer.md",
-  "record": "records/2.3-sanitizer.md",
-  "startedTime": "2026-05-10 01:18",
+  "file": "2.4-i18n.md",
+  "record": "records/2.4-i18n.md",
+  "startedTime": "2026-05-10 01:22",
   "scope": "all"
 }

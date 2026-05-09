@@ -1,24 +1,32 @@
 {
-	"taskId": "2.3",
-	"status": "completed",
-	"summary": "Implemented sensitive content sanitizer in internal/sanitizer/sanitizer.go with Sanitize(content string) (string, bool). Uses regexp.MustCompile for pattern (?i)(api_key|secret|token|password)([\\s:=]+)(['\"]?)(\\S+). Replaces captured value with *** while preserving key name and separator. Handles CJK content without false positives.",
-	"filesCreated": ["internal/sanitizer/sanitizer.go", "internal/sanitizer/sanitizer_test.go"],
-	"filesModified": [],
-	"keyDecisions": [
-		"Captured separator and optional quote as separate regex groups to preserve them in output (key=*** vs key=*** vs key:*** vs key ***)",
-		"Removed unreachable nil-check on FindStringSubmatch result since ReplaceAllStringFunc only calls for actual matches, achieving 100% coverage",
-		"Used ReplaceAllStringFunc + FindStringSubmatch instead of ReplaceAllString with $N replacements to avoid losing separator/quote context"
-	],
-	"testsPassed": 20,
-	"testsFailed": 0,
-	"coverage": 100.0,
-	"acceptanceCriteria": [
-		{"criterion": "internal/sanitizer/sanitizer.go implements Sanitize(content string) (string, bool)", "met": true},
-		{"criterion": "Pattern: (?i)(api_key|secret|token|password)[\\s:=]+[\"']?(\\S+) matches and replaces captured value", "met": true},
-		{"criterion": "Sanitized string does NOT contain the original sensitive value", "met": true},
-		{"criterion": "Handles CJK content correctly (no false positives on Chinese characters)", "met": true},
-		{"criterion": "Unit tests: pattern matching, false positives, CJK content, edge cases", "met": true},
-		{"criterion": "Test coverage >= 95%", "met": true}
-	],
-	"notes": "Coverage is 100% (exceeds 95% requirement). 20 test cases cover: pattern matching for all 4 keywords, case insensitivity, no-match, empty string, multiple matches, CJK/Chinese/Japanese content (no false positives), quoted values (single and double), space/colon/equals separators, key name preservation, and mixed language content."
+  "taskId": "2.4",
+  "status": "completed",
+  "summary": "Implement i18n system with locale loading (embedded YAML), key lookup with fallback, and runtime language switching. Supports Chinese (default) and English with thread-safe concurrent access via sync.RWMutex.",
+  "filesCreated": [
+    "internal/i18n/i18n.go",
+    "internal/i18n/i18n_test.go",
+    "internal/i18n/locales/zh.yaml",
+    "internal/i18n/locales/en.yaml"
+  ],
+  "filesModified": [],
+  "keyDecisions": [
+    "Used embed.FS for locale YAML files to avoid runtime file dependencies",
+    "Lazy loading with ensureLoaded() that checks loaded flag under RLock before acquiring write lock",
+    "Fixed deadlock bug: ensureLoaded uses RLock/RUnlock pattern before calling loadAll (which acquires Lock)",
+    "reset() helper in tests forces reload by clearing loaded flag under mutex"
+  ],
+  "testsPassed": 13,
+  "testsFailed": 0,
+  "coverage": 90.0,
+  "acceptanceCriteria": [
+    { "criterion": "T(key string) string, SetLocale(code string) error, CurrentLocale() string implemented", "met": true },
+    { "criterion": "locales/zh.yaml with all Chinese translations", "met": true },
+    { "criterion": "locales/en.yaml with all English translations", "met": true },
+    { "criterion": "Unknown locale code returns error; unknown key falls back to key itself", "met": true },
+    { "criterion": "Default locale is zh", "met": true },
+    { "criterion": "Language switch is instant (no restart)", "met": true },
+    { "criterion": "Unit tests: locale loading, key lookup, fallback, switch", "met": true },
+    { "criterion": "Test coverage >= 80%", "met": true }
+  ],
+  "notes": "Deadlock bug was fixed in main session: ensureLoaded was being called inside locked sections. Fixed by using RLock/RUnlock to check loaded flag before calling loadAll."
 }

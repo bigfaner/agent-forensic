@@ -1,0 +1,67 @@
+# English translations
+
+# Panel titles
+panel.sessions.title: "Sessions"
+panel.calltree.title: "Call Tree"
+panel.detail.title: "Detail"
+panel.dashboard.title: "Dashboard"
+
+# Status messages
+status.loading: "Loading..."
+status.empty: "No data"
+status.error: "Error"
+status.ready: "Ready"
+status.watching: "Watching"
+status.idle: "Idle"
+
+# Error messages
+error.dir_not_found: "Directory not found"
+error.dir_permission: "Directory permission denied"
+error.file_read: "File read error"
+error.file_empty: "File is empty"
+error.parse: "Parse error"
+error.corrupt_session: "Corrupt session data"
+error.terminal_too_small: "Terminal too small (need 80x24)"
+
+# Status bar hints
+hint.quit: "q quit"
+hint.switch_lang: "L switch lang"
+hint.tab: "Tab switch panel"
+hint.search: "/ search"
+hint.enter: "Enter expand"
+hint.escape: "Esc back"
+
+# Diagnosis labels
+diagnosis.title: "Diagnosis Summary"
+diagnosis.anomaly_type: "Anomaly Type"
+diagnosis.evidence: "Evidence"
+diagnosis.context: "Context"
+diagnosis.slow_call: "Slow Call"
+diagnosis.unauthorized: "Unauthorized Access"
+diagnosis.recommendation: "Recommendation"
+diagnosis.close: "q/Esc close"
+
+# Dashboard headers
+dashboard.tool_stats: "Tool Call Stats"
+dashboard.time_stats: "Time Stats"
+dashboard.session_overview: "Session Overview"
+dashboard.peak_step: "Slowest Step"
+dashboard.tool_name: "Tool"
+dashboard.call_count: "Count"
+dashboard.time_pct: "Time %"
+dashboard.total_duration: "Total Duration"
+
+# Session picker
+picker.title: "Switch Session"
+picker.search: "Search"
+picker.no_results: "No matches"
+
+# Language indicator
+lang.zh: "中"
+lang.en: "EN"
+
+# General
+general.no_selection: "No selection"
+general.confirm: "Confirm"
+general.cancel: "Cancel"
+general.version: "Version"
