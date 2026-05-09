@@ -1,21 +1,29 @@
 {
-	"taskId": "1.gate",
+	"taskId": "2.1",
 	"status": "completed",
-	"summary": "Phase 1 Exit Gate verification. All 7 data types (Session, Turn, TurnEntry, EntryType, Anomaly, AnomalyType, SessionStats, ToolCallSummary) and 6 error types compile and match tech-design.md exactly. Go module builds successfully. All 20 tests pass with 100% coverage. No deviations from design spec found.",
-	"filesCreated": [],
+	"summary": "Implemented JSONL stream parser with ParseSession, ParseIncremental, and ScanDir functions. Supports full parsing with turn grouping, streaming via maxLines limit, corrupt JSON skipping with >50% escalation to CorruptSessionError, empty file detection, and incremental offset-based parsing for real-time updates.",
+	"filesCreated": ["internal/parser/jsonl.go", "internal/parser/jsonl_test.go"],
 	"filesModified": [],
 	"keyDecisions": [
-		"No deviations from tech-design.md found - all types and error definitions match exactly"
+		"2.1: Used bufio.Scanner with 10MB buffer for line-by-line streaming to bound memory",
+		"2.1: Introduced internal parsedEntry type with timestamp tracking for accurate duration computation",
+		"2.1: Turn grouping starts new turn at each EntryMessage type (user message boundary)",
+		"2.1: ParseIncremental uses file seek for offset-based reading, skips corrupt lines silently",
+		"2.1: ScanDir returns sorted list of *.jsonl files from a directory",
+		"2.1: Corruption threshold uses strict >0.5 ratio (3/4 corrupt lines = 75% > 50% triggers error)"
 	],
-	"testsPassed": 20,
+	"testsPassed": 38,
 	"testsFailed": 0,
-	"coverage": 100.0,
+	"coverage": 93.7,
 	"acceptanceCriteria": [
-		{ "criterion": "All data types from tech-design.md Data Models section compile without errors", "met": true },
-		{ "criterion": "Data models match design/tech-design.md (Session, Turn, TurnEntry, Anomaly, AnomalyType, SessionStats, ToolCallSummary)", "met": true },
-		{ "criterion": "Project builds successfully (go build ./...)", "met": true },
-		{ "criterion": "All existing tests pass (go test ./...)", "met": true },
-		{ "criterion": "No deviations from design spec (or deviations are documented as decisions)", "met": true }
+		{"criterion": "internal/parser/jsonl.go implements ParseSession(filePath string, maxLines int) (*Session, error)", "met": true},
+		{"criterion": "ParseIncremental(filePath string, lastOffset int64) ([]TurnEntry, int64, error) implemented", "met": true},
+		{"criterion": "Scans ~/.claude/ directory for *.jsonl files (ScanDir)", "met": true},
+		{"criterion": "Files > maxLines return only first maxLines entries (streaming)", "met": true},
+		{"criterion": "Corrupt JSON lines are skipped with warning; >50% failures escalate to CorruptSessionError", "met": true},
+		{"criterion": "Empty files (0 bytes) return FileEmptyError", "met": true},
+		{"criterion": "Unit tests: happy path (3-turn session), large file (streaming), corrupt JSONL, empty file", "met": true},
+		{"criterion": "Test coverage >= 90%", "met": true}
 	],
-	"notes": "Verification-only gate task. No new code written. All checklist items applicable to Phase 1 pass. Items 3, 7, 8 marked N/A per task definition."
+	"notes": ""
 }

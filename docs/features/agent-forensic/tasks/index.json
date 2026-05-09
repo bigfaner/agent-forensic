@@ -80,7 +80,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.1-jsonl-parser.md",
       "record": "records/2.1-jsonl-parser.md",
       "scope": "all"
