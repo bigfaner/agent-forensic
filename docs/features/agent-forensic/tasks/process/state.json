@@ -1,0 +1,15 @@
+{
+  "task_id": "1.gate",
+  "key": "1-gate",
+  "title": "Phase 1 Exit Gate",
+  "priority": "P0",
+  "estimatedTime": "1h",
+  "dependencies": [
+    "1.summary"
+  ],
+  "file": "1-gate.md",
+  "record": "records/1-gate.md",
+  "startedTime": "2026-05-10 01:00",
+  "breaking": true,
+  "scope": "all"
+}
