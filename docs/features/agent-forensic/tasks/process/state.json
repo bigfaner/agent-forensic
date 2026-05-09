@@ -1,14 +1,14 @@
 {
-  "task_id": "2.1",
-  "key": "2.1-jsonl-parser",
-  "title": "JSONL Parser",
+  "task_id": "2.2",
+  "key": "2.2-anomaly-detector",
+  "title": "Anomaly Detector",
   "priority": "P0",
-  "estimatedTime": "3h",
+  "estimatedTime": "2h",
   "dependencies": [
     "1.gate"
   ],
-  "file": "2.1-jsonl-parser.md",
-  "record": "records/2.1-jsonl-parser.md",
-  "startedTime": "2026-05-10 01:01",
+  "file": "2.2-anomaly-detector.md",
+  "record": "records/2.2-anomaly-detector.md",
+  "startedTime": "2026-05-10 01:10",
   "scope": "all"
 }

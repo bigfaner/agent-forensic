@@ -1,29 +1,27 @@
 {
-	"taskId": "2.1",
+	"taskId": "2.2",
 	"status": "completed",
-	"summary": "Implemented JSONL stream parser with ParseSession, ParseIncremental, and ScanDir functions. Supports full parsing with turn grouping, streaming via maxLines limit, corrupt JSON skipping with >50% escalation to CorruptSessionError, empty file detection, and incremental offset-based parsing for real-time updates.",
-	"filesCreated": ["internal/parser/jsonl.go", "internal/parser/jsonl_test.go"],
-	"filesModified": [],
+	"summary": "Implemented rule-based anomaly detection in internal/detector/anomaly.go with DetectAnomalies function detecting slow calls (>=30s) and unauthorized file access (paths outside project dir). Also implemented ResolveProjectDir helper using git rev-parse with cwd fallback.",
+	"filesCreated": ["internal/detector/anomaly.go", "internal/detector/anomaly_test.go"],
+	"filesModified": ["go.mod", "go.sum"],
 	"keyDecisions": [
-		"2.1: Used bufio.Scanner with 10MB buffer for line-by-line streaming to bound memory",
-		"2.1: Introduced internal parsedEntry type with timestamp tracking for accurate duration computation",
-		"2.1: Turn grouping starts new turn at each EntryMessage type (user message boundary)",
-		"2.1: ParseIncremental uses file seek for offset-based reading, skips corrupt lines silently",
-		"2.1: ScanDir returns sorted list of *.jsonl files from a directory",
-		"2.1: Corruption threshold uses strict >0.5 ratio (3/4 corrupt lines = 75% > 50% triggers error)"
+		"Used json.Unmarshal to extract file_path from tool Input JSON for robust cross-platform parsing",
+		"normalizePath simplified to ignore filepath.Abs error since it only fails on empty strings",
+		"Context chain built by appending each tool_use ToolName to a running slice during iteration",
+		"Used filepath.Separator in isInsideDir prefix check to prevent false prefix matches (e.g. /projectextra vs /project)"
 	],
-	"testsPassed": 38,
+	"testsPassed": 24,
 	"testsFailed": 0,
-	"coverage": 93.7,
+	"coverage": 95.0,
 	"acceptanceCriteria": [
-		{"criterion": "internal/parser/jsonl.go implements ParseSession(filePath string, maxLines int) (*Session, error)", "met": true},
-		{"criterion": "ParseIncremental(filePath string, lastOffset int64) ([]TurnEntry, int64, error) implemented", "met": true},
-		{"criterion": "Scans ~/.claude/ directory for *.jsonl files (ScanDir)", "met": true},
-		{"criterion": "Files > maxLines return only first maxLines entries (streaming)", "met": true},
-		{"criterion": "Corrupt JSON lines are skipped with warning; >50% failures escalate to CorruptSessionError", "met": true},
-		{"criterion": "Empty files (0 bytes) return FileEmptyError", "met": true},
-		{"criterion": "Unit tests: happy path (3-turn session), large file (streaming), corrupt JSONL, empty file", "met": true},
-		{"criterion": "Test coverage >= 90%", "met": true}
+		{"criterion": "DetectAnomalies(entries []TurnEntry, projectDir string) []Anomaly implemented in internal/detector/anomaly.go", "met": true},
+		{"criterion": "Duration >= 30s (inclusive) triggers AnomalySlow", "met": true},
+		{"criterion": "File path outside projectDir triggers AnomalyUnauthorized", "met": true},
+		{"criterion": "Boundary test: exactly 30.000s marked slow (>=30s inclusive)", "met": true},
+		{"criterion": "Project dir determined by git rev-parse --show-toplevel; fallback to cwd", "met": true},
+		{"criterion": "Paths normalized to absolute before comparison", "met": true},
+		{"criterion": "Each Anomaly includes LineNum, ToolName, Duration, FilePath, Context", "met": true},
+		{"criterion": "Unit test coverage >= 95%", "met": true}
 	],
-	"notes": ""
+	"notes": "ResolveProjectDir at 83.3% coverage (git failure fallback path untested without mocking). Overall package coverage at 95.0% meets requirement. Windows-compatible tests use json.Marshal for proper path escaping in JSON strings."
 }
