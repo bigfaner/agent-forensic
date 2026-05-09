@@ -1,6 +1,6 @@
 ---
 feature: "agent-forensic"
-status: design
+status: tasks
 ---
 
 # Feature: agent-forensic
@@ -19,13 +19,13 @@ status: design
 
 ## Traceability
 
-| PRD Section | Design Section | UI Component | Tasks |
-|-------------|----------------|--------------|-------|
-| UF-1 Sessions Panel | model/sessions.go, parser/jsonl.go | Sessions Panel | |
-| UF-2 Call Tree Panel | model/calltree.go, detector/anomaly.go | Call Tree Panel | |
-| UF-3 Detail Panel | model/detail.go, sanitizer/sanitizer.go | Detail Panel | |
-| UF-4 Dashboard View | model/dashboard.go, stats/stats.go | Dashboard View | |
-| UF-5 Diagnosis Summary | model/diagnosis.go, detector/anomaly.go | Diagnosis Summary | |
-| UF-6 Status Bar | model/statusbar.go | Status Bar | |
-| i18n | i18n/i18n.go, i18n/locales/*.yaml | All components | |
-| Real-time monitoring | watcher/watcher.go | Call Tree (new nodes) | |
+| PRD Section | Design Section | UI Component | Placement | Tasks |
+|-------------|----------------|--------------|-----------|-------|
+| UF-1 Sessions Panel | model/sessions.go, parser/jsonl.go | Sessions Panel (ui-design §UF-1) | new-page:main-tui | 1.1, 2.1, 3.1, 4.1, 4.2 |
+| UF-2 Call Tree Panel | model/calltree.go, detector/anomaly.go | Call Tree Panel (ui-design §UF-2) | new-page:main-tui | 1.1, 2.1, 2.2, 3.2, 4.1 |
+| UF-3 Detail Panel | model/detail.go, sanitizer/sanitizer.go | Detail Panel (ui-design §UF-3) | new-page:main-tui | 1.1, 2.3, 3.3, 4.1 |
+| UF-4 Dashboard View | model/dashboard.go, stats/stats.go | Dashboard View (ui-design §UF-4) | new-page:dashboard | 1.1, 2.5, 3.4, 4.1 |
+| UF-5 Diagnosis Summary | model/diagnosis.go, detector/anomaly.go | Diagnosis Summary (ui-design §UF-5) | new-page:diagnosis | 1.1, 2.2, 3.5, 4.1 |
+| UF-6 Status Bar | model/statusbar.go | Status Bar (ui-design §UF-6) | new-page:main-tui | 2.4, 3.6, 4.1 |
+| i18n | i18n/i18n.go, i18n/locales/*.yaml | All components | — | 2.4, 4.2 |
+| Real-time monitoring | watcher/watcher.go | Call Tree (new nodes) | — | 2.6, 3.2, 4.1 |
