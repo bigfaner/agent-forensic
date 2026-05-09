@@ -145,7 +145,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.6-file-watcher.md",
       "record": "records/2.6-file-watcher.md",
       "scope": "all"

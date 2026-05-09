@@ -1,14 +1,14 @@
 {
-  "task_id": "2.5",
-  "key": "2.5-stats-calculator",
-  "title": "Stats Calculator",
+  "task_id": "2.6",
+  "key": "2.6-file-watcher",
+  "title": "File Watcher",
   "priority": "P0",
-  "estimatedTime": "1.5h",
+  "estimatedTime": "2h",
   "dependencies": [
     "1.gate"
   ],
-  "file": "2.5-stats-calculator.md",
-  "record": "records/2.5-stats-calculator.md",
-  "startedTime": "2026-05-10 07:50",
+  "file": "2.6-file-watcher.md",
+  "record": "records/2.6-file-watcher.md",
+  "startedTime": "2026-05-10 07:52",
   "scope": "all"
 }

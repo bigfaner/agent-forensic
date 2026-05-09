@@ -1,30 +1,33 @@
 {
-  "taskId": "2.5",
-  "status": "completed",
-  "summary": "Implement CalculateStats function that aggregates session data for dashboard display: tool call counts, time distribution percentages, peak step (slowest tool call), and total duration. Handles nil/empty sessions gracefully.",
-  "filesCreated": [
-    "internal/stats/stats.go",
-    "internal/stats/stats_test.go"
-  ],
-  "filesModified": [],
-  "keyDecisions": [
-    "PeakStep uses zero-value ToolCallSummary (not pointer) for empty sessions, matching the SessionStats struct definition",
-    "When multiple tools have the same peak duration, first encountered wins (stable iteration order)",
-    "Only EntryToolUse entries are counted; tool_result, thinking, and message entries are ignored",
-    "Percentages calculated from tool durations sum, not from session.Duration (session duration may include non-tool time)"
-  ],
-  "testsPassed": 11,
-  "testsFailed": 0,
-  "coverage": 100.0,
-  "acceptanceCriteria": [
-    { "criterion": "internal/stats/stats.go implements CalculateStats(session *Session) *SessionStats", "met": true },
-    { "criterion": "ToolCallCounts: accurate count per tool name (0 error margin)", "met": true },
-    { "criterion": "ToolTimePcts: percentage (0-100) per tool, sum approx 100%", "met": true },
-    { "criterion": "PeakStep: single slowest tool call (ToolCallSummary with name + duration)", "met": true },
-    { "criterion": "TotalDuration computed from session", "met": true },
-    { "criterion": "Handles empty sessions gracefully (zero counts, nil PeakStep)", "met": true },
-    { "criterion": "Unit tests: count accuracy, percentage calculation, empty sessions, single-tool sessions", "met": true },
-    { "criterion": "Test coverage >= 90%", "met": true }
-  ],
-  "notes": ""
+	"taskId": "2.6",
+	"status": "completed",
+	"summary": "Implement file watcher using fsnotify that monitors a directory for JSONL file changes, detects appends, and emits WatchEvent with FilePath, Offset, and Lines. Includes offset tracking, JSONL-only filtering, clean shutdown, and idempotent Start/Stop.",
+	"filesCreated": [
+		"internal/watcher/watcher.go",
+		"internal/watcher/watcher_test.go"
+	],
+	"filesModified": [
+		"go.mod",
+		"go.sum"
+	],
+	"keyDecisions": [
+		"2.6: Used fsnotify for OS-native file change events, no polling fallback needed as fsnotify handles cross-platform",
+		"2.6: Offset tracking via map[string]int64 to remember last-known file sizes per path",
+		"2.6: Only .jsonl files are processed; all other file events are filtered out in handleEvent",
+		"2.6: Buffered channel (cap 16) for events to reduce contention between producer and consumer",
+		"2.6: New files discovered via Create event emit all existing lines; existing files only emit new appends"
+	],
+	"testsPassed": 12,
+	"testsFailed": 0,
+	"coverage": 84.6,
+	"acceptanceCriteria": [
+		{ "criterion": "internal/watcher/watcher.go implements the Watcher interface with Start(), Stop(), Events() <-chan WatchEvent", "met": true },
+		{ "criterion": "WatchEvent carries FilePath, Offset, and raw new Lines", "met": true },
+		{ "criterion": "Detects file appends within 2 seconds", "met": true },
+		{ "criterion": "Stop() cleanly closes the watcher and channel", "met": true },
+		{ "criterion": "Integration tests using t.TempDir() for isolated fixture files", "met": true },
+		{ "criterion": "3-second timeout on test waits to prevent hangs", "met": true },
+		{ "criterion": "Test coverage >= 80%", "met": true }
+	],
+	"notes": "fsnotify provides cross-platform support including Windows (ReadDirectoryChangesW). No separate polling fallback needed."
 }
