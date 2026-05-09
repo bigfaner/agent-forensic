@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnosis — Agent Forensic</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="terminal">
+    <!-- Dimmed background (simulated Call Tree behind modal) -->
+    <div class="terminal-content" style="opacity: 0.3; pointer-events: none;">
+      <div class="panel panel-sessions" style="width:25%">
+        <div class="panel-title">Sessions</div>
+        <div class="panel-body">
+          <div class="session-row selected">▸ 2026-05-09 &nbsp;42 12m30s</div>
+          <div class="session-row">2026-05-08 &nbsp;18 &nbsp;5m12s</div>
+          <div class="session-row">2026-05-07 &nbsp;95 45m02s</div>
+        </div>
+      </div>
+      <div class="panel" style="width:75%;display:flex;flex-direction:column;">
+        <div class="panel-title">Call Tree — session 2026-05-09</div>
+        <div class="panel-body" style="opacity:0.5">
+          <div class="tree-node">● Turn 1 (12.3s) ▼</div>
+          <div class="tree-node">&nbsp;&nbsp;├─ Read src/index.ts (0.8s)</div>
+          <div class="tree-node anomaly-slow">&nbsp;&nbsp;├─ Bash npm test (8.2s) 🟡 [slow]</div>
+          <div class="tree-node">&nbsp;&nbsp;└─ Write src/fix.ts (3.3s)</div>
+          <div class="tree-node">● Turn 2 (5.1s)</div>
+          <div class="tree-node">● Turn 3 (45.2s)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnosis Modal -->
+    <div class="modal-overlay" style="display:flex; position:fixed;">
+      <div class="modal">
+        <div class="modal-title">Diagnosis — 3 anomalies found</div>
+        <div class="modal-body">
+          <div class="evidence-block selected" onclick="document.querySelectorAll('.evidence-block').forEach(e=>e.classList.remove('selected'));this.classList.add('selected')">
+            <div><span class="evidence-type slow">🟡 [slow]</span> <span class="bold">Bash</span> npm build <span class="text-secondary">(45.2s)</span> — line 1203</div>
+            <div class="evidence-chain">Turn 2 → Bash npm build</div>
+            <div class="evidence-thinking">thinking: "需要重新编译以验证修改..."</div>
+          </div>
+
+          <div class="evidence-block" onclick="document.querySelectorAll('.evidence-block').forEach(e=>e.classList.remove('selected'));this.classList.add('selected')">
+            <div><span class="evidence-type unauth">🔴 [unauth]</span> <span class="bold">Bash</span> rm -rf /tmp/old <span class="text-secondary">(44.5s)</span> — line 1567</div>
+            <div class="evidence-chain">Turn 3 → Bash rm -rf /tmp/old</div>
+            <div class="evidence-thinking">thinking: "清理旧的临时文件..."</div>
+          </div>
+
+          <div class="evidence-block" onclick="document.querySelectorAll('.evidence-block').forEach(e=>e.classList.remove('selected'));this.classList.add('selected')">
+            <div><span class="evidence-type slow">🟡 [slow]</span> <span class="bold">Write</span> config/prod.yml <span class="text-secondary">(32.1s)</span> — line 2341</div>
+            <div class="evidence-chain">Turn 4 → Write config/prod.yml</div>
+            <div class="evidence-thinking">thinking: "更新生产环境配置..."</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <span class="key">j/k</span>:select <span class="key">Enter</span>:jump <span class="key">Esc</span>:close
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar" style="position:fixed;bottom:0;left:0;right:0;">
+      <span class="key">j/k</span>:select <span class="key">Enter</span>:jump <span class="key">Esc</span>:close
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

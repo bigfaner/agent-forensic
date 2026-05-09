@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Agent Forensic</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="terminal">
+    <div class="terminal-content">
+      <div class="panel" style="width:100%; display:flex; flex-direction:column;">
+        <div class="panel-title">Dashboard — session 2026-05-09</div>
+        <div class="dashboard">
+          <div class="dashboard-header">
+            <div class="dashboard-metric">
+              <div class="label">Total Duration</div>
+              <div class="value">12m30s</div>
+            </div>
+            <div class="dashboard-metric">
+              <div class="label">Peak Step</div>
+              <div class="value" style="color: var(--color-warning)">Bash npm build (45.2s)</div>
+            </div>
+          </div>
+
+          <div class="dashboard-charts">
+            <div class="chart-section">
+              <div class="chart-title">Tool Calls</div>
+              <div class="bar-row">
+                <div class="bar-label">Read</div>
+                <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+                <div class="bar-count">12</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Bash</div>
+                <div class="bar-track"><div class="bar-fill slow" style="width:83%"></div></div>
+                <div class="bar-count">10</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Write</div>
+                <div class="bar-track"><div class="bar-fill" style="width:42%"></div></div>
+                <div class="bar-count">5</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Edit</div>
+                <div class="bar-track"><div class="bar-fill" style="width:25%"></div></div>
+                <div class="bar-count">3</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Grep</div>
+                <div class="bar-track"><div class="bar-fill" style="width:17%"></div></div>
+                <div class="bar-count">2</div>
+              </div>
+            </div>
+
+            <div class="chart-section">
+              <div class="chart-title">Time Distribution</div>
+              <div class="bar-row">
+                <div class="bar-label">Bash</div>
+                <div class="bar-track"><div class="bar-fill slow" style="width:48%"></div></div>
+                <div class="bar-count">48%</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Read</div>
+                <div class="bar-track"><div class="bar-fill" style="width:32%"></div></div>
+                <div class="bar-count">32%</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Write</div>
+                <div class="bar-track"><div class="bar-fill" style="width:15%"></div></div>
+                <div class="bar-count">15%</div>
+              </div>
+              <div class="bar-row">
+                <div class="bar-label">Edit</div>
+                <div class="bar-track"><div class="bar-fill" style="width:5%"></div></div>
+                <div class="bar-count">5%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session Picker (hidden by default) -->
+      <div class="session-picker-overlay" id="session-picker" style="display:none">
+        <div class="panel-title">Switch Session</div>
+        <div class="panel-body">
+          <div class="session-row selected" onclick="selectSession(this)">
+            <span class="marker">▸</span> 2026-05-09 &nbsp;42 12m30s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            2026-05-08 &nbsp;18 &nbsp;5m12s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            2026-05-07 &nbsp;95 45m02s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            2026-05-06 &nbsp;&nbsp;3 &nbsp;0m45s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            2026-05-05 &nbsp;27 &nbsp;8m15s
+          </div>
+        </div>
+        <div style="padding:4px 8px; color: var(--color-text-secondary); font-size:12px; border-top:1px solid var(--color-border-dim);">
+          <span class="key">Esc</span>:cancel <span class="key">Enter</span>:select
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span class="key">s</span>:back <span class="key">1</span>:session <span class="key">j/k</span>:nav <span class="key">Esc</span>:back <span class="key">m</span>:mon <span id="monitor-status" class="monitor-on">监听:开</span> <span class="key">q</span>:quit
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Toggle session picker with '1' key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === '1') {
+        const picker = document.getElementById('session-picker');
+        picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+      }
+      if (e.key === 'm') toggleMonitor();
+    });
+  </script>
+</body>
+</html>

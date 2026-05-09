@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Main TUI — Agent Forensic</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="terminal">
+    <div class="terminal-content">
+      <!-- Left: Sessions Panel -->
+      <div class="panel panel-sessions focused" id="panel-sessions">
+        <div class="panel-title">Sessions</div>
+        <div class="panel-body">
+          <div class="session-row selected" onclick="selectSession(this)">
+            <span class="marker">▸</span> 2026-05-09 &nbsp;42 12m30s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            <span style="color:#333"> </span> 2026-05-08 &nbsp;18 &nbsp;5m12s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            <span style="color:#333"> </span> 2026-05-07 &nbsp;95 45m02s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            <span style="color:#333"> </span> 2026-05-06 &nbsp;&nbsp;3 &nbsp;0m45s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            <span style="color:#333"> </span> 2026-05-05 &nbsp;27 &nbsp;8m15s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            <span style="color:#333"> </span> 2026-05-04 &nbsp;61 23m48s
+          </div>
+          <div class="session-row" onclick="selectSession(this)">
+            <span style="color:#333"> </span> 2026-05-03 &nbsp;15 &nbsp;3m02s
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Call Tree + Detail -->
+      <div class="panel panel-calltree" id="panel-calltree">
+        <!-- Call Tree (upper) -->
+        <div class="panel-calltree-upper">
+          <div class="panel-title">Call Tree — session 2026-05-09</div>
+          <div class="panel-body">
+            <!-- Turn 1 (expanded) -->
+            <div class="tree-node" onclick="toggleNode(this)">● <span class="bold">Turn 1</span> <span class="duration">(12.3s)</span> ▼</div>
+            <div class="tree-children" style="display:block">
+              <div class="tree-node" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">├─</span> <span class="tool-name">Read</span> src/index.ts <span class="duration">(0.8s)</span></div>
+              <div class="tree-node anomaly-slow" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">├─</span> <span class="tool-name">Bash</span> npm test <span class="duration">(8.2s)</span> 🟡 [slow]</div>
+              <div class="tree-node" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">└─</span> <span class="tool-name">Write</span> src/fix.ts <span class="duration">(3.3s)</span></div>
+            </div>
+
+            <!-- Turn 2 (expanded) -->
+            <div class="tree-node" onclick="toggleNode(this)">● <span class="bold">Turn 2</span> <span class="duration">(5.1s)</span> ▼</div>
+            <div class="tree-children" style="display:block">
+              <div class="tree-node" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">└─</span> <span class="text-secondary">📦 SubAgent ×3 (5.1s)</span></div>
+            </div>
+
+            <!-- Turn 3 (expanded) -->
+            <div class="tree-node" onclick="toggleNode(this)">● <span class="bold">Turn 3</span> <span class="duration">(45.2s)</span> ▼</div>
+            <div class="tree-children" style="display:block">
+              <div class="tree-node" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">├─</span> <span class="tool-name">Read</span> config/production.yml <span class="duration">(0.5s)</span></div>
+              <div class="tree-node anomaly-unauth node-new" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">└─</span> <span class="tool-name">Bash</span> rm -rf /tmp/old <span class="duration">(44.5s)</span> 🔴 [unauth]</div>
+            </div>
+
+            <!-- Turn 4 (collapsed) -->
+            <div class="tree-node" onclick="toggleNode(this)">● <span class="bold">Turn 4</span> <span class="duration">(32.1s)</span></div>
+            <div class="tree-children" style="display:none">
+              <div class="tree-node anomaly-slow" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">├─</span> <span class="tool-name">Write</span> config/prod.yml <span class="duration">(32.1s)</span> 🟡 [slow]</div>
+            </div>
+
+            <!-- Turn 5 (collapsed) -->
+            <div class="tree-node" onclick="toggleNode(this)">● <span class="bold">Turn 5</span> <span class="duration">(2.8s)</span></div>
+            <div class="tree-children" style="display:none">
+              <div class="tree-node" onclick="selectNode(this)">&nbsp;&nbsp;<span class="connector">└─</span> <span class="tool-name">Read</span> src/utils.ts <span class="duration">(2.8s)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail Panel (bottom) -->
+        <div class="panel-detail" id="panel-detail">
+          <div class="panel-title">Detail: Bash npm test — exit=1, line 847</div>
+          <div class="panel-body">
+            <div class="detail-field">tool_use.input:</div>
+            <div class="detail-content">  command: "npm test -- --coverage"
+  timeout: 30000</div>
+            <div class="detail-field">tool_result.content (42 lines):</div>
+            <div class="detail-content">FAIL src/index.test.ts
+  ● Test suite failed
+    SyntaxError: Unexpected token...
+<span class="detail-truncated">...truncated (Enter to expand)</span></div>
+            <div class="detail-warning">⚠ 内容已脱敏</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span class="key">1</span>:sess <span class="key">2</span>:call <span class="key">j/k</span>:nav <span class="key">Enter</span>:expand <span class="key">Tab</span>:detail <span class="key">/</span>:search <span class="key">n/p</span>:replay <span class="key">d</span>:diag <span class="key">s</span>:stats <span class="key">m</span>:mon <span id="monitor-status" class="monitor-on">监听:开</span> <span class="key">q</span>:quit
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Toggle monitoring with 'm' key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'm') toggleMonitor();
+    });
+  </script>
+</body>
+</html>

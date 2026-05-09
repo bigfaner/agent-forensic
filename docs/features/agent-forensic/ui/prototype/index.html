@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Forensic — Prototype Hub</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="hub">
+    <h1>agent-forensic — Prototype</h1>
+    <p>Terminal TUI for AI agent behavior diagnostics. Click a view to preview.</p>
+    <div class="page-grid">
+      <a href="main-tui.html">
+        <div class="page-card">
+          <div class="preview">
+┌─ Sessions ────┐ ┌─ Call Tree ────────┐
+│ ▸ 2026-05-09  │ │ ● Turn 1 (12.3s)   │
+│   2026-05-08  │ │   ├─ Read (0.8s)   │
+│   2026-05-07  │ │   ├─ Bash (8.2s) 🟡│
+├───────────────┘ └────────────────────┘
+│ Detail: Bash npm test — exit=1 ...      │
+│ FAIL src/index.test.ts                   │
+└──────────────────────────────────────────┘
+ j/k:nav  Enter:expand  q:quit
+          </div>
+          <h3>Main TUI (3-Panel)</h3>
+          <p>Primary interface: Sessions list + Call Tree + Detail panel + Status bar. Keyboard-driven navigation.</p>
+        </div>
+      </a>
+      <a href="dashboard.html">
+        <div class="page-card">
+          <div class="preview">
+┌─ Dashboard — session 2026-05-09 ──────┐
+│                                         │
+│  Total: 12m30s    Peak: Bash (45.2s)   │
+│                                         │
+│  Read  ████████████ 12   ████░ 32%     │
+│  Bash  ██████████ 10     ██████ 48%    │
+│  Write █████ 5           ██░░ 15%      │
+└─────────────────────────────────────────┘
+          </div>
+          <h3>Dashboard View</h3>
+          <p>Statistics: tool call distribution, time breakdown, peak step. Switch sessions inline.</p>
+        </div>
+      </a>
+      <a href="diagnosis.html">
+        <div class="page-card">
+          <div class="preview">
+╔═ Diagnosis — 3 anomalies ═══════════╗
+║                                      ║
+║  🟡 [slow] Bash build (45.2s) L1203 ║
+║     Turn 2 → Bash npm build         ║
+║                                      ║
+║  🔴 [unauth] rm -rf (44.5s) L1567  ║
+║     Turn 3 → Bash rm -rf /tmp/old   ║
+╚══════════════════════════════════════╝
+          </div>
+          <h3>Diagnosis Summary</h3>
+          <p>Modal popup listing all anomalies with evidence, call chains, and JSONL line references.</p>
+        </div>
+      </a>
+      <a href="states.html">
+        <div class="page-card">
+          <div class="preview">
+┌─ Sessions ──────────────┐
+│                          │
+│   扫描会话文件...        │
+│   / - \ |                │
+│                          │
+└──────────────────────────┘
+
+┌─ Sessions ──────────────┐
+│                          │
+│   错误: permission denied│
+│   [r] retry  [q] quit   │
+└──────────────────────────┘
+          </div>
+          <h3>States Gallery</h3>
+          <p>Loading, empty, error, search, and boundary states for all components.</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>States Gallery — Agent Forensic</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 20px; overflow-y: auto; }
+    .state-card { border: 1px solid var(--color-border-dim); background: var(--color-bg); }
+    .state-label { color: var(--color-accent); font-size: 11px; padding: 4px 8px; border-bottom: 1px solid var(--color-border-dim); background: var(--color-surface); }
+    .state-content { height: 160px; position: relative; }
+  </style>
+</head>
+<body>
+  <div style="padding: 12px 20px; border-bottom: 1px solid var(--color-border-dim);">
+    <span class="bold">States Gallery</span> <span class="text-secondary">— All component states side by side</span>
+  </div>
+  <div class="gallery">
+    <!-- Sessions: Loading -->
+    <div class="state-card">
+      <div class="state-label">Sessions — Loading</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Sessions</div>
+          <div class="loading">扫描会话文件... <span class="spinner">/</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions: Empty -->
+    <div class="state-card">
+      <div class="state-label">Sessions — Empty</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Sessions</div>
+          <div class="empty-state">未找到会话文件<br><span style="font-size:11px">请确认 ~/.claude/ 目录存在且包含 JSONL 文件</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions: Error -->
+    <div class="state-card">
+      <div class="state-label">Sessions — Error</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Sessions</div>
+          <div class="error-banner">错误: Permission denied on ~/.claude/</div>
+          <div class="error-detail" style="padding:8px;">
+            <span class="text-secondary">无法读取会话文件目录</span><br>
+            <span class="text-secondary" style="font-size:11px">[r] 重试  [q] 退出</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sessions: Search -->
+    <div class="state-card">
+      <div class="state-label">Sessions — Search Active</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Sessions</div>
+          <div class="search-box">
+            <span class="text-secondary">/</span>&gt; <span class="text-secondary">(date or keyword) </span><span style="text-primary">2026-05</span><span style="animation: blink 1s infinite">│</span>
+          </div>
+          <div class="panel-body">
+            <div class="session-row selected">▸ 2026-05-09 &nbsp;42 12m30s</div>
+            <div class="session-row">&nbsp; 2026-05-08 &nbsp;18 &nbsp;5m12s</div>
+            <div class="session-row">&nbsp; 2026-05-07 &nbsp;95 45m02s</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Call Tree: Loading -->
+    <div class="state-card">
+      <div class="state-label">Call Tree — Loading</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Call Tree</div>
+          <div class="loading">解析会话... <span class="spinner">/</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Call Tree: Error -->
+    <div class="state-card">
+      <div class="state-label">Call Tree — Error (partial)</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Call Tree — session 2026-05-09</div>
+          <div class="error-banner">解析失败: Corrupt JSONL at line 4523</div>
+          <div class="panel-body" style="opacity:0.5">
+            <div class="tree-node">● Turn 1 (12.3s)</div>
+            <div class="tree-node">● Turn 2 (5.1s)</div>
+          </div>
+          <div class="error-detail" style="font-size:11px">[r] 重试  [Esc] 关闭</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail: Empty -->
+    <div class="state-card">
+      <div class="state-label">Detail — Empty</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Detail</div>
+          <div class="empty-state">选中节点并按 Tab 查看详情</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail: Masked -->
+    <div class="state-card">
+      <div class="state-label">Detail — Masked (sensitive content)</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div class="panel" style="width:90%;height:90%;">
+          <div class="panel-title">Detail: Read .env — line 234</div>
+          <div class="panel-body">
+            <div class="detail-field">tool_use.input:</div>
+            <div class="detail-content">  file_path: ".env"</div>
+            <div class="detail-field">tool_result.content:</div>
+            <div class="detail-content">DATABASE_URL=postgresql://user:<span class="detail-masked">***</span>@localhost...</div>
+            <div class="detail-content">API_KEY=<span class="detail-masked">***</span></div>
+            <div class="detail-warning">⚠ 内容已脱敏</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnosis: No Anomalies -->
+    <div class="state-card">
+      <div class="state-label">Diagnosis — No Anomalies</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;">
+        <div style="border:2px solid var(--color-border);width:85%;height:80%;display:flex;flex-direction:column;">
+          <div style="padding:6px 10px;font-weight:bold;border-bottom:2px solid var(--color-border);">Diagnosis</div>
+          <div class="empty-state">该会话未检测到异常行为</div>
+          <div style="padding:4px 10px;border-top:2px solid var(--color-border);color:var(--color-text-secondary);font-size:11px;"><span class="key">Esc</span>:close</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Terminal: Too Small -->
+    <div class="state-card">
+      <div class="state-label">Terminal — Resize Below Minimum</div>
+      <div class="state-content" style="display:flex;align-items:center;justify-content:center;background:#000;">
+        <div class="text-warning" style="text-align:center;">终端尺寸过小<br>(需要 80x24)</div>
+      </div>
+    </div>
+  </div>
+
+  <style>@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }</style>
+</body>
+</html>
