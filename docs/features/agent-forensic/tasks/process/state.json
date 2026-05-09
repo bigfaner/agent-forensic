@@ -1,14 +1,14 @@
 {
-  "task_id": "2.4",
-  "key": "2.4-i18n",
-  "title": "i18n System",
+  "task_id": "2.5",
+  "key": "2.5-stats-calculator",
+  "title": "Stats Calculator",
   "priority": "P0",
-  "estimatedTime": "2h",
+  "estimatedTime": "1.5h",
   "dependencies": [
     "1.gate"
   ],
-  "file": "2.4-i18n.md",
-  "record": "records/2.4-i18n.md",
-  "startedTime": "2026-05-10 01:22",
+  "file": "2.5-stats-calculator.md",
+  "record": "records/2.5-stats-calculator.md",
+  "startedTime": "2026-05-10 07:50",
   "scope": "all"
 }
