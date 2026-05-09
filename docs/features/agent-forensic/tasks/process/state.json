@@ -1,14 +1,14 @@
 {
-  "task_id": "2.2",
-  "key": "2.2-anomaly-detector",
-  "title": "Anomaly Detector",
+  "task_id": "2.3",
+  "key": "2.3-sanitizer",
+  "title": "Sensitive Content Sanitizer",
   "priority": "P0",
-  "estimatedTime": "2h",
+  "estimatedTime": "1.5h",
   "dependencies": [
     "1.gate"
   ],
-  "file": "2.2-anomaly-detector.md",
-  "record": "records/2.2-anomaly-detector.md",
-  "startedTime": "2026-05-10 01:10",
+  "file": "2.3-sanitizer.md",
+  "record": "records/2.3-sanitizer.md",
+  "startedTime": "2026-05-10 01:18",
   "scope": "all"
 }
