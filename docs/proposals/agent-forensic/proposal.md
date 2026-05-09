@@ -78,9 +78,9 @@ status: Draft
 | Do nothing (继续用 forensic + 手动翻 JSONL) | 零开发成本 | 无实时能力、无可视化、排查效率低（20-40 分钟/次） | Rejected: 开发者体验太差，无法满足日常监督需求 |
 | VS Code Extension（在 IDE 内嵌入调用树和异常标记） | (1) 无需切换窗口，与代码编辑同屏；(2) 可点击工具调用跳转到对应源文件行号；(3) VS Code Marketplace 分发，触达大量 VS Code + Claude Code 用户 | (1) 依赖 VS Code 运行时（Electron 500MB+ 内存），不适用于纯终端用户；(2) 需学习 VS Code Webview API + Tree View Provider API，预估开发周期 3-4 周；(3) 不支持实时文件监听的 TUI 快捷键交互模式 | Deferred: 开发周期长，且排除纯终端用户。可作为 Phase 2 扩展 |
 | Claude Code Hook 集成（利用 Claude Code hooks 在每次工具调用时输出结构化日志到 stderr，用 `lnav` 等现有工具浏览） | (1) 零额外开发，利用 Claude Code 内置 hook 机制；(2) 实时输出，无需解析 JSONL；(3) 用户无需安装额外工具 | (1) hooks 只能输出文本，无法渲染树形视图和交互式导航；(2) 依赖 Claude Code hook API 稳定性，该 API 尚未正式文档化；(3) 无法事后回放历史会话，只能看到当前运行的数据 | Rejected: 无法解决核心需求（调用树 + 事后回放），且依赖未稳定的 API |
-| Web UI 方案 | 图表渲染能力强，可远程访问 | 依赖浏览器，不符合终端工作流习惯 | Deferred: MVP 先做 TUI，未来可扩展 |
+| Web UI 方案 | (1) 浏览器端可用 D3/Recharts 渲染丰富交互图表（火焰图、甘特时间线），远超终端 ASCII 条形图表现力；(2) 支持远程访问——开发者可通过 SSH 隧道或内网部署监控远程机器上的 agent 会话；(3) 零安装部署——用户无需编译目标平台二进制，打开 URL 即用 | (1) 需要服务端解析 JSONL 并维护 WebSocket 推送，架构复杂度高（HTTP server + JSONL watcher + WS hub）；(2) 引入认证和访问控制需求——会话内容含敏感代码和 token，暴露 HTTP 端口必须处理鉴权；(3) 开发者工作流在终端，切换到浏览器中断上下文，且无法与 tmux/screen 集成 | Deferred: MVP 阶段优先匹配终端工作流；Phase 2 可基于同一 JSONL 解析引擎增加 Web 前端 |
 
-**TUI 方案选择理由：** 终端是 Claude Code 用户的核心工作环境；TUI 零外部依赖（仅需 Go/Rust 编译产物），`agent-forensic --latest` 一键启动；lazygit 已验证了 TUI 三面板交互模式的可行性和用户接受度；预估开发周期 1.5-2 周，比 VS Code extension 快 2 倍以上。
+**TUI 方案选择理由：** 终端是 Claude Code 用户的核心工作环境；TUI 零外部依赖（仅需 Go/Rust 编译产物），`agent-forensic --latest` 一键启动；lazygit 已验证了 TUI 三面板交互模式的可行性和用户接受度；开发周期约 1.5-2 周，显著短于 VS Code extension 的 3-4 周。
 
 ## Scope
 
@@ -95,6 +95,15 @@ status: Draft
 - 异常标记：耗时过长步骤高亮 + 越权行为检测（访问项目外文件等）
 - AI 证据提取（Phase 1 / MVP）：选中异常会话 → 自动提取关键证据（调用链 + thinking 片段 + 越权操作）→ 展示诊断摘要，每条证据标注 JSONL 行号
 - 键盘驱动的交互：lazygit 风格快捷键操作
+
+**Timeline: 1.5-2 周，分两阶段交付：**
+
+| Phase | Items | Duration | Deliverable |
+|-------|-------|----------|-------------|
+| Phase 1a（核心数据 + 导航） | JSONL 解析引擎、Session 列表、调用树视图、键盘驱动交互 | Week 1 (5 天) | 可加载 JSONL 并在调用树中浏览的可用 TUI |
+| Phase 1b（分析 + 增值功能） | 事后回放、实时监听、统计仪表盘、异常标记、AI 证据提取 | Week 2 (5 天) | 功能完整的 MVP |
+
+关键路径：JSONL 解析引擎 → 调用树视图 → 异常标记 → AI 证据提取（后两项依赖前两项的数据结构）。
 
 ### Post-MVP (Phase 2)
 
@@ -116,22 +125,24 @@ status: Draft
 | JSONL 格式变更导致解析失败 | High | High | (1) 解析器记录格式版本哈希，不匹配时警告并回退纯文本视图；(2) CI 快照测试覆盖 3 个历史版本 JSONL |
 | 大型会话（>10000行）性能瓶颈 | Medium | Medium | (1) 流式解析器首屏只解析前 500 行立即渲染；(2) 虚拟滚动仅渲染可视区 ± 20 行节点，帧率 ≥ 30fps |
 | Sub-agent 会话关联复杂 | Medium | Medium | MVP 阶段 sub-agent 仅显示单行概要（调用次数 + 总耗时），不做完整调用树展开 |
-| 用户采纳风险 — 开发者是否切换到独立 TUI | High | High | (1) 一键启动 `agent-forensic --latest`；(2) 管道模式 `cat session.jsonl \| agent-forensic -`；(3) 发布 2 周内收集 ≥5 位用户周活跃数据验证 |
+| 用户采纳风险 — 开发者是否切换到独立 TUI | High | High | (1) 一键启动 `agent-forensic --latest`；(2) 管道模式 `cat session.jsonl \| agent-forensic -`；(3) 定义"活跃用户"为一周内 ≥2 次独立启动并浏览调用树的唯一用户；(4) 目标：发布后 4 周内达到 ≥20 位活跃用户且第 4 周周留存率 ≥50%；(5) Go/no-go：若 4 周后活跃用户 <10 或周留存 <30%，则评估转向 VS Code Extension 方案或降低为按需脚本工具 |
 | 数据隐私 — 读取含敏感代码的会话内容 | Medium | High | (1) 默认截断参数至 200 字符，按 Enter 展开；(2) 匹配 `API_KEY\|SECRET\|TOKEN\|PASSWORD` 自动脱敏为 `***`；(3) 数据仅本地处理 |
 | AI 证据提取产生误导性判断 | Medium | High | (1) 证据标注 JSONL 行号，用户可逐条跳转原文验证；(2) 仅展示事实（调用链 + 耗时 + 参数），不做推断性诊断；(3) 显示免责声明：证据提取不等于根因结论 |
-| AI 根因分析（Phase 2）范围蔓延 | Medium | Medium | (1) Phase 1 严格限定为证据提取，不启动 agent 会话；(2) Phase 2 需在 Phase 1 验证采纳率 ≥60% 后再启动；(3) 时间预算 ≤2 天，超出降级为手动导出 |
+| AI 根因分析（Phase 2）范围蔓延 | Medium | Medium | (1) Phase 1 严格限定为证据提取，不启动 agent 会话；(2) Phase 2 需在 Phase 1 验证活跃用户 ≥20 且证据提取功能周使用率 ≥60%（被标记为活跃用户的用户中，每周 ≥60% 使用过 `d` 诊断快捷键）后再启动；(3) 时间预算 ≤2 天，超出降级为手动导出 |
 
 ## Success Criteria
 
 - [ ] 解析引擎对 <5000 行 JSONL 在 3 秒内渲染首屏，5000-20000 行在 5 秒内渲染首屏
 - [ ] 调用树展示 ≥3 层嵌套（session → turn → tool call），每个节点显示工具名称和耗时；sub-agent 显示调用次数 + 总耗时概要
 - [ ] Session 列表展示所有历史会话（时间、调用数、耗时）；搜索结果 500ms 内返回，支持日期筛选
-- [ ] 统计仪表盘数据与 JSONL 原文一致：工具调用计数误差 0，耗时误差 ≤1 秒
-- [ ] 异常标记检出率 100%、误标率 ≤5%：耗时 >30 秒标黄色，访问项目外路径标红色
+- [ ] 统计仪表盘渲染完整：展示工具调用次数分布（横向条形图）、各步骤耗时占比（百分比条）、任务总耗时数值；切换会话后仪表盘数据在 500ms 内刷新；数据与 JSONL 原文一致（工具调用计数误差 0，耗时误差 ≤1 秒）
+- [ ] 异常标记基于标注测试语料验证：准备 ≥3 个已知异常的 JSONL 会话文件（含耗时 >30s 步骤 ×2、项目外路径访问 ×1、正常步骤 ×5）；检出已植入异常点 ≥95%、误标正常步骤 ≤5%
+- [ ] 事后回放导航：加载历史会话后可按时间轴顺序用 `n`/`p` 在 Turn 间前后跳转，跳转后调用树自动定位并展开对应 Turn；耗时排名前 20% 的步骤在时间轴上高亮显示
 - [ ] 实时监听在 JSONL 写入后 2 秒内显示新节点，新节点有视觉标记持续 3 秒
-- [ ] 核心快捷键（j/k、Enter、Tab、/、q）响应 <100ms，快捷键在状态栏常驻显示
+- [ ] 核心快捷键（j/k、Enter、Tab、/、n/p、d、q）响应 <100ms，快捷键在状态栏常驻显示
 - [ ] 纯观察验证：运行前后 `~/.claude/` 目录所有文件 SHA256 哈希一致，不向 Claude Code 进程发送信号
 - [ ] AI 证据提取（Phase 1）：自动展示异常会话的关键证据（异常调用链 + thinking 片段 + 越权操作），每条标注 JSONL 行号，覆盖 100% 已标记异常点；用户按 `Enter` 可从证据行号跳转回调用树对应节点
+- [ ] 敏感内容脱敏：匹配 `API_KEY|SECRET|TOKEN|PASSWORD` 模式（大小写不敏感）的参数值替换为 `***`，脱敏后字符串不再包含原始值；用户按 `Enter` 展开时显示脱敏警告提示
 
 ## Next Steps
 
