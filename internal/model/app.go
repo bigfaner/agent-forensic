@@ -476,6 +476,23 @@ func (m *AppModel) updateStatusBarMode() {
 	}
 }
 
+// SetSessions loads session data into the sessions panel and dashboard.
+// This is the primary way for external packages (e.g. E2E tests) to
+// populate the model with test data.
+func (m AppModel) SetSessions(sessions []parser.Session) AppModel {
+	m.sessions = m.sessions.SetSessions(sessions)
+	m.dashboard = m.dashboard.SetSessions(sessions)
+	return m
+}
+
+// SetCurrentSession loads a session as the active session, populating the
+// call tree and dashboard. Useful for E2E tests that need a session pre-loaded.
+func (m AppModel) SetCurrentSession(session *parser.Session) AppModel {
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	return m
+}
+
 // View implements tea.Model.
 func (m AppModel) View() string {
 	// Show resize warning if terminal is too small

@@ -3,130 +3,134 @@
   "proposal": "docs/proposals/tui-e2e-testing/proposal.md",
   "created": "2026-05-10",
   "status": "planning",
-  "statusEnum": ["pending", "in_progress", "completed", "blocked", "skipped", "rejected"],
-  "priorityEnum": ["P0", "P1", "P2"],
-  "e2eRound": 0,
   "tasks": {
     "1-infrastructure": {
       "id": "1",
       "title": "Go E2E Test Infrastructure",
       "priority": "P0",
       "estimatedTime": "1-2h",
-      "dependencies": [],
-      "status": "pending",
-      "scope": "all",
-      "breaking": false,
-      "noTest": false,
-      "mainSession": false,
+      "status": "completed",
       "file": "1-infrastructure.md",
-      "record": "records/1-infrastructure.md"
+      "record": "records/1-infrastructure.md",
+      "scope": "all"
     },
     "2-core-flows": {
       "id": "2",
-      "title": "Core User Flow & Keyboard Interaction Tests",
+      "title": "Core User Flow \u0026 Keyboard Interaction Tests",
       "priority": "P0",
       "estimatedTime": "2h",
-      "dependencies": ["1"],
+      "dependencies": [
+        "1"
+      ],
       "status": "pending",
-      "scope": "all",
-      "breaking": false,
-      "noTest": false,
-      "mainSession": false,
       "file": "2-core-flows.md",
-      "record": "records/2-core-flows.md"
+      "record": "records/2-core-flows.md",
+      "scope": "all"
     },
     "3-boundary-layout": {
       "id": "3",
-      "title": "Boundary & Layout Tests",
+      "title": "Boundary \u0026 Layout Tests",
       "priority": "P0",
       "estimatedTime": "1-2h",
-      "dependencies": ["2"],
+      "dependencies": [
+        "2"
+      ],
       "status": "pending",
-      "scope": "all",
-      "breaking": false,
-      "noTest": false,
-      "mainSession": false,
       "file": "3-boundary-layout.md",
-      "record": "records/3-boundary-layout.md"
+      "record": "records/3-boundary-layout.md",
+      "scope": "all"
     },
     "4-monitoring-flow": {
       "id": "4",
       "title": "Real-time Monitoring Flow Test",
       "priority": "P0",
       "estimatedTime": "1-2h",
-      "dependencies": ["3"],
+      "dependencies": [
+        "3"
+      ],
       "status": "pending",
-      "scope": "all",
-      "breaking": false,
-      "noTest": false,
-      "mainSession": false,
       "file": "4-monitoring-flow.md",
-      "record": "records/4-monitoring-flow.md"
-    },
-    "quick-test-cases": {
-      "id": "T-quick-1",
-      "title": "Generate Quick Test Cases",
-      "priority": "P1",
-      "estimatedTime": "30min-1h",
-      "dependencies": ["4"],
-      "status": "pending",
-      "scope": "all",
-      "noTest": true,
-      "mainSession": false,
-      "file": "quick-test-cases.md",
-      "record": "records/quick-test-cases.md"
+      "record": "records/4-monitoring-flow.md",
+      "scope": "all"
     },
     "quick-gen-scripts": {
       "id": "T-quick-2",
       "title": "Generate Quick Test Scripts",
       "priority": "P1",
       "estimatedTime": "30min-1h",
-      "dependencies": ["T-quick-1"],
+      "dependencies": [
+        "T-quick-1"
+      ],
       "status": "pending",
-      "scope": "all",
-      "noTest": false,
-      "mainSession": false,
       "file": "quick-gen-scripts.md",
-      "record": "records/quick-gen-scripts.md"
-    },
-    "quick-run-tests": {
-      "id": "T-quick-3",
-      "title": "Run Quick E2E Tests",
-      "priority": "P1",
-      "estimatedTime": "15-30min",
-      "dependencies": ["T-quick-2"],
-      "status": "pending",
-      "scope": "all",
-      "noTest": false,
-      "mainSession": false,
-      "file": "quick-run-tests.md",
-      "record": "records/quick-run-tests.md"
+      "record": "records/quick-gen-scripts.md",
+      "scope": "all"
     },
     "quick-graduate": {
       "id": "T-quick-4",
       "title": "Graduate Quick Test Scripts",
       "priority": "P1",
       "estimatedTime": "15min",
-      "dependencies": ["T-quick-3"],
+      "dependencies": [
+        "T-quick-3"
+      ],
       "status": "pending",
-      "scope": "all",
-      "noTest": false,
-      "mainSession": false,
       "file": "quick-graduate.md",
-      "record": "records/quick-graduate.md"
+      "record": "records/quick-graduate.md",
+      "scope": "all"
+    },
+    "quick-run-tests": {
+      "id": "T-quick-3",
+      "title": "Run Quick E2E Tests",
+      "priority": "P1",
+      "estimatedTime": "15-30min",
+      "dependencies": [
+        "T-quick-2"
+      ],
+      "status": "pending",
+      "file": "quick-run-tests.md",
+      "record": "records/quick-run-tests.md",
+      "scope": "all"
+    },
+    "quick-test-cases": {
+      "id": "T-quick-1",
+      "title": "Generate Quick Test Cases",
+      "priority": "P1",
+      "estimatedTime": "30min-1h",
+      "dependencies": [
+        "4"
+      ],
+      "status": "pending",
+      "file": "quick-test-cases.md",
+      "record": "records/quick-test-cases.md",
+      "scope": "all",
+      "noTest": true
     },
     "quick-verify-regression": {
       "id": "T-quick-5",
       "title": "Verify Quick E2E Regression",
       "priority": "P1",
       "estimatedTime": "15min",
-      "dependencies": ["T-quick-4"],
+      "dependencies": [
+        "T-quick-4"
+      ],
       "status": "pending",
-      "scope": "all",
-      "noTest": false,
-      "mainSession": false,
       "file": "quick-verify-regression.md",
-      "record": "records/quick-verify-regression.md"
+      "record": "records/quick-verify-regression.md",
+      "scope": "all"
     }
-  }
+  },
+  "statusEnum": [
+    "pending",
+    "in_progress",
+    "completed",
+    "blocked",
+    "skipped",
+    "rejected"
+  ],
+  "priorityEnum": [
+    "P0",
+    "P1",
+    "P2"
+  ]
 }
