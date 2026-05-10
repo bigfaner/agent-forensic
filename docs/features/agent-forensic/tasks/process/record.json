@@ -1,42 +1,41 @@
 {
-	"taskId": "3.3",
-	"status": "completed",
-	"summary": "Implement DetailModel for the detail panel (bottom, 75% width, lower 33%). Supports Empty, Truncated, Expanded, Masked, and Error states with content truncation >200 chars, sensitive content masking via sanitizer, JSON pretty-print for tool_use.input, virtual scroll for expanded content, and golden file tests.",
-	"filesCreated": [
-		"internal/model/detail.go",
-		"internal/model/detail_test.go",
-		"internal/model/testdata/detail_empty.golden",
-		"internal/model/testdata/detail_truncated.golden",
-		"internal/model/testdata/detail_expanded.golden",
-		"internal/model/testdata/detail_masked.golden"
-	],
-	"filesModified": [
-		"internal/i18n/locales/zh.yaml",
-		"internal/i18n/locales/en.yaml"
-	],
-	"keyDecisions": [
-		"Used ToolName == '' as empty-entry check instead of Type since EntryToolUse is iota 0",
-		"Content truncation uses strict >200 chars threshold (exactly 200 NOT truncated)",
-		"Sanitize all content on SetEntry; store both raw and sanitized versions",
-		"Masked state persists across expand/collapse toggles when sensitive content detected",
-		"JSON pretty-print for tool_use.input using json.MarshalIndent",
-		"Field labels in bright cyan (color 51), content in white (color 15)",
-		"Exit code only shown in title for entries with non-nil ExitCode (Bash entries)"
-	],
-	"testsPassed": 36,
-	"testsFailed": 0,
-	"coverage": 89.5,
-	"acceptanceCriteria": [
-		{"criterion": "internal/model/detail.go implements DetailModel with Init(), Update(msg tea.Msg), View() string", "met": true},
-		{"criterion": "States: Empty, Truncated, Expanded, Masked, Error", "met": true},
-		{"criterion": "Content >200 chars: truncated with notice", "met": true},
-		{"criterion": "Content <=200 chars (including exactly 200): displayed in full", "met": true},
-		{"criterion": "Sensitive values masked with ***, warning banner shown", "met": true},
-		{"criterion": "Panel title format with exit code and line number", "met": true},
-		{"criterion": "Keyboard: Enter toggle, Tab cycle, Esc return", "met": true},
-		{"criterion": "Virtual scroll for expanded large content", "met": true},
-		{"criterion": "Golden file tests for truncated, expanded, and masked rendering", "met": true},
-		{"criterion": "Test coverage >= 85%", "met": true}
-	],
-	"notes": "Added detail.empty_hint i18n key to both zh and en locale files."
+  "taskId": "3.4",
+  "status": "completed",
+  "summary": "Implement DashboardModel with bar chart rendering, session picker overlay, and all state transitions (Loading, Populated, Refreshing, Session Picker, Error)",
+  "filesCreated": [
+    "internal/model/dashboard.go",
+    "internal/model/dashboard_test.go",
+    "internal/model/dashboard_golden_test.go",
+    "internal/model/testdata/dashboard_populated.golden",
+    "internal/model/testdata/dashboard_empty.golden",
+    "internal/model/testdata/dashboard_loading.golden",
+    "internal/model/testdata/dashboard_error.golden",
+    "internal/model/testdata/dashboard_picker.golden"
+  ],
+  "filesModified": [],
+  "keyDecisions": [
+    "3.4: DashboardModel uses value receiver pattern matching SessionsModel/CallTreeModel/DetailModel convention",
+    "3.4: Bar chart uses proportional scaling: longest bar = available width, others proportional to count",
+    "3.4: Percentage bars use 8-char width with filled/unfilled chars (█░)",
+    "3.4: Session picker rendered as overlay within View() when pickerActive is true",
+    "3.4: Picker uses left 25% width (min 25 chars) matching Sessions Panel dimensions",
+    "3.4: Peak step highlighted in bright yellow when duration >= 30s",
+    "3.4: Tools sorted descending by count in bar chart, with alphabetical tiebreaker"
+  ],
+  "testsPassed": 34,
+  "testsFailed": 0,
+  "coverage": 89.7,
+  "acceptanceCriteria": [
+    { "criterion": "internal/model/dashboard.go implements DashboardModel with Init(), Update(msg tea.Msg), View() string", "met": true },
+    { "criterion": "States: Loading, Populated, Refreshing, Session Picker, Error", "met": true },
+    { "criterion": "Bar chart rendering: █ chars for counts, █░ for percentages, sorted descending", "met": true },
+    { "criterion": "Bar scaling: longest bar = available width, others proportional", "met": true },
+    { "criterion": "Total duration, peak step (highlighted yellow if slow) displayed", "met": true },
+    { "criterion": "Session Picker: left 25% overlay with j/k navigation and Enter selection", "met": true },
+    { "criterion": "Dashboard refreshes within 500ms on session change", "met": true },
+    { "criterion": "Keyboard: s/Esc return to Call Tree, 1 toggle session picker", "met": true },
+    { "criterion": "Golden file tests for populated and picker states", "met": true },
+    { "criterion": "Test coverage >= 85%", "met": true }
+  ],
+  "notes": "Uses stats.CalculateStats() for data aggregation. Golden files generated for 5 states: populated, empty, loading, error, picker."
 }

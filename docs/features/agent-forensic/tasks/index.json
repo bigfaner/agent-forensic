@@ -225,7 +225,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.4-dashboard-view.md",
       "record": "records/3.4-dashboard-view.md",
       "scope": "all"
