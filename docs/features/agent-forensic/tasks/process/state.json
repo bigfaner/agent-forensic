@@ -1,14 +1,15 @@
 {
-  "task_id": "T-test-4",
-  "key": "graduate-tests",
-  "title": "Graduate Test Scripts",
-  "priority": "P1",
-  "estimatedTime": "30min",
+  "task_id": "T-test-5",
+  "key": "consolidate-specs",
+  "title": "Consolidate Specs",
+  "priority": "P2",
+  "estimatedTime": "20min",
   "dependencies": [
-    "T-test-3"
+    "T-test-4.5"
   ],
-  "file": "graduate-tests.md",
-  "record": "records/graduate-tests.md",
-  "startedTime": "2026-05-10 15:54",
-  "scope": "all"
+  "file": "consolidate-specs.md",
+  "record": "records/consolidate-specs.md",
+  "startedTime": "2026-05-10 16:09",
+  "scope": "all",
+  "noTest": true
 }
