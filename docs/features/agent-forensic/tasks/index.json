@@ -292,7 +292,7 @@
       "dependencies": [
         "3.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "4.1-app-model.md",
       "record": "records/4.1-app-model.md",
       "breaking": true,
