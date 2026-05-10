@@ -1,14 +1,15 @@
 {
-  "task_id": "3.6",
-  "key": "3.6-statusbar",
-  "title": "Status Bar Model",
-  "priority": "P1",
-  "estimatedTime": "2h",
+  "task_id": "3.summary",
+  "key": "3-summary",
+  "title": "Phase 3 Summary",
+  "priority": "P0",
+  "estimatedTime": "15min",
   "dependencies": [
-    "2.gate"
+    "3.x"
   ],
-  "file": "3.6-statusbar.md",
-  "record": "records/3.6-statusbar.md",
-  "startedTime": "2026-05-10 08:34",
-  "scope": "all"
+  "file": "3-summary.md",
+  "record": "records/3-summary.md",
+  "startedTime": "2026-05-10 08:38",
+  "scope": "all",
+  "noTest": true
 }
