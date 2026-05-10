@@ -415,7 +415,7 @@
         "T-test-2",
         "fix-1"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "run-e2e-tests.md",
       "record": "records/run-e2e-tests.md",
       "scope": "all"
