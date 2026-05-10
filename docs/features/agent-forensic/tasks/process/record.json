@@ -1,42 +1,33 @@
 {
-	"taskId": "3.5",
-	"status": "completed",
-	"summary": "Implemented DiagnosisModal Bubble Tea model for the anomaly diagnosis overlay. Supports four states (No Anomalies, Has Anomalies, Evidence Selected, Error), double-line border (╔╗╚╝) for modal distinction, evidence blocks with icon + type tag (🟡 [slow] / 🔴 [unauthorized]), tool name + duration + line number, call chain context joined with →, thinking fragments truncated to 200 chars in bright cyan, reverse video highlight for selected evidence, and keyboard navigation (j/k navigate, Enter jump-back, Esc/q close). Jump-back emits JumpBackMsg with LineNum for the call tree to auto-expand parent Turn and scroll to target. Added JumpBackMsg type, DiagnosisState enum, and i18n keys (diagnosis.no_anomalies) for zh/en locales. Golden file tests for anomaly list rendering.",
-	"filesCreated": [
-		"internal/model/diagnosis.go",
-		"internal/model/diagnosis_test.go",
-		"internal/model/diagnosis_golden_test.go",
-		"internal/model/testdata/diagnosis_anomalies.golden",
-		"internal/model/testdata/diagnosis_no_anomalies.golden",
-		"internal/model/testdata/diagnosis_error.golden"
-	],
-	"filesModified": [
-		"internal/i18n/locales/zh.yaml",
-		"internal/i18n/locales/en.yaml"
-	],
-	"keyDecisions": [
-		"Show() collects anomalies and thinkings from all turns in the session rather than requiring pre-computed data",
-		"Used map[int]string for thinkings (lineNum -> content) to efficiently look up thinking by anomaly LineNum",
-		"JumpBackMsg includes LineNum for call tree to find and scroll to target node",
-		"DiagnosisModal uses value receiver for immutable methods (SetError, SetSize) matching project pattern",
-		"Test functions prefixed with Diag to avoid name collisions with existing tests in same package",
-		"Thinking truncation uses len() on string (>200) consistent with detail.go pattern",
-		"Modal centered using lipgloss.Place with 80%x60% dimensions as specified in UI design"
-	],
-	"testsPassed": 249,
-	"testsFailed": 0,
-	"coverage": 90.8,
-	"acceptanceCriteria": [
-		{ "criterion": "internal/model/diagnosis.go implements DiagnosisModal with Init(), Update(msg tea.Msg), View() string", "met": true },
-		{ "criterion": "States: No Anomalies, Has Anomalies, Evidence Selected, Error", "met": true },
-		{ "criterion": "Double-line border (╔ ╗ ╚ ╝) for modal distinction", "met": true },
-		{ "criterion": "Evidence blocks: icon + type tag (🟡 [slow] / 🔴 [unauthorized]), tool + duration + line, call chain, thinking", "met": true },
-		{ "criterion": "Thinking truncated to 200 chars in bright cyan", "met": true },
-		{ "criterion": "Selected evidence: reverse video highlight", "met": true },
-		{ "criterion": "Keyboard: j/k navigate, Enter jump to call tree node (auto-expand parent Turn), Esc/q close", "met": true },
-		{ "criterion": "Jump-back scrolls call tree to target node and highlights it", "met": true },
-		{ "criterion": "Golden file tests for anomaly list rendering", "met": true },
-		{ "criterion": "Test coverage >= 85%", "met": true }
-	],
-	"notes": "JumpBackMsg.TurnIdx field is included for future auto-expand support by the call tree model. The call tree's handleDiagnosis() emits DiagnosisRequestMsg which the app model will route to show the diagnosis modal."
+  "taskId": "3.6",
+  "status": "completed",
+  "summary": "Implemented StatusBarModel with Init(), Update(), View() for Bubble Tea. Supports 5 modes (Normal, Search, Diagnosis, Dashboard, Error) with responsive truncation at 60/80/100 col thresholds, monitoring indicator (监听:开/关 with green/secondary colors), and language indicator (中/EN at far right). Uses lipgloss styling for bold keys and dim descriptions.",
+  "filesCreated": [
+    "internal/model/statusbar.go",
+    "internal/model/statusbar_test.go"
+  ],
+  "filesModified": [],
+  "keyDecisions": [
+    "Used simple hint() helper function instead of hintGroup struct for cleaner rendering",
+    "Responsive truncation: priority-1 (>=60 cols), priority-2 (>=80 cols), priority-3 (>=100 cols) matching UI design spec",
+    "Monitoring indicator styled with bright green (82) for watching, text-secondary (242) for idle",
+    "Language indicator always shown at far right regardless of terminal width",
+    "Dashboard mode retains monitoring indicator at >=80 cols per UI design spec",
+    "Used lipgloss Color codes directly rather than named constants for ANSI colors"
+  ],
+  "testsPassed": 40,
+  "testsFailed": 0,
+  "coverage": 91.5,
+  "acceptanceCriteria": [
+    { "criterion": "statusbar.go implements StatusBarModel with Init(), Update(msg tea.Msg), View() string", "met": true },
+    { "criterion": "States: Normal, Search Active, Diagnosis Active, Dashboard Active, Error", "met": true },
+    { "criterion": "Normal state key hints rendered with nav/search/quit keys", "met": true },
+    { "criterion": "Responsive truncation: priority-1 (>=60 cols), priority-2 (>=80 cols), priority-3 (>=100 cols)", "met": true },
+    { "criterion": "Monitoring indicator: 监听:开 (green) / 监听:关 (text-secondary)", "met": true },
+    { "criterion": "Language indicator: 中 / EN at far right", "met": true },
+    { "criterion": "Mode-specific hints: search mode, diagnosis mode, dashboard mode, error mode", "met": true },
+    { "criterion": "Status bar updates on mode change, monitoring toggle, language switch", "met": true },
+    { "criterion": "Test coverage >= 85%", "met": true }
+  ],
+  "notes": ""
 }

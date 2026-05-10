@@ -1,14 +1,14 @@
 {
-  "task_id": "3.5",
-  "key": "3.5-diagnosis-modal",
-  "title": "Diagnosis Modal Model",
-  "priority": "P0",
-  "estimatedTime": "2.5h",
+  "task_id": "3.6",
+  "key": "3.6-statusbar",
+  "title": "Status Bar Model",
+  "priority": "P1",
+  "estimatedTime": "2h",
   "dependencies": [
     "2.gate"
   ],
-  "file": "3.5-diagnosis-modal.md",
-  "record": "records/3.5-diagnosis-modal.md",
-  "startedTime": "2026-05-10 08:28",
+  "file": "3.6-statusbar.md",
+  "record": "records/3.6-statusbar.md",
+  "startedTime": "2026-05-10 08:34",
   "scope": "all"
 }
