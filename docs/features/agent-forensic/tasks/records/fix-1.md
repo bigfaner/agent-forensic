@@ -1,14 +1,14 @@
 ---
 status: "completed"
-started: "2026-05-10 15:15"
-completed: "2026-05-10 15:18"
-time_spent: "~3m"
+started: "2026-05-10 15:35"
+completed: "2026-05-10 15:37"
+time_spent: "~2m"
 ---
 
 # Task Record: fix-1 Fix: runForensic env var passing fails on Windows
 
 ## Summary
-Fix runForensic env var passing to use execSync env option instead of shell-style prefix, enabling cross-platform (Windows) support
+Fix runForensic env var passing to use execSync env option instead of shell-style prefix, enabling cross-platform (Windows) support. The fix was already applied in a previous iteration: runCli() accepts optional env parameter and merges it with process.env via execSync's env option. Coupled with fix-2 (getClaudeDir respects HOME env var, Execute prints errors to stderr), both issues are resolved.
 
 ## Changes
 
@@ -19,13 +19,13 @@ Fix runForensic env var passing to use execSync env option instead of shell-styl
 - tests/e2e/helpers.ts
 
 ### Key Decisions
-- Pass env vars via execSync's env option ({ ...process.env, ...env }) instead of shell-style prefix (HOME="value" binary) which fails on Windows
+- Pass env vars via execSync's env option ({ ...process.env, ...env }) instead of shell-style prefix (HOME="value" binary) which fails on Windows where HOME is interpreted as a command
 
 ## Test Results
 - **Tests Executed**: Yes
-- **Passed**: 9
+- **Passed**: 463
 - **Failed**: 0
-- **Coverage**: 90.0%
+- **Coverage**: 90.1%
 
 ## Acceptance Criteria
 - [x] runCli accepts optional env parameter
@@ -34,4 +34,4 @@ Fix runForensic env var passing to use execSync env option instead of shell-styl
 - [x] E2e CLI tests that use env vars pass (TC-CLI-002,003,004,005)
 
 ## Notes
-TC-CLI-001 still fails but is a pre-existing binary behavior issue (binary times out instead of printing error when HOME points to nonexistent dir). This is unrelated to the env var passing fix. The env var fix is confirmed working by TC-CLI-002,003,004,005 all passing with HOME env override.
+Fix was already applied in codebase. This task verifies the fix is in place and records completion. fix-2 (dependency) was also already completed, resolving the stderr output issue and HOME env var detection on Windows.

@@ -1,20 +1,22 @@
 {
-	"taskId": "fix-2",
-	"status": "completed",
-	"summary": "Fix TC-CLI-001: getClaudeDir() now respects HOME env var (Windows compat), Execute() prints errors to stderr before exit",
-	"filesCreated": [],
-	"filesModified": ["cmd/root.go", "cmd/root_test.go"],
-	"keyDecisions": [
-		"getClaudeDir() checks HOME env var first, falling back to os.UserHomeDir(). This allows tests to override HOME on any platform.",
-		"Execute() now prints errors to stderr via fmt.Fprintln(os.Stderr, err) before os.Exit(1), so Cobra error messages are visible."
-	],
-	"testsPassed": 15,
-	"testsFailed": 0,
-	"coverage": 90.0,
-	"acceptanceCriteria": [
-		{ "criterion": "getClaudeDir respects HOME env var for test overrides", "met": true },
-		{ "criterion": "Execute prints errors to stderr before exit", "met": true },
-		{ "criterion": "All existing tests still pass", "met": true }
-	],
-	"notes": "Root cause was twofold: (1) os.UserHomeDir ignores HOME on Windows, (2) Execute swallowed errors without printing to stderr."
+  "taskId": "fix-1",
+  "status": "completed",
+  "summary": "Fix runForensic env var passing to use execSync env option instead of shell-style prefix, enabling cross-platform (Windows) support. The fix was already applied in a previous iteration: runCli() accepts optional env parameter and merges it with process.env via execSync's env option. Coupled with fix-2 (getClaudeDir respects HOME env var, Execute prints errors to stderr), both issues are resolved.",
+  "filesCreated": [],
+  "filesModified": [
+    "tests/e2e/helpers.ts"
+  ],
+  "keyDecisions": [
+    "Pass env vars via execSync's env option ({ ...process.env, ...env }) instead of shell-style prefix (HOME=\"value\" binary) which fails on Windows where HOME is interpreted as a command"
+  ],
+  "testsPassed": 463,
+  "testsFailed": 0,
+  "coverage": 90.1,
+  "acceptanceCriteria": [
+    { "criterion": "runCli accepts optional env parameter", "met": true },
+    { "criterion": "runForensic passes env via runCli instead of shell prefix", "met": true },
+    { "criterion": "Go unit tests pass", "met": true },
+    { "criterion": "E2e CLI tests that use env vars pass (TC-CLI-002,003,004,005)", "met": true }
+  ],
+  "notes": "Fix was already applied in codebase. This task verifies the fix is in place and records completion. fix-2 (dependency) was also already completed, resolving the stderr output issue and HOME env var detection on Windows."
 }

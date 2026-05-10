@@ -1,11 +1,14 @@
 {
-  "task_id": "fix-2",
-  "key": "fix-2",
-  "title": "Fix: TC-CLI-001 stderr empty for missing ~/.claude/ directory",
+  "task_id": "fix-1",
+  "key": "fix-1",
+  "title": "Fix: runForensic env var passing fails on Windows",
   "priority": "P0",
   "estimatedTime": "30min",
-  "file": "fix-2.md",
-  "record": "records/fix-2.md",
-  "startedTime": "2026-05-10 15:22",
+  "dependencies": [
+    "fix-2"
+  ],
+  "file": "fix-1.md",
+  "record": "records/fix-1.md",
+  "startedTime": "2026-05-10 15:35",
   "breaking": true
 }
