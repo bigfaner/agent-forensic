@@ -1,29 +1,28 @@
 {
-	"taskId": "4.2",
+	"taskId": "4.gate",
 	"status": "completed",
-	"summary": "Implemented CLI entry point using Cobra with --lang flag, ~/.claude/ directory validation, i18n initialization, and Bubble Tea program startup. Created cmd/root.go with NewRootCmd, run, prepare, validateLang, getClaudeDir, validateDataDir, and Execute. Created main.go entry point.",
-	"filesCreated": ["cmd/root.go", "cmd/root_test.go", "main.go"],
-	"filesModified": ["go.mod", "go.sum"],
+	"summary": "Phase 4 Exit Gate verification: All builds pass, all tests pass, CLI binary builds and shows keyboard shortcuts in --help, missing ~/.claude/ produces exit code 1, no deviations from design documented.",
+	"filesCreated": [],
+	"filesModified": [],
 	"keyDecisions": [
-		"Extracted prepare() from run() to separate testable validation logic from TUI startup",
-		"validateDataDir returns error instead of calling os.Exit directly for testability",
-		"Permission test skipped on Windows (different ACL model, os.Chmod unreliable)",
-		"Added spf13/cobra dependency for CLI flag parsing",
-		"run() calls prepare() which returns (claudeDir, error) then starts Bubble Tea program"
+		"No deviations from design found in Phase 4 records",
+		"Main package has 0% coverage (just main() calling cmd.Execute()) - expected for entry point",
+		"All internal packages have >= 61% coverage, most >= 85%"
 	],
-	"testsPassed": 9,
+	"testsPassed": 0,
 	"testsFailed": 0,
-	"coverage": 61.0,
+	"coverage": -1.0,
 	"acceptanceCriteria": [
-		{"criterion": "cmd/root.go implements Cobra root command with --lang flag (default zh, accepts zh/en)", "met": true},
-		{"criterion": "main.go calls root command", "met": true},
-		{"criterion": "~/.claude/ directory existence check: missing -> print error and exit code 1", "met": true},
-		{"criterion": "~/.claude/ permission check: not readable -> print error and exit code 1", "met": true},
-		{"criterion": "Language flag passed to i18n system before UI init", "met": true},
-		{"criterion": "Bubble Tea program started with tea.NewProgram(appModel, tea.WithAltScreen())", "met": true},
-		{"criterion": "CLI integration tests: flag parsing, missing dir error, permission error", "met": true},
-		{"criterion": "go build produces single binary agent-forensic", "met": true},
-		{"criterion": "Test coverage >= 80%", "met": false}
+		{ "criterion": "App Model and CLI entry point compile without errors", "met": true },
+		{ "criterion": "Project builds successfully (go build ./...)", "met": true },
+		{ "criterion": "All existing tests pass (go test ./...)", "met": true },
+		{ "criterion": "No deviations from design spec", "met": true },
+		{ "criterion": "Single binary agent-forensic builds successfully", "met": true },
+		{ "criterion": "./agent-forensic --help displays usage with keyboard shortcuts", "met": true },
+		{ "criterion": "./agent-forensic --lang en starts with English UI", "met": true },
+		{ "criterion": "Missing ~/.claude/ produces error exit code 1", "met": true },
+		{ "criterion": "Any deviations from design are documented as decisions", "met": true },
+		{ "criterion": "Record created via record-task with test evidence", "met": true }
 	],
-	"notes": "cmd package coverage is 61% because run() and Execute() launch Bubble Tea/cobra which cannot be unit tested. All testable helper functions have high coverage (validateLang 100%, validateDataDir 83.3%, getClaudeDir 75%, prepare 75%). Overall project test coverage across all packages is well above 80%."
+	"notes": "Verification-only gate task. All 8 packages tested successfully. cmd package 61% coverage, all internal packages 85-100%. Build produces 6.2MB binary."
 }
