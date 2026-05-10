@@ -75,11 +75,21 @@ func TestValidateDataDir_NotReadable(t *testing.T) {
 }
 
 func TestGetClaudeDir(t *testing.T) {
+	// When HOME is not set, falls back to os.UserHomeDir()
+	// This test clears HOME to test the fallback
+	t.Setenv("HOME", "")
 	home, err := os.UserHomeDir()
 	require.NoError(t, err)
 
 	dir := getClaudeDir()
 	assert.Equal(t, filepath.Join(home, ".claude"), dir)
+}
+
+func TestGetClaudeDir_RespectsHomeEnv(t *testing.T) {
+	// Set HOME env var; getClaudeDir should prefer it over os.UserHomeDir()
+	t.Setenv("HOME", "/tmp/test-home-forensic")
+	dir := getClaudeDir()
+	assert.Equal(t, filepath.Join("/tmp/test-home-forensic", ".claude"), dir)
 }
 
 func TestRootCommand_InvalidLang(t *testing.T) {
@@ -158,6 +168,19 @@ func TestPrepare_HappyPath(t *testing.T) {
 		t.Skipf("skipping prepare() happy path: %v", err)
 	}
 	assert.NotEmpty(t, dir)
+}
+
+func TestPrepare_NonexistentHome(t *testing.T) {
+	origLang := lang
+	lang = "zh"
+	defer func() { lang = origLang }()
+
+	// Set HOME to a path that doesn't exist
+	t.Setenv("HOME", "/tmp/nonexistent-home-agent-forensic-test-"+uniqueSuffix())
+
+	_, err := prepare()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "directory not found")
 }
 
 func uniqueSuffix() string {

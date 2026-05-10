@@ -87,11 +87,14 @@ func validateLang() error {
 }
 
 // getClaudeDir returns the path to ~/.claude/.
+// Respects the HOME environment variable if set (allows test overrides).
 func getClaudeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return filepath.Join(home, ".claude")
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		// Fallback: should not happen in practice
-		return filepath.Join(os.Getenv("HOME"), ".claude")
+		return filepath.Join(".", ".claude")
 	}
 	return filepath.Join(home, ".claude")
 }
@@ -124,6 +127,7 @@ func validateDataDir(dir string) error {
 func Execute() {
 	cmd := NewRootCmd()
 	if err := cmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

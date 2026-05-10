@@ -1,20 +1,20 @@
 {
-  "taskId": "fix-1",
-  "status": "completed",
-  "summary": "Fix runForensic env var passing to use execSync env option instead of shell-style prefix, enabling cross-platform (Windows) support",
-  "filesCreated": [],
-  "filesModified": ["tests/e2e/helpers.ts"],
-  "keyDecisions": [
-    "Pass env vars via execSync's env option ({ ...process.env, ...env }) instead of shell-style prefix (HOME=\"value\" binary) which fails on Windows"
-  ],
-  "testsPassed": 9,
-  "testsFailed": 0,
-  "coverage": 90.0,
-  "acceptanceCriteria": [
-    { "criterion": "runCli accepts optional env parameter", "met": true },
-    { "criterion": "runForensic passes env via runCli instead of shell prefix", "met": true },
-    { "criterion": "Go unit tests pass", "met": true },
-    { "criterion": "E2e CLI tests that use env vars pass (TC-CLI-002,003,004,005)", "met": true }
-  ],
-  "notes": "TC-CLI-001 still fails but is a pre-existing binary behavior issue (binary times out instead of printing error when HOME points to nonexistent dir). This is unrelated to the env var passing fix. The env var fix is confirmed working by TC-CLI-002,003,004,005 all passing with HOME env override."
+	"taskId": "fix-2",
+	"status": "completed",
+	"summary": "Fix TC-CLI-001: getClaudeDir() now respects HOME env var (Windows compat), Execute() prints errors to stderr before exit",
+	"filesCreated": [],
+	"filesModified": ["cmd/root.go", "cmd/root_test.go"],
+	"keyDecisions": [
+		"getClaudeDir() checks HOME env var first, falling back to os.UserHomeDir(). This allows tests to override HOME on any platform.",
+		"Execute() now prints errors to stderr via fmt.Fprintln(os.Stderr, err) before os.Exit(1), so Cobra error messages are visible."
+	],
+	"testsPassed": 15,
+	"testsFailed": 0,
+	"coverage": 90.0,
+	"acceptanceCriteria": [
+		{ "criterion": "getClaudeDir respects HOME env var for test overrides", "met": true },
+		{ "criterion": "Execute prints errors to stderr before exit", "met": true },
+		{ "criterion": "All existing tests still pass", "met": true }
+	],
+	"notes": "Root cause was twofold: (1) os.UserHomeDir ignores HOME on Windows, (2) Execute swallowed errors without printing to stderr."
 }

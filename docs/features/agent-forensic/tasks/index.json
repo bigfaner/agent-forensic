@@ -346,11 +346,25 @@
       "title": "Fix: runForensic env var passing fails on Windows",
       "priority": "P0",
       "estimatedTime": "30min",
-      "status": "completed",
+      "dependencies": [
+        "fix-2"
+      ],
+      "status": "pending",
       "file": "fix-1.md",
       "record": "records/fix-1.md",
       "breaking": true,
       "sourceTaskID": "T-test-3"
+    },
+    "fix-2": {
+      "id": "fix-2",
+      "title": "Fix: TC-CLI-001 stderr empty for missing ~/.claude/ directory",
+      "priority": "P0",
+      "estimatedTime": "30min",
+      "status": "completed",
+      "file": "fix-2.md",
+      "record": "records/fix-2.md",
+      "breaking": true,
+      "sourceTaskID": "fix-1"
     },
     "gen-test-cases": {
       "id": "T-test-1",
