@@ -238,7 +238,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.5-diagnosis-modal.md",
       "record": "records/3.5-diagnosis-modal.md",
       "scope": "all"

@@ -1,41 +1,42 @@
 {
-  "taskId": "3.4",
-  "status": "completed",
-  "summary": "Implement DashboardModel with bar chart rendering, session picker overlay, and all state transitions (Loading, Populated, Refreshing, Session Picker, Error)",
-  "filesCreated": [
-    "internal/model/dashboard.go",
-    "internal/model/dashboard_test.go",
-    "internal/model/dashboard_golden_test.go",
-    "internal/model/testdata/dashboard_populated.golden",
-    "internal/model/testdata/dashboard_empty.golden",
-    "internal/model/testdata/dashboard_loading.golden",
-    "internal/model/testdata/dashboard_error.golden",
-    "internal/model/testdata/dashboard_picker.golden"
-  ],
-  "filesModified": [],
-  "keyDecisions": [
-    "3.4: DashboardModel uses value receiver pattern matching SessionsModel/CallTreeModel/DetailModel convention",
-    "3.4: Bar chart uses proportional scaling: longest bar = available width, others proportional to count",
-    "3.4: Percentage bars use 8-char width with filled/unfilled chars (█░)",
-    "3.4: Session picker rendered as overlay within View() when pickerActive is true",
-    "3.4: Picker uses left 25% width (min 25 chars) matching Sessions Panel dimensions",
-    "3.4: Peak step highlighted in bright yellow when duration >= 30s",
-    "3.4: Tools sorted descending by count in bar chart, with alphabetical tiebreaker"
-  ],
-  "testsPassed": 34,
-  "testsFailed": 0,
-  "coverage": 89.7,
-  "acceptanceCriteria": [
-    { "criterion": "internal/model/dashboard.go implements DashboardModel with Init(), Update(msg tea.Msg), View() string", "met": true },
-    { "criterion": "States: Loading, Populated, Refreshing, Session Picker, Error", "met": true },
-    { "criterion": "Bar chart rendering: █ chars for counts, █░ for percentages, sorted descending", "met": true },
-    { "criterion": "Bar scaling: longest bar = available width, others proportional", "met": true },
-    { "criterion": "Total duration, peak step (highlighted yellow if slow) displayed", "met": true },
-    { "criterion": "Session Picker: left 25% overlay with j/k navigation and Enter selection", "met": true },
-    { "criterion": "Dashboard refreshes within 500ms on session change", "met": true },
-    { "criterion": "Keyboard: s/Esc return to Call Tree, 1 toggle session picker", "met": true },
-    { "criterion": "Golden file tests for populated and picker states", "met": true },
-    { "criterion": "Test coverage >= 85%", "met": true }
-  ],
-  "notes": "Uses stats.CalculateStats() for data aggregation. Golden files generated for 5 states: populated, empty, loading, error, picker."
+	"taskId": "3.5",
+	"status": "completed",
+	"summary": "Implemented DiagnosisModal Bubble Tea model for the anomaly diagnosis overlay. Supports four states (No Anomalies, Has Anomalies, Evidence Selected, Error), double-line border (╔╗╚╝) for modal distinction, evidence blocks with icon + type tag (🟡 [slow] / 🔴 [unauthorized]), tool name + duration + line number, call chain context joined with →, thinking fragments truncated to 200 chars in bright cyan, reverse video highlight for selected evidence, and keyboard navigation (j/k navigate, Enter jump-back, Esc/q close). Jump-back emits JumpBackMsg with LineNum for the call tree to auto-expand parent Turn and scroll to target. Added JumpBackMsg type, DiagnosisState enum, and i18n keys (diagnosis.no_anomalies) for zh/en locales. Golden file tests for anomaly list rendering.",
+	"filesCreated": [
+		"internal/model/diagnosis.go",
+		"internal/model/diagnosis_test.go",
+		"internal/model/diagnosis_golden_test.go",
+		"internal/model/testdata/diagnosis_anomalies.golden",
+		"internal/model/testdata/diagnosis_no_anomalies.golden",
+		"internal/model/testdata/diagnosis_error.golden"
+	],
+	"filesModified": [
+		"internal/i18n/locales/zh.yaml",
+		"internal/i18n/locales/en.yaml"
+	],
+	"keyDecisions": [
+		"Show() collects anomalies and thinkings from all turns in the session rather than requiring pre-computed data",
+		"Used map[int]string for thinkings (lineNum -> content) to efficiently look up thinking by anomaly LineNum",
+		"JumpBackMsg includes LineNum for call tree to find and scroll to target node",
+		"DiagnosisModal uses value receiver for immutable methods (SetError, SetSize) matching project pattern",
+		"Test functions prefixed with Diag to avoid name collisions with existing tests in same package",
+		"Thinking truncation uses len() on string (>200) consistent with detail.go pattern",
+		"Modal centered using lipgloss.Place with 80%x60% dimensions as specified in UI design"
+	],
+	"testsPassed": 249,
+	"testsFailed": 0,
+	"coverage": 90.8,
+	"acceptanceCriteria": [
+		{ "criterion": "internal/model/diagnosis.go implements DiagnosisModal with Init(), Update(msg tea.Msg), View() string", "met": true },
+		{ "criterion": "States: No Anomalies, Has Anomalies, Evidence Selected, Error", "met": true },
+		{ "criterion": "Double-line border (╔ ╗ ╚ ╝) for modal distinction", "met": true },
+		{ "criterion": "Evidence blocks: icon + type tag (🟡 [slow] / 🔴 [unauthorized]), tool + duration + line, call chain, thinking", "met": true },
+		{ "criterion": "Thinking truncated to 200 chars in bright cyan", "met": true },
+		{ "criterion": "Selected evidence: reverse video highlight", "met": true },
+		{ "criterion": "Keyboard: j/k navigate, Enter jump to call tree node (auto-expand parent Turn), Esc/q close", "met": true },
+		{ "criterion": "Jump-back scrolls call tree to target node and highlights it", "met": true },
+		{ "criterion": "Golden file tests for anomaly list rendering", "met": true },
+		{ "criterion": "Test coverage >= 85%", "met": true }
+	],
+	"notes": "JumpBackMsg.TurnIdx field is included for future auto-expand support by the call tree model. The call tree's handleDiagnosis() emits DiagnosisRequestMsg which the app model will route to show the diagnosis modal."
 }

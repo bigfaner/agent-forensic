@@ -40,6 +40,7 @@ diagnosis.slow_call: "Slow Call"
 diagnosis.unauthorized: "Unauthorized Access"
 diagnosis.recommendation: "Recommendation"
 diagnosis.close: "q/Esc close"
+diagnosis.no_anomalies: "No anomalies"
 
 # Dashboard headers
 dashboard.tool_stats: "Tool Call Stats"

@@ -1,14 +1,14 @@
 {
-  "task_id": "3.4",
-  "key": "3.4-dashboard-view",
-  "title": "Dashboard View Model",
+  "task_id": "3.5",
+  "key": "3.5-diagnosis-modal",
+  "title": "Diagnosis Modal Model",
   "priority": "P0",
-  "estimatedTime": "3h",
+  "estimatedTime": "2.5h",
   "dependencies": [
     "2.gate"
   ],
-  "file": "3.4-dashboard-view.md",
-  "record": "records/3.4-dashboard-view.md",
-  "startedTime": "2026-05-10 08:23",
+  "file": "3.5-diagnosis-modal.md",
+  "record": "records/3.5-diagnosis-modal.md",
+  "startedTime": "2026-05-10 08:28",
   "scope": "all"
 }

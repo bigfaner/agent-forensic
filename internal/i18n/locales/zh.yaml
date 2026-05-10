@@ -40,6 +40,7 @@ diagnosis.slow_call: "耗时过长"
 diagnosis.unauthorized: "越权访问"
 diagnosis.recommendation: "建议"
 diagnosis.close: "q/Esc 关闭"
+diagnosis.no_anomalies: "无异常"
 
 # Dashboard headers
 dashboard.tool_stats: "工具调用统计"
