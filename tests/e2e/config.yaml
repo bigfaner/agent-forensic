@@ -1,0 +1,10 @@
+# E2E Test Environment Configuration for agent-forensic
+# This is a CLI/TUI project — no web server needed
+# Adjust values to match your local/dev environment
+
+# Default timeout (ms)
+timeout: 30000
+
+# Project binary name and build path
+binaryName: agent-forensic
+binaryPath: ../../agent-forensic

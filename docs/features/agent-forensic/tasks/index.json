@@ -334,7 +334,7 @@
       "dependencies": [
         "T-test-1"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "eval-test-cases.md",
       "record": "records/eval-test-cases.md",
       "scope": "all",
@@ -363,7 +363,7 @@
       "dependencies": [
         "T-test-1b"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "gen-test-scripts.md",
       "record": "records/gen-test-scripts.md",
       "scope": "all"

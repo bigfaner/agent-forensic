@@ -1,15 +1,14 @@
 {
-  "task_id": "T-test-1",
-  "key": "gen-test-cases",
-  "title": "Generate e2e Test Cases",
+  "task_id": "T-test-2",
+  "key": "gen-test-scripts",
+  "title": "Generate e2e Test Scripts",
   "priority": "P1",
   "estimatedTime": "1-2h",
   "dependencies": [
-    "4.gate"
+    "T-test-1b"
   ],
-  "file": "gen-test-cases.md",
-  "record": "records/gen-test-cases.md",
-  "startedTime": "2026-05-10 09:08",
-  "scope": "all",
-  "noTest": true
+  "file": "gen-test-scripts.md",
+  "record": "records/gen-test-scripts.md",
+  "startedTime": "2026-05-10 15:04",
+  "scope": "all"
 }
