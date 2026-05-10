@@ -1,0 +1,26 @@
+[
+  {
+    "phase": 1,
+    "name": "Foundation",
+    "source": "fallback",
+    "gates": []
+  },
+  {
+    "phase": 2,
+    "name": "Service Layer",
+    "source": "fallback",
+    "gates": []
+  },
+  {
+    "phase": 3,
+    "name": "UI Components",
+    "source": "fallback",
+    "gates": []
+  },
+  {
+    "phase": 4,
+    "name": "Integration & CLI",
+    "source": "fallback",
+    "gates": []
+  }
+]

@@ -1,0 +1,71 @@
+# Chinese translations (default locale)
+
+# Panel titles
+panel.sessions.title: "会话列表"
+panel.calltree.title: "调用树"
+panel.detail.title: "详情"
+panel.dashboard.title: "统计仪表盘"
+
+# Status messages
+status.loading: "加载中..."
+status.empty: "无数据"
+status.error: "错误"
+status.ready: "就绪"
+status.watching: "监听中"
+status.idle: "空闲"
+
+# Error messages
+error.dir_not_found: "目录不存在"
+error.dir_permission: "目录无读取权限"
+error.file_read: "文件读取失败"
+error.file_empty: "文件为空"
+error.parse: "解析错误"
+error.corrupt_session: "会话数据损坏"
+error.terminal_too_small: "终端尺寸过小 (需要 80x24)"
+
+# Status bar hints
+hint.quit: "q 退出"
+hint.switch_lang: "L 切换语言"
+hint.tab: "Tab 切换面板"
+hint.search: "/ 搜索"
+hint.enter: "Enter 展开"
+hint.escape: "Esc 返回"
+
+# Diagnosis labels
+diagnosis.title: "诊断摘要"
+diagnosis.anomaly_type: "异常类型"
+diagnosis.evidence: "证据"
+diagnosis.context: "上下文"
+diagnosis.slow_call: "耗时过长"
+diagnosis.unauthorized: "越权访问"
+diagnosis.recommendation: "建议"
+diagnosis.close: "q/Esc 关闭"
+diagnosis.no_anomalies: "无异常"
+
+# Dashboard headers
+dashboard.tool_stats: "工具调用统计"
+dashboard.time_stats: "耗时统计"
+dashboard.session_overview: "会话概览"
+dashboard.peak_step: "最慢步骤"
+dashboard.tool_name: "工具名"
+dashboard.call_count: "调用次数"
+dashboard.time_pct: "耗时占比"
+dashboard.total_duration: "总耗时"
+
+# Session picker
+picker.title: "切换会话"
+picker.search: "搜索"
+picker.no_results: "无匹配结果"
+
+# Language indicator
+lang.zh: "中"
+lang.en: "EN"
+
+# Detail panel
+detail.empty_hint: "选中节点并按 Tab 查看详情"
+
+# General
+general.no_selection: "未选择"
+general.confirm: "确认"
+general.cancel: "取消"
+general.version: "版本"

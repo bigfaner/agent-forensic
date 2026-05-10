@@ -1,0 +1,450 @@
+{
+  "feature": "agent-forensic",
+  "prd": "prd/prd-spec.md",
+  "design": "design/tech-design.md",
+  "created": "2026-05-10",
+  "status": "planning",
+  "tasks": {
+    "1-gate": {
+      "id": "1.gate",
+      "title": "Phase 1 Exit Gate",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.summary"
+      ],
+      "status": "completed",
+      "file": "1-gate.md",
+      "record": "records/1-gate.md",
+      "breaking": true,
+      "scope": "all"
+    },
+    "1-summary": {
+      "id": "1.summary",
+      "title": "Phase 1 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "1.x"
+      ],
+      "status": "completed",
+      "file": "1-summary.md",
+      "record": "records/1-summary.md",
+      "scope": "all",
+      "noTest": true
+    },
+    "1.1-data-types": {
+      "id": "1.1",
+      "title": "Data Types \u0026 Error Definitions",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "status": "completed",
+      "file": "1.1-data-types.md",
+      "record": "records/1.1-data-types.md",
+      "breaking": true,
+      "scope": "all"
+    },
+    "2-gate": {
+      "id": "2.gate",
+      "title": "Phase 2 Exit Gate",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "2.summary"
+      ],
+      "status": "completed",
+      "file": "2-gate.md",
+      "record": "records/2-gate.md",
+      "breaking": true,
+      "scope": "all"
+    },
+    "2-summary": {
+      "id": "2.summary",
+      "title": "Phase 2 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "2.x"
+      ],
+      "status": "completed",
+      "file": "2-summary.md",
+      "record": "records/2-summary.md",
+      "scope": "all",
+      "noTest": true
+    },
+    "2.1-jsonl-parser": {
+      "id": "2.1",
+      "title": "JSONL Parser",
+      "priority": "P0",
+      "estimatedTime": "3h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.1-jsonl-parser.md",
+      "record": "records/2.1-jsonl-parser.md",
+      "scope": "all"
+    },
+    "2.2-anomaly-detector": {
+      "id": "2.2",
+      "title": "Anomaly Detector",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.2-anomaly-detector.md",
+      "record": "records/2.2-anomaly-detector.md",
+      "scope": "all"
+    },
+    "2.3-sanitizer": {
+      "id": "2.3",
+      "title": "Sensitive Content Sanitizer",
+      "priority": "P0",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.3-sanitizer.md",
+      "record": "records/2.3-sanitizer.md",
+      "scope": "all"
+    },
+    "2.4-i18n": {
+      "id": "2.4",
+      "title": "i18n System",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.4-i18n.md",
+      "record": "records/2.4-i18n.md",
+      "scope": "all"
+    },
+    "2.5-stats-calculator": {
+      "id": "2.5",
+      "title": "Stats Calculator",
+      "priority": "P0",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.5-stats-calculator.md",
+      "record": "records/2.5-stats-calculator.md",
+      "scope": "all"
+    },
+    "2.6-file-watcher": {
+      "id": "2.6",
+      "title": "File Watcher",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.6-file-watcher.md",
+      "record": "records/2.6-file-watcher.md",
+      "scope": "all"
+    },
+    "3-gate": {
+      "id": "3.gate",
+      "title": "Phase 3 Exit Gate",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "3.summary"
+      ],
+      "status": "completed",
+      "file": "3-gate.md",
+      "record": "records/3-gate.md",
+      "breaking": true,
+      "scope": "all"
+    },
+    "3-summary": {
+      "id": "3.summary",
+      "title": "Phase 3 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "3.x"
+      ],
+      "status": "completed",
+      "file": "3-summary.md",
+      "record": "records/3-summary.md",
+      "scope": "all",
+      "noTest": true
+    },
+    "3.1-sessions-panel": {
+      "id": "3.1",
+      "title": "Sessions Panel Model",
+      "priority": "P0",
+      "estimatedTime": "3h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.1-sessions-panel.md",
+      "record": "records/3.1-sessions-panel.md",
+      "scope": "all"
+    },
+    "3.2-calltree-panel": {
+      "id": "3.2",
+      "title": "Call Tree Panel Model",
+      "priority": "P0",
+      "estimatedTime": "4h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.2-calltree-panel.md",
+      "record": "records/3.2-calltree-panel.md",
+      "scope": "all"
+    },
+    "3.3-detail-panel": {
+      "id": "3.3",
+      "title": "Detail Panel Model",
+      "priority": "P0",
+      "estimatedTime": "2.5h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.3-detail-panel.md",
+      "record": "records/3.3-detail-panel.md",
+      "scope": "all"
+    },
+    "3.4-dashboard-view": {
+      "id": "3.4",
+      "title": "Dashboard View Model",
+      "priority": "P0",
+      "estimatedTime": "3h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.4-dashboard-view.md",
+      "record": "records/3.4-dashboard-view.md",
+      "scope": "all"
+    },
+    "3.5-diagnosis-modal": {
+      "id": "3.5",
+      "title": "Diagnosis Modal Model",
+      "priority": "P0",
+      "estimatedTime": "2.5h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.5-diagnosis-modal.md",
+      "record": "records/3.5-diagnosis-modal.md",
+      "scope": "all"
+    },
+    "3.6-statusbar": {
+      "id": "3.6",
+      "title": "Status Bar Model",
+      "priority": "P1",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.6-statusbar.md",
+      "record": "records/3.6-statusbar.md",
+      "scope": "all"
+    },
+    "4-gate": {
+      "id": "4.gate",
+      "title": "Phase 4 Exit Gate",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "4.summary"
+      ],
+      "status": "completed",
+      "file": "4-gate.md",
+      "record": "records/4-gate.md",
+      "breaking": true,
+      "scope": "all"
+    },
+    "4-summary": {
+      "id": "4.summary",
+      "title": "Phase 4 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "4.x"
+      ],
+      "status": "completed",
+      "file": "4-summary.md",
+      "record": "records/4-summary.md",
+      "scope": "all",
+      "noTest": true
+    },
+    "4.1-app-model": {
+      "id": "4.1",
+      "title": "App Model \u0026 Page Assembly",
+      "priority": "P0",
+      "estimatedTime": "4h",
+      "dependencies": [
+        "3.gate"
+      ],
+      "status": "completed",
+      "file": "4.1-app-model.md",
+      "record": "records/4.1-app-model.md",
+      "breaking": true,
+      "scope": "all"
+    },
+    "4.2-cli-entry": {
+      "id": "4.2",
+      "title": "CLI Entry Point",
+      "priority": "P0",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "3.gate",
+        "4.1"
+      ],
+      "status": "completed",
+      "file": "4.2-cli-entry.md",
+      "record": "records/4.2-cli-entry.md",
+      "scope": "all"
+    },
+    "consolidate-specs": {
+      "id": "T-test-5",
+      "title": "Consolidate Specs",
+      "priority": "P2",
+      "estimatedTime": "20min",
+      "dependencies": [
+        "T-test-4.5"
+      ],
+      "status": "completed",
+      "file": "consolidate-specs.md",
+      "record": "records/consolidate-specs.md",
+      "scope": "all",
+      "noTest": true
+    },
+    "eval-test-cases": {
+      "id": "T-test-1b",
+      "title": "Evaluate e2e Test Cases",
+      "priority": "P1",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "T-test-1"
+      ],
+      "status": "completed",
+      "file": "eval-test-cases.md",
+      "record": "records/eval-test-cases.md",
+      "scope": "all",
+      "mainSession": true,
+      "noTest": true
+    },
+    "fix-1": {
+      "id": "fix-1",
+      "title": "Fix: runForensic env var passing fails on Windows",
+      "priority": "P0",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "fix-2"
+      ],
+      "status": "completed",
+      "file": "fix-1.md",
+      "record": "records/fix-1.md",
+      "breaking": true,
+      "sourceTaskID": "T-test-3"
+    },
+    "fix-2": {
+      "id": "fix-2",
+      "title": "Fix: TC-CLI-001 stderr empty for missing ~/.claude/ directory",
+      "priority": "P0",
+      "estimatedTime": "30min",
+      "status": "completed",
+      "file": "fix-2.md",
+      "record": "records/fix-2.md",
+      "breaking": true,
+      "sourceTaskID": "fix-1"
+    },
+    "gen-test-cases": {
+      "id": "T-test-1",
+      "title": "Generate e2e Test Cases",
+      "priority": "P1",
+      "estimatedTime": "1-2h",
+      "dependencies": [
+        "4.gate"
+      ],
+      "status": "completed",
+      "file": "gen-test-cases.md",
+      "record": "records/gen-test-cases.md",
+      "scope": "all",
+      "noTest": true
+    },
+    "gen-test-scripts": {
+      "id": "T-test-2",
+      "title": "Generate e2e Test Scripts",
+      "priority": "P1",
+      "estimatedTime": "1-2h",
+      "dependencies": [
+        "T-test-1b"
+      ],
+      "status": "completed",
+      "file": "gen-test-scripts.md",
+      "record": "records/gen-test-scripts.md",
+      "scope": "all"
+    },
+    "graduate-tests": {
+      "id": "T-test-4",
+      "title": "Graduate Test Scripts",
+      "priority": "P1",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "T-test-3"
+      ],
+      "status": "completed",
+      "file": "graduate-tests.md",
+      "record": "records/graduate-tests.md",
+      "scope": "all"
+    },
+    "run-e2e-tests": {
+      "id": "T-test-3",
+      "title": "Run e2e Tests",
+      "priority": "P1",
+      "estimatedTime": "30min-1h",
+      "dependencies": [
+        "T-test-2",
+        "fix-1"
+      ],
+      "status": "completed",
+      "file": "run-e2e-tests.md",
+      "record": "records/run-e2e-tests.md",
+      "scope": "all"
+    },
+    "verify-regression": {
+      "id": "T-test-4.5",
+      "title": "Verify Full E2E Regression",
+      "priority": "P1",
+      "estimatedTime": "15-30min",
+      "dependencies": [
+        "T-test-4"
+      ],
+      "status": "completed",
+      "file": "verify-regression.md",
+      "record": "records/verify-regression.md",
+      "scope": "all"
+    }
+  },
+  "statusEnum": [
+    "pending",
+    "in_progress",
+    "completed",
+    "blocked",
+    "skipped",
+    "rejected"
+  ],
+  "priorityEnum": [
+    "P0",
+    "P1",
+    "P2"
+  ]
+}
