@@ -60,6 +60,9 @@ picker.no_results: "无匹配结果"
 lang.zh: "中"
 lang.en: "EN"
 
+# Detail panel
+detail.empty_hint: "选中节点并按 Tab 查看详情"
+
 # General
 general.no_selection: "未选择"
 general.confirm: "确认"

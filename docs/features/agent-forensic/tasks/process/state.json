@@ -1,14 +1,14 @@
 {
-  "task_id": "3.2",
-  "key": "3.2-calltree-panel",
-  "title": "Call Tree Panel Model",
+  "task_id": "3.3",
+  "key": "3.3-detail-panel",
+  "title": "Detail Panel Model",
   "priority": "P0",
-  "estimatedTime": "4h",
+  "estimatedTime": "2.5h",
   "dependencies": [
     "2.gate"
   ],
-  "file": "3.2-calltree-panel.md",
-  "record": "records/3.2-calltree-panel.md",
-  "startedTime": "2026-05-10 08:09",
+  "file": "3.3-detail-panel.md",
+  "record": "records/3.3-detail-panel.md",
+  "startedTime": "2026-05-10 08:19",
   "scope": "all"
 }

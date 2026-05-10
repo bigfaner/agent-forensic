@@ -60,6 +60,9 @@ picker.no_results: "No matches"
 lang.zh: "中"
 lang.en: "EN"
 
+# Detail panel
+detail.empty_hint: "Select a node and press Tab for details"
+
 # General
 general.no_selection: "No selection"
 general.confirm: "Confirm"

@@ -1,1 +1,42 @@
-{"taskId":"3.2","status":"completed","summary":"Implemented CallTreeModel (Bubble Tea model) for the call tree panel with turn/tool node rendering, expand/collapse, anomaly highlighting, real-time flash, monitoring toggle, and keyboard navigation (j/k, Enter, n/p, d, s, m, Tab). Includes golden file tests for rendering verification.","filesCreated":["internal/model/calltree.go","internal/model/calltree_test.go","internal/model/calltree_golden_test.go","internal/model/testdata/calltree_populated.golden","internal/model/testdata/calltree_expanded.golden","internal/model/testdata/calltree_empty.golden","internal/model/testdata/calltree_loading.golden","internal/model/testdata/calltree_error.golden","internal/model/testdata/calltree_with_session.golden","internal/model/testdata/calltree_unfocused.golden"],"filesModified":[],"keyDecisions":["3.2: Used map[int]bool for expanded state tracking since Turn struct lacks IsExpanded field","3.2: Flattened tree into visibleNode list for cursor navigation with turnIdx/entryIdx/depth fields","3.2: Sub-agent detection via ToolName==SubAgent && len(Children)>0 with 📦 icon and ×N count","3.2: Flash tracking via map[lineNum]expiryTime with 3-second flashDuration and cleanupExpiredFlashes","3.2: Emit typed messages (DiagnosisRequestMsg, DashboardToggleMsg, MonitoringToggleMsg) for parent App Model delegation","3.2: Used same PanelState enum and styling patterns as SessionsModel for consistency"],"testsPassed":61,"testsFailed":0,"coverage":88.9,"acceptanceCriteria":[{"criterion":"internal/model/calltree.go implements CallTreeModel with Init(), Update(msg tea.Msg), View() string","met":true},{"criterion":"States: Loading, Populated/Empty/Error, Node Expanded/Collapsed, Anomaly Highlight, New Node (realtime), Monitoring Off","met":true},{"criterion":"Tree rendering: Turn nodes (●), tool calls with connectors (├─ └─), sub-agent summaries (📦)","met":true},{"criterion":"Anomaly highlighting: yellow (slow >=30s), red (unauthorized), with emoji markers 🟡 🔴","met":true},{"criterion":"Keyboard: j/k navigate, Enter expand/collapse, Tab focus transfer, n/p Turn jump, d diagnosis, s dashboard, m monitoring toggle","met":true},{"criterion":"Real-time: new nodes appear with cyan flash + [NEW] prefix for 3 seconds","met":true},{"criterion":"Monitoring toggle: m key toggles file watching on/off, updates status bar","met":true},{"criterion":"Golden file tests for tree rendering with 3-turn session","met":true},{"criterion":"State tests: expand/collapse, cursor navigation, anomaly highlighting","met":true},{"criterion":"Test coverage >= 85%","met":true}],"notes":"All acceptance criteria met. 61 tests (7 golden + 54 unit) with 88.9% coverage."}
+{
+	"taskId": "3.3",
+	"status": "completed",
+	"summary": "Implement DetailModel for the detail panel (bottom, 75% width, lower 33%). Supports Empty, Truncated, Expanded, Masked, and Error states with content truncation >200 chars, sensitive content masking via sanitizer, JSON pretty-print for tool_use.input, virtual scroll for expanded content, and golden file tests.",
+	"filesCreated": [
+		"internal/model/detail.go",
+		"internal/model/detail_test.go",
+		"internal/model/testdata/detail_empty.golden",
+		"internal/model/testdata/detail_truncated.golden",
+		"internal/model/testdata/detail_expanded.golden",
+		"internal/model/testdata/detail_masked.golden"
+	],
+	"filesModified": [
+		"internal/i18n/locales/zh.yaml",
+		"internal/i18n/locales/en.yaml"
+	],
+	"keyDecisions": [
+		"Used ToolName == '' as empty-entry check instead of Type since EntryToolUse is iota 0",
+		"Content truncation uses strict >200 chars threshold (exactly 200 NOT truncated)",
+		"Sanitize all content on SetEntry; store both raw and sanitized versions",
+		"Masked state persists across expand/collapse toggles when sensitive content detected",
+		"JSON pretty-print for tool_use.input using json.MarshalIndent",
+		"Field labels in bright cyan (color 51), content in white (color 15)",
+		"Exit code only shown in title for entries with non-nil ExitCode (Bash entries)"
+	],
+	"testsPassed": 36,
+	"testsFailed": 0,
+	"coverage": 89.5,
+	"acceptanceCriteria": [
+		{"criterion": "internal/model/detail.go implements DetailModel with Init(), Update(msg tea.Msg), View() string", "met": true},
+		{"criterion": "States: Empty, Truncated, Expanded, Masked, Error", "met": true},
+		{"criterion": "Content >200 chars: truncated with notice", "met": true},
+		{"criterion": "Content <=200 chars (including exactly 200): displayed in full", "met": true},
+		{"criterion": "Sensitive values masked with ***, warning banner shown", "met": true},
+		{"criterion": "Panel title format with exit code and line number", "met": true},
+		{"criterion": "Keyboard: Enter toggle, Tab cycle, Esc return", "met": true},
+		{"criterion": "Virtual scroll for expanded large content", "met": true},
+		{"criterion": "Golden file tests for truncated, expanded, and masked rendering", "met": true},
+		{"criterion": "Test coverage >= 85%", "met": true}
+	],
+	"notes": "Added detail.empty_hint i18n key to both zh and en locale files."
+}
