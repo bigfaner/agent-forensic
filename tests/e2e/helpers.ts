@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
-import { readFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, mkdirSync, existsSync, unlinkSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseYaml } from 'yaml';
@@ -258,12 +259,13 @@ export interface CliResult {
   exitCode: number;
 }
 
-export function runCli(cmd: string, cwd?: string): CliResult {
+export function runCli(cmd: string, cwd?: string, env?: Record<string, string>): CliResult {
   try {
     const stdout = execSync(cmd, {
       encoding: 'utf-8',
       timeout: timeout(),
       cwd: cwd ?? PROJECT_ROOT,
+      env: env ? { ...process.env, ...env } : process.env,
     });
     return { stdout, stderr: '', exitCode: 0 };
   } catch (e: unknown) {
@@ -296,10 +298,7 @@ export function getBinaryPath(): string {
 /** Run the agent-forensic binary with given arguments */
 export function runForensic(args: string, env?: Record<string, string>): CliResult {
   const binary = getBinaryPath();
-  const envStr = env
-    ? Object.entries(env).map(([k, v]) => `${k}="${v}"`).join(' ') + ' '
-    : '';
-  return runCli(`${envStr}"${binary}" ${args}`);
+  return runCli(`"${binary}" ${args}`, undefined, env);
 }
 
 /** Create a temporary directory with JSONL test fixtures */
@@ -323,11 +322,10 @@ export function cleanupFixtureDir(dir: string): void {
 
 /** Compute SHA256 hashes for all files in a directory recursively */
 export function computeDirectoryHashes(dir: string): Map<string, string> {
-  const { createHash } = require('node:crypto');
   const hashes = new Map<string, string>();
 
   function walk(d: string) {
-    const entries = require('node:fs').readdirSync(d, { withFileTypes: true });
+    const entries = readdirSync(d, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = join(d, entry.name);
       if (entry.isDirectory()) {

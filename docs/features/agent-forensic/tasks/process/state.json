@@ -1,14 +1,11 @@
 {
-  "task_id": "T-test-2",
-  "key": "gen-test-scripts",
-  "title": "Generate e2e Test Scripts",
-  "priority": "P1",
-  "estimatedTime": "1-2h",
-  "dependencies": [
-    "T-test-1b"
-  ],
-  "file": "gen-test-scripts.md",
-  "record": "records/gen-test-scripts.md",
-  "startedTime": "2026-05-10 15:04",
-  "scope": "all"
+  "task_id": "fix-1",
+  "key": "fix-1",
+  "title": "Fix: runForensic env var passing fails on Windows",
+  "priority": "P0",
+  "estimatedTime": "30min",
+  "file": "fix-1.md",
+  "record": "records/fix-1.md",
+  "startedTime": "2026-05-10 15:15",
+  "breaking": true
 }
