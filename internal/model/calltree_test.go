@@ -175,7 +175,7 @@ func TestCallTree_SetSession(t *testing.T) {
 	m = m.SetSize(80, 20)
 	m = m.SetSession(session)
 	assert.Equal(t, StatePopulated, m.state)
-	assert.Equal(t, "2026-05-09", m.sessionDate)
+	assert.Contains(t, m.sessionSummary, "05-09")
 }
 
 // --- Visible node flattening tests ---
@@ -437,7 +437,7 @@ func TestCallTreeView_UnauthorizedHighlight(t *testing.T) {
 func TestCallTreeView_SessionDate(t *testing.T) {
 	m := newTestCallTreeModelWithSession(testTurns())
 	view := m.View()
-	assert.Contains(t, view, "2026-05-09")
+	assert.Contains(t, view, "05-09")
 }
 
 func TestCallTreeView_NarrowPanel(t *testing.T) {

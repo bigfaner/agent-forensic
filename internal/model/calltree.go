@@ -53,11 +53,21 @@ type CallTreeModel struct {
 	height       int
 	focused      bool
 	monitoring   bool
-	errMsg       string
-	sessionDate  string
+	errMsg          string
+	sessionSummary  string
 
 	// Flash tracking: map[lineNum]expiryTime
 	flashNodes map[int]time.Time
+}
+
+// formatDurationCT formats a duration for display in session summaries.
+func formatDurationCT(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	}
+	mins := int(d.Minutes())
+	secs := int(d.Seconds()) - mins*60
+	return fmt.Sprintf("%dm%02ds", mins, secs)
 }
 
 // NewCallTreeModel creates a new call tree panel model in loading state.
@@ -88,9 +98,22 @@ func (m CallTreeModel) SetTurns(turns []parser.Turn) CallTreeModel {
 // SetSession loads a session and its turns into the model.
 func (m CallTreeModel) SetSession(session *parser.Session) CallTreeModel {
 	if session == nil {
+		m.sessionSummary = ""
 		return m.SetTurns(nil)
 	}
-	m.sessionDate = session.Date.Format("2006-01-02")
+
+	title := session.Title
+	if title == "" {
+		title = projectNameFromCwd(session.Cwd)
+	}
+
+	m.sessionSummary = fmt.Sprintf("%s  %d tools  %s  %s",
+		session.Date.Format("01-02 15:04"),
+		session.ToolCount,
+		formatDurationCT(session.Duration),
+		title,
+	)
+
 	return m.SetTurns(session.Turns)
 }
 
@@ -384,8 +407,8 @@ func (m CallTreeModel) View() string {
 		Height(m.height - 2)
 
 	title := i18n.T("panel.calltree.title")
-	if m.sessionDate != "" {
-		title = fmt.Sprintf("%s — session %s", title, m.sessionDate)
+	if m.sessionSummary != "" {
+		title = fmt.Sprintf("%s — %s", title, m.sessionSummary)
 	}
 
 	content := m.renderContent()

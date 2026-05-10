@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,18 +13,40 @@ import (
 	"time"
 )
 
-// jsonlLine represents a raw JSON line from the session file.
-// Fields are based on the Claude Code JSONL format.
-type jsonlLine struct {
+// --- JSON envelope types for real Claude Code JSONL format ---
+
+// claudeEnvelope is the top-level JSON structure of each JSONL line.
+type claudeEnvelope struct {
 	Type      string          `json:"type"`
-	Role      string          `json:"role,omitempty"`
+	Timestamp string          `json:"timestamp,omitempty"`
+	Message   json.RawMessage `json:"message,omitempty"`
+	Cwd       string          `json:"cwd,omitempty"`
+	// Flat-format fields (backward compat with tests)
+	Role     string          `json:"role,omitempty"`
+	Name     string          `json:"name,omitempty"`
+	Input    json.RawMessage `json:"input,omitempty"`
+	Output   json.RawMessage `json:"output,omitempty"`
+	ExitCode *int            `json:"exit_code,omitempty"`
+	Content  string          `json:"content,omitempty"`
+	Thinking string          `json:"thinking,omitempty"`
+}
+
+// claudeMessage represents the nested `message` field in Claude Code JSONL.
+type claudeMessage struct {
+	Role    string          `json:"role"`
+	Content json.RawMessage `json:"content"`
+}
+
+// contentBlock represents a single block within a message's content array.
+type contentBlock struct {
+	Type      string          `json:"type"`
 	Name      string          `json:"name,omitempty"`
 	Input     json.RawMessage `json:"input,omitempty"`
-	Output    json.RawMessage `json:"output,omitempty"`
-	ExitCode  *int            `json:"exit_code,omitempty"`
-	Content   string          `json:"content,omitempty"`
 	Thinking  string          `json:"thinking,omitempty"`
-	Timestamp string          `json:"timestamp,omitempty"`
+	Text      string          `json:"text,omitempty"`
+	ToolUseID string          `json:"tool_use_id,omitempty"`
+	Content   json.RawMessage `json:"content,omitempty"`
+	IsError   bool            `json:"is_error,omitempty"`
 }
 
 // parsedEntry wraps a TurnEntry with its parsed timestamp for duration computation.
@@ -115,6 +138,68 @@ func ScanDir(dirPath string) ([]string, error) {
 	return files, nil
 }
 
+// ScanProjectsDir recursively scans <claudeDir>/projects/ for session JSONL files.
+// It skips files inside "subagents/" subdirectories.
+// Returns sorted list of absolute file paths.
+func ScanProjectsDir(claudeDir string) ([]string, error) {
+	projectsDir := filepath.Join(claudeDir, "projects")
+	info, err := os.Stat(projectsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, NewDirPermissionError(projectsDir, err)
+	}
+	if !info.IsDir() {
+		return nil, nil
+	}
+
+	var files []string
+	err = filepath.WalkDir(projectsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if d.Name() == "subagents" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".jsonl") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Strings(files)
+	return files, nil
+}
+
+// FileMeta holds a file path and its modification time for sorting before parsing.
+type FileMeta struct {
+	Path    string
+	ModTime time.Time
+}
+
+// SortFilesByTime stats each file and returns them sorted by ModTime descending (newest first).
+func SortFilesByTime(files []string) []FileMeta {
+	metas := make([]FileMeta, 0, len(files))
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		metas = append(metas, FileMeta{Path: f, ModTime: info.ModTime()})
+	}
+	sort.Slice(metas, func(i, j int) bool {
+		return metas[i].ModTime.After(metas[j].ModTime)
+	})
+	return metas
+}
+
 // parseFromReader reads all lines from an io.Reader and builds a Session.
 func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Time) (*Session, error) {
 	scanner := bufio.NewScanner(r)
@@ -122,6 +207,8 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 
 	var parsed []parsedEntry
 	var parseErrors []*ParseError
+	var sessionCwd string
+	var sessionTitle string
 	lineNum := 0
 
 	for scanner.Scan() {
@@ -135,12 +222,28 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 			break
 		}
 
-		pe, err := parseLine(line, filePath, lineNum)
+		entries, env, err := parseLineEntriesWithEnvelope(line, filePath, lineNum)
 		if err != nil {
-			parseErrors = append(parseErrors, err.(*ParseError))
+			parseErrors = append(parseErrors, err)
 			continue
 		}
-		parsed = append(parsed, pe)
+
+		// Extract cwd from first line that has it
+		if sessionCwd == "" && env.Cwd != "" {
+			sessionCwd = env.Cwd
+		}
+
+		// Extract title from first user text message
+		if sessionTitle == "" {
+			for _, pe := range entries {
+				if pe.Entry.Type == EntryMessage && pe.Entry.Output != "" {
+					sessionTitle = truncateTitle(pe.Entry.Output, 80)
+					break
+				}
+			}
+		}
+
+		parsed = append(parsed, entries...)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -153,19 +256,20 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 		return nil, NewCorruptSessionError(filePath, totalLines, parseErrors)
 	}
 
-	// Extract plain entries
-	entries := make([]TurnEntry, len(parsed))
+	plainEntries := make([]TurnEntry, len(parsed))
 	for i, pe := range parsed {
-		entries[i] = pe.Entry
+		plainEntries[i] = pe.Entry
 	}
 
 	session := &Session{
 		FilePath: filePath,
 		Date:     modTime,
 		Turns:    groupTurns(parsed),
+		Cwd:      sessionCwd,
+		Title:    sessionTitle,
 	}
 
-	session.ToolCount = countToolUses(entries)
+	session.ToolCount = countToolUses(plainEntries)
 	session.Duration = computeSessionDuration(parsed)
 
 	return session, nil
@@ -186,11 +290,13 @@ func parseIncrementalLines(f *os.File, filePath string, startOffset int64) ([]Tu
 			continue
 		}
 
-		pe, err := parseLine(line, filePath, lineNum)
+		pes, err := parseLineEntries(line, filePath, lineNum)
 		if err != nil {
 			continue
 		}
-		entries = append(entries, pe.Entry)
+		for _, pe := range pes {
+			entries = append(entries, pe.Entry)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -205,49 +311,156 @@ func parseIncrementalLines(f *os.File, filePath string, startOffset int64) ([]Tu
 	return entries, currentOffset, nil
 }
 
-// parseLine parses a single JSONL line into a parsedEntry.
-func parseLine(line string, filePath string, lineNum int) (parsedEntry, error) {
-	var raw jsonlLine
-	if err := json.Unmarshal([]byte(line), &raw); err != nil {
-		return parsedEntry{}, NewParseError(filePath, lineNum, fmt.Errorf("invalid JSON: %w", err))
+// parseLineEntries parses a single JSONL line into zero or more parsedEntry values.
+// Handles both the real Claude Code nested format and the flat test format.
+func parseLineEntries(line string, filePath string, lineNum int) ([]parsedEntry, *ParseError) {
+	entries, _, err := parseLineEntriesWithEnvelope(line, filePath, lineNum)
+	return entries, err
+}
+
+// parseLineEntriesWithEnvelope parses a line and also returns the raw envelope
+// for metadata extraction (cwd, etc).
+func parseLineEntriesWithEnvelope(line string, filePath string, lineNum int) ([]parsedEntry, claudeEnvelope, *ParseError) {
+	var env claudeEnvelope
+	if err := json.Unmarshal([]byte(line), &env); err != nil {
+		return nil, env, NewParseError(filePath, lineNum, fmt.Errorf("invalid JSON: %w", err))
 	}
 
-	entry := TurnEntry{
-		LineNum: lineNum,
+	ts, hasTS := parseTimestamp(env.Timestamp)
+
+	// Real Claude Code format: has nested "message" field
+	if len(env.Message) > 0 {
+		entries, err := parseNestedMessage(env, ts, hasTS, filePath, lineNum)
+		return entries, env, err
 	}
 
-	switch raw.Type {
+	// Flat format (test backward compat)
+	entries, err := parseFlatEntry(env, ts, hasTS, filePath, lineNum)
+	return entries, env, err
+}
+
+// parseNestedMessage handles the real Claude Code JSONL format where entries
+// are nested inside a `message` field with a `content` array.
+func parseNestedMessage(env claudeEnvelope, ts time.Time, hasTS bool, filePath string, lineNum int) ([]parsedEntry, *ParseError) {
+	var msg claudeMessage
+	if err := json.Unmarshal(env.Message, &msg); err != nil {
+		return nil, NewParseError(filePath, lineNum, fmt.Errorf("invalid message field: %w", err))
+	}
+
+	// Try to parse content as an array of blocks
+	var blocks []contentBlock
+	if err := json.Unmarshal(msg.Content, &blocks); err != nil {
+		// Content might be a plain string
+		var contentStr string
+		if err2 := json.Unmarshal(msg.Content, &contentStr); err2 == nil {
+			// Plain text message — emit as EntryMessage (acts as turn delimiter)
+			return []parsedEntry{{
+				Entry:     TurnEntry{Type: EntryMessage, LineNum: lineNum, Output: contentStr},
+				Timestamp: ts, HasTS: hasTS,
+			}}, nil
+		}
+		return nil, nil // skip unparseable content
+	}
+
+	var result []parsedEntry
+
+	for _, block := range blocks {
+		entry := TurnEntry{LineNum: lineNum}
+
+		switch block.Type {
+		case "tool_use":
+			entry.Type = EntryToolUse
+			entry.ToolName = block.Name
+			entry.Input = string(block.Input)
+		case "tool_result":
+			entry.Type = EntryToolResult
+			entry.ToolName = block.Name
+			entry.Output = string(block.Content)
+		case "thinking":
+			entry.Type = EntryThinking
+			entry.Thinking = block.Thinking
+		case "text":
+			// For user messages with text, emit EntryMessage as turn delimiter
+			if env.Type == "user" {
+				entry.Type = EntryMessage
+				entry.Output = block.Text
+			} else {
+				// Skip assistant text blocks (not useful for forensic view)
+				continue
+			}
+		default:
+			continue // skip unknown block types
+		}
+
+		result = append(result, parsedEntry{Entry: entry, Timestamp: ts, HasTS: hasTS})
+	}
+
+	// If no entries extracted but we had blocks, this is a metadata-only line
+	if len(result) == 0 {
+		return nil, nil
+	}
+
+	return result, nil
+}
+
+// parseFlatEntry handles the old flat JSONL format used in tests.
+func parseFlatEntry(env claudeEnvelope, ts time.Time, hasTS bool, filePath string, lineNum int) ([]parsedEntry, *ParseError) {
+	entry := TurnEntry{LineNum: lineNum}
+
+	switch env.Type {
 	case "tool_use":
 		entry.Type = EntryToolUse
-		entry.ToolName = raw.Name
-		entry.Input = string(raw.Input)
+		entry.ToolName = env.Name
+		entry.Input = string(env.Input)
 	case "tool_result":
 		entry.Type = EntryToolResult
-		entry.ToolName = raw.Name
-		entry.Output = string(raw.Output)
-		entry.ExitCode = raw.ExitCode
+		entry.ToolName = env.Name
+		entry.Output = string(env.Output)
+		entry.ExitCode = env.ExitCode
 	case "thinking":
 		entry.Type = EntryThinking
-		entry.Thinking = raw.Thinking
+		entry.Thinking = env.Thinking
 	case "message":
 		entry.Type = EntryMessage
 	default:
-		return parsedEntry{}, NewParseError(filePath, lineNum, fmt.Errorf("unknown entry type: %q", raw.Type))
+		return nil, NewParseError(filePath, lineNum, fmt.Errorf("unknown entry type: %q", env.Type))
 	}
 
-	pe := parsedEntry{Entry: entry}
-	if raw.Timestamp != "" {
-		if ts, err := time.Parse(time.RFC3339, raw.Timestamp); err == nil {
-			pe.Timestamp = ts
-			pe.HasTS = true
-		}
-	}
-
-	return pe, nil
+	return []parsedEntry{{Entry: entry, Timestamp: ts, HasTS: hasTS}}, nil
 }
 
-// groupTurns groups parsed entries into turns. A new turn starts when a "message" entry
-// is encountered after previous entries have been collected.
+// parseTimestamp parses an RFC3339 timestamp string.
+func parseTimestamp(s string) (time.Time, bool) {
+	if s == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// truncateTitle truncates a string to maxLen runes, stripping newlines.
+func truncateTitle(s string, maxLen int) string {
+	// Replace newlines with spaces
+	s = strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\r' {
+			return ' '
+		}
+		return r
+	}, s)
+	s = strings.TrimSpace(s)
+
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen-1]) + "…"
+}
+
+// groupTurns groups parsed entries into turns. A new turn starts when an
+// EntryMessage is encountered after previous entries have been collected.
 func groupTurns(entries []parsedEntry) []Turn {
 	if len(entries) == 0 {
 		return nil

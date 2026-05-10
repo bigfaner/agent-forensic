@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -56,6 +57,10 @@ type AppModel struct {
 	currentSession *parser.Session
 	dataDir        string
 
+	// Lazy loading state
+	allFiles    []parser.FileMeta
+	loadedIndex int
+
 	// Feature flags
 	monitoring bool
 }
@@ -80,7 +85,80 @@ func NewAppModel(dataDir string) AppModel {
 
 // Init implements tea.Model.
 func (m AppModel) Init() tea.Cmd {
-	return nil
+	return m.loadSessions()
+}
+
+const maxRecentSessions = 10
+
+// loadSessions returns a tea.Cmd that discovers all session files, sorts by
+// modification time descending, parses the most recent batch, and delivers
+// them as a SessionsLoadedMsg.
+func (m AppModel) loadSessions() tea.Cmd {
+	return func() tea.Msg {
+		files, err := parser.ScanProjectsDir(m.dataDir)
+		if err != nil {
+			return SessionsLoadedMsg{Err: err}
+		}
+		if len(files) == 0 {
+			return SessionsLoadedMsg{}
+		}
+
+		allFiles := parser.SortFilesByTime(files)
+		batch := allFiles
+		if len(batch) > maxRecentSessions {
+			batch = batch[:maxRecentSessions]
+		}
+
+		sessions := parseFiles(batch)
+		return SessionsLoadedMsg{
+			Sessions:    sessions,
+			AllFiles:    allFiles,
+			LoadedIndex: len(batch),
+		}
+	}
+}
+
+// loadMoreSessions returns a tea.Cmd that parses the next batch of session files.
+func (m AppModel) loadMoreSessions() tea.Cmd {
+	return func() tea.Msg {
+		start := m.loadedIndex
+		end := start + maxRecentSessions
+		if end > len(m.allFiles) {
+			end = len(m.allFiles)
+		}
+		if start >= end {
+			return LoadMoreSessionsMsg{}
+		}
+
+		batch := m.allFiles[start:end]
+		sessions := parseFiles(batch)
+		return LoadMoreSessionsMsg{
+			Sessions:    sessions,
+			LoadedIndex: end,
+			TotalFiles:  len(m.allFiles),
+		}
+	}
+}
+
+// parseFiles parses a slice of FileMeta into Session objects.
+func parseFiles(files []parser.FileMeta) []parser.Session {
+	var sessions []parser.Session
+	for _, fm := range files {
+		s, err := parser.ParseSession(fm.Path, 0)
+		if err != nil {
+			continue
+		}
+		sessions = append(sessions, *s)
+	}
+	sortSessionsByDateDesc(sessions)
+	return sessions
+}
+
+// sortSessionsByDateDesc sorts sessions by Date descending (newest first).
+func sortSessionsByDateDesc(sessions []parser.Session) {
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].Date.After(sessions[j].Date)
+	})
 }
 
 // WatcherEventMsg wraps a watcher event for Bubble Tea message passing.
@@ -88,6 +166,24 @@ func (m AppModel) Init() tea.Cmd {
 type WatcherEventMsg struct {
 	FilePath string
 	Lines    []string
+}
+
+// SessionsLoadedMsg is sent when initial session files have been scanned and parsed.
+type SessionsLoadedMsg struct {
+	Sessions    []parser.Session
+	AllFiles    []parser.FileMeta
+	LoadedIndex int
+	Err         error
+}
+
+// LoadMoreRequestMsg is emitted by the sessions panel when user presses G.
+type LoadMoreRequestMsg struct{}
+
+// LoadMoreSessionsMsg is sent when additional sessions have been parsed.
+type LoadMoreSessionsMsg struct {
+	Sessions    []parser.Session
+	LoadedIndex int
+	TotalFiles  int
 }
 
 // Update implements tea.Model.
@@ -116,6 +212,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case WatcherEventMsg:
 		return m.handleWatcherEvent(msg)
+
+	case SessionsLoadedMsg:
+		return m.handleSessionsLoaded(msg)
+
+	case LoadMoreRequestMsg:
+		return m.handleLoadMoreRequest()
+
+	case LoadMoreSessionsMsg:
+		return m.handleLoadMoreSessions(msg)
 	}
 
 	return m, nil
@@ -382,6 +487,46 @@ func (m AppModel) handleWatcherEvent(msg WatcherEventMsg) (tea.Model, tea.Cmd) {
 		m.callTree = m.callTree.AddEntry(turnIdx, entry)
 	}
 
+	return m, nil
+}
+
+// handleSessionsLoaded processes the result of the initial session scan.
+func (m AppModel) handleSessionsLoaded(msg SessionsLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.sessions = m.sessions.SetError(msg.Err.Error())
+		return m, nil
+	}
+	m.allFiles = msg.AllFiles
+	m.loadedIndex = msg.LoadedIndex
+	m.sessions = m.sessions.SetSessions(msg.Sessions)
+	m.sessions = m.sessions.SetHasMore(m.loadedIndex < len(m.allFiles), m.loadedIndex, len(m.allFiles))
+	m.dashboard = m.dashboard.SetSessions(msg.Sessions)
+	return m, nil
+}
+
+// handleLoadMoreRequest triggers loading the next batch of sessions.
+func (m AppModel) handleLoadMoreRequest() (tea.Model, tea.Cmd) {
+	if m.loadedIndex >= len(m.allFiles) {
+		return m, nil
+	}
+	return m, m.loadMoreSessions()
+}
+
+// handleLoadMoreSessions appends newly parsed sessions and updates the panel.
+func (m AppModel) handleLoadMoreSessions(msg LoadMoreSessionsMsg) (tea.Model, tea.Cmd) {
+	m.loadedIndex = msg.LoadedIndex
+	if len(msg.Sessions) == 0 {
+		m.sessions = m.sessions.SetHasMore(m.loadedIndex < len(m.allFiles), m.loadedIndex, len(m.allFiles))
+		return m, nil
+	}
+
+	// Append to existing sessions, re-sort
+	existing := m.sessions.sessions
+	all := append(existing, msg.Sessions...)
+	sortSessionsByDateDesc(all)
+	m.sessions = m.sessions.SetSessions(all)
+	m.sessions = m.sessions.SetHasMore(m.loadedIndex < len(m.allFiles), m.loadedIndex, len(m.allFiles))
+	m.dashboard = m.dashboard.SetSessions(all)
 	return m, nil
 }
 

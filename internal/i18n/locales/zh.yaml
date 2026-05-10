@@ -57,6 +57,9 @@ picker.title: "切换会话"
 picker.search: "搜索"
 picker.no_results: "无匹配结果"
 
+# Session list
+sessions.load_more: "加载更多"
+
 # Language indicator
 lang.zh: "中"
 lang.en: "EN"

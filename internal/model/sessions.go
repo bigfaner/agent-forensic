@@ -50,6 +50,11 @@ type SessionsModel struct {
 	height    int
 	focused   bool
 	errMsg    string
+
+	// Lazy loading state
+	hasMore     bool
+	loadedCount int
+	totalCount  int
 }
 
 // NewSessionsModel creates a new sessions panel model in loading state.
@@ -81,6 +86,14 @@ func (m SessionsModel) SetSessions(sessions []parser.Session) SessionsModel {
 func (m SessionsModel) SetError(msg string) SessionsModel {
 	m.state = StateError
 	m.errMsg = msg
+	return m
+}
+
+// SetHasMore updates the lazy-loading indicator.
+func (m SessionsModel) SetHasMore(hasMore bool, loaded, total int) SessionsModel {
+	m.hasMore = hasMore
+	m.loadedCount = loaded
+	m.totalCount = total
 	return m
 }
 
@@ -149,6 +162,10 @@ func (m SessionsModel) handleNormalKey(msg tea.KeyMsg) (SessionsModel, tea.Cmd) 
 	case "/":
 		m.search = SearchActive
 		m.searchBuf = ""
+	case "G", "g":
+		if m.hasMore {
+			return m, func() tea.Msg { return LoadMoreRequestMsg{} }
+		}
 	case "tab":
 		return m, nil
 	case "1":
@@ -347,37 +364,92 @@ func (m SessionsModel) renderList() string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Render(msg)
 	}
 
-	var b strings.Builder
-	end := m.scroll + visibleHeight
-	if end > len(m.filtered) {
-		end = len(m.filtered)
+	// Reserve 1 line for "load more" footer if applicable
+	if m.hasMore {
+		visibleHeight--
+		if visibleHeight < 1 {
+			visibleHeight = 1
+		}
 	}
 
+	total := len(m.filtered)
+	end := m.scroll + visibleHeight
+	if end > total {
+		end = total
+	}
+
+	var b strings.Builder
 	for i := m.scroll; i < end; i++ {
 		m.renderRow(&b, i)
 		if i < end-1 {
 			b.WriteString("\n")
 		}
 	}
+
+	// Append "load more" footer
+	if m.hasMore {
+		footer := fmt.Sprintf(" G: %s (%d/%d)", i18n.T("sessions.load_more"), m.loadedCount, m.totalCount)
+		footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+		b.WriteString("\n" + footerStyle.Render(footer))
+	}
+
+	// Add scrollbar if content overflows
+	if total > visibleHeight {
+		scrollbar := m.renderScrollbar(visibleHeight, total)
+		return lipgloss.JoinHorizontal(lipgloss.Top, b.String(), scrollbar)
+	}
+
+	return b.String()
+}
+
+// renderScrollbar renders a minimal vertical scrollbar indicator.
+func (m SessionsModel) renderScrollbar(height, total int) string {
+	// Proportional thumb position
+	thumbPos := 0
+	if total > height {
+		thumbPos = m.scroll * (height - 1) / (total - height)
+	}
+
+	var b strings.Builder
+	trackStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	thumbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
+
+	for i := 0; i < height; i++ {
+		if i == thumbPos {
+			b.WriteString(thumbStyle.Render("┃"))
+		} else {
+			b.WriteString(trackStyle.Render("│"))
+		}
+		if i < height-1 {
+			b.WriteString("\n")
+		}
+	}
+
 	return b.String()
 }
 
 func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 	s := m.filtered[idx]
-	dateStr := s.Date.Format("2006-01-02")
-	calls := fmt.Sprintf("%4d", s.ToolCount)
-	durStr := formatDuration(s.Duration)
+	timeStr := s.Date.Format("15:04")
 
 	marker := "  "
 	if idx == m.cursor {
-		marker = "▸ " // ▸
+		marker = "▸ "
 	}
 
-	row := fmt.Sprintf("%s%s %s %s", marker, dateStr, calls, durStr)
+	title := s.Title
+	if title == "" {
+		title = projectNameFromCwd(s.Cwd)
+	}
+
+	row := fmt.Sprintf("%s%s %s", marker, timeStr, title)
 
 	contentWidth := m.width - 4
 	if len(row) > contentWidth {
-		row = row[:contentWidth-1] + "…"
+		runes := []rune(row)
+		if len(runes) > contentWidth-1 {
+			row = string(runes[:contentWidth-1]) + "…"
+		}
 	}
 
 	if idx == m.cursor {
@@ -389,6 +461,20 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 		b.WriteString(style.Render(row))
 	}
+}
+
+// projectNameFromCwd extracts the last directory name from a cwd path.
+func projectNameFromCwd(cwd string) string {
+	if cwd == "" {
+		return ""
+	}
+	// Handle both / and \ separators
+	cwd = strings.ReplaceAll(cwd, "\\", "/")
+	parts := strings.Split(strings.TrimRight(cwd, "/"), "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }
 
 func formatDuration(d time.Duration) string {

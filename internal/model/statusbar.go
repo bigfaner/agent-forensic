@@ -130,7 +130,7 @@ func (m StatusBarModel) buildNormalHints() string {
 	p2 := []string{
 		hint("d", ":diag"),
 		hint("s", ":stats"),
-		hint("n/p", ":replay"),
+		hint("G", ":more"),
 	}
 
 	// Priority 3: >=100 cols
