@@ -21,7 +21,7 @@ run:
     go run .
 
 dev:
-    go run . --dev
+    go run .
 
 test:
     go test ./...
