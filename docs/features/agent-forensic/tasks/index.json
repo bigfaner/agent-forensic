@@ -186,7 +186,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.1-sessions-panel.md",
       "record": "records/3.1-sessions-panel.md",
       "scope": "all"

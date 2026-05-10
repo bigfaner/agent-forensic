@@ -1,23 +1,46 @@
 {
-	"taskId": "2.gate",
+	"taskId": "3.1",
 	"status": "completed",
-	"summary": "Phase 2 Exit Gate verification: all service-layer components (parser, detector, sanitizer, i18n, stats, watcher) build, pass tests, and meet coverage targets. All interfaces match tech-design.md signatures. No deviations from design.",
-	"filesCreated": [],
-	"filesModified": [],
+	"summary": "Implement Bubble Tea SessionsModel for the sessions panel (left panel, 25% width). Supports states (Loading/Populated/Empty/Error), search sub-states (Active/Invalid/NoResults), j/k navigation, Enter selection emitting SessionSelectMsg, / search with real-time filtering and date pattern auto-detection (YYYY-MM-DD, MM-DD), Esc cancel, Tab/1 focus keys, and View rendering with lipgloss styled panel borders, selection markers, and i18n labels.",
+	"filesCreated": [
+		"internal/model/sessions.go",
+		"internal/model/sessions_test.go",
+		"internal/model/golden_test.go",
+		"internal/model/testdata/sessions_populated.golden",
+		"internal/model/testdata/sessions_empty.golden",
+		"internal/model/testdata/sessions_loading.golden",
+		"internal/model/testdata/sessions_error.golden",
+		"internal/model/testdata/sessions_search_active.golden",
+		"internal/model/testdata/sessions_populated_unfocused.golden"
+	],
+	"filesModified": [
+		"go.mod",
+		"go.sum"
+	],
 	"keyDecisions": [
-		"Watcher uses concrete struct instead of interface (only one implementation exists, acceptable deviation)",
-		"All 6 service packages verified against tech-design.md interface signatures with exact matches"
+		"3.1: Used value receiver for SessionsModel with explicit Set* methods returning updated copies (immutable update pattern matching Bubble Tea conventions)",
+		"3.1: Search states (Active/Invalid/NoResults) all route through handleSearchKey allowing Esc from any search sub-state",
+		"3.1: Date pattern auto-detection uses regex matching YYYY-MM-DD or MM-DD formats against date column",
+		"3.1: Non-date keywords match against file paths with case-insensitive comparison",
+		"3.1: Backspace handled via both msg.String()=='backspace' and msg.Type==tea.KeyBackspace for cross-platform support",
+		"3.1: View rendering uses lipgloss rounded borders with cyan (focused) or dim (unfocused) color",
+		"3.1: Panel width < 25 returns empty string (minimum width guard)",
+		"3.1: Golden file tests for all major view states (populated, empty, loading, error, search active, unfocused)"
 	],
-	"testsPassed": 67,
+	"testsPassed": 61,
 	"testsFailed": 0,
-	"coverage": 93.7,
+	"coverage": 91.2,
 	"acceptanceCriteria": [
-		{ "criterion": "All service interfaces from tech-design.md compile without errors", "met": true },
-		{ "criterion": "Project builds successfully (go build ./...)", "met": true },
-		{ "criterion": "All existing tests pass (go test ./...)", "met": true },
-		{ "criterion": "No deviations from design spec (or deviations documented as decisions)", "met": true },
-		{ "criterion": "Unit test coverage meets targets: parser 93.7% >= 90%, detector 95.0% >= 95%, sanitizer 100% >= 95%, stats 100% >= 90%, i18n 90.0% >= 80%, watcher 84.6% >= 80%", "met": true },
-		{ "criterion": "Any deviations from design are documented as decisions in the record", "met": true }
+		{"criterion": "internal/model/sessions.go implements SessionsModel with Init(), Update(msg tea.Msg), View() string", "met": true},
+		{"criterion": "States: Loading -> Populated/Empty/Error, Search Active, Search Invalid, Search No Results", "met": true},
+		{"criterion": "Keyboard: j/k navigation, Enter select, / search, Esc cancel search, Tab focus transfer, 1 focus self", "met": true},
+		{"criterion": "Search filters in real-time as user types", "met": true},
+		{"criterion": "Date pattern auto-detection (YYYY-MM-DD, MM-DD) in search", "met": true},
+		{"criterion": "Empty search (0 chars) shows validation message", "met": true},
+		{"criterion": "View rendering: panel border, title, session rows, selection marker, search prompt", "met": true},
+		{"criterion": "Golden file tests for rendered output", "met": true},
+		{"criterion": "State transition tests (key handling, cursor position, search state)", "met": true},
+		{"criterion": "Test coverage >= 85%", "met": true}
 	],
-	"notes": "Coverage per package: parser 93.7%, detector 95.0%, sanitizer 100.0%, stats 100.0%, i18n 90.0%, watcher 84.6%. All exceed their targets. Total test count: 67 tests across all packages."
+	"notes": "Added bubbletea, lipgloss, and bubbles as Go module dependencies. Search validation message currently uses picker.no_results i18n key for invalid state display. Empty search validation message key may need a dedicated i18n entry in a follow-up task."
 }

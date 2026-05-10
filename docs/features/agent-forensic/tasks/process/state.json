@@ -1,15 +1,14 @@
 {
-  "task_id": "2.gate",
-  "key": "2-gate",
-  "title": "Phase 2 Exit Gate",
+  "task_id": "3.1",
+  "key": "3.1-sessions-panel",
+  "title": "Sessions Panel Model",
   "priority": "P0",
-  "estimatedTime": "1h",
+  "estimatedTime": "3h",
   "dependencies": [
-    "2.summary"
+    "2.gate"
   ],
-  "file": "2-gate.md",
-  "record": "records/2-gate.md",
-  "startedTime": "2026-05-10 07:57",
-  "breaking": true,
+  "file": "3.1-sessions-panel.md",
+  "record": "records/3.1-sessions-panel.md",
+  "startedTime": "2026-05-10 08:00",
   "scope": "all"
 }
