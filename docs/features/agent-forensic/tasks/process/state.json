@@ -1,14 +1,14 @@
 {
-  "task_id": "fix-1",
-  "key": "fix-1",
-  "title": "Fix: runForensic env var passing fails on Windows",
-  "priority": "P0",
+  "task_id": "T-test-4",
+  "key": "graduate-tests",
+  "title": "Graduate Test Scripts",
+  "priority": "P1",
   "estimatedTime": "30min",
   "dependencies": [
-    "fix-2"
+    "T-test-3"
   ],
-  "file": "fix-1.md",
-  "record": "records/fix-1.md",
-  "startedTime": "2026-05-10 15:35",
-  "breaking": true
+  "file": "graduate-tests.md",
+  "record": "records/graduate-tests.md",
+  "startedTime": "2026-05-10 15:54",
+  "scope": "all"
 }

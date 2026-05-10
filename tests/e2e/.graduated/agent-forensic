@@ -1,0 +1,31 @@
+{
+  "feature": "agent-forensic",
+  "graduatedAt": "2026-05-10",
+  "sourceDir": "tests/e2e/features/agent-forensic/",
+  "targetDir": "tests/e2e/agent-forensic/",
+  "modules": [
+    {
+      "name": "api",
+      "file": "api.spec.ts",
+      "tests": 17,
+      "description": "API/parser/detector/sanitizer/stats/i18n unit tests via Go test runner"
+    },
+    {
+      "name": "cli",
+      "file": "cli.spec.ts",
+      "tests": 5,
+      "description": "CLI binary integration tests: language flags, missing dir, SHA256 integrity"
+    },
+    {
+      "name": "ui",
+      "file": "ui.spec.ts",
+      "tests": 41,
+      "description": "UI model tests via Go test runner + integration test"
+    }
+  ],
+  "totalTests": 63,
+  "passRate": "100%",
+  "importPathChanged": "../../helpers.js -> ../helpers.js",
+  "classification": "kept-as-is",
+  "notes": "All 3 spec files kept as-is (no split/merge needed). Moved from features/agent-forensic/ to agent-forensic/ with import path updated from ../../helpers.js to ../helpers.js."
+}
