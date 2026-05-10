@@ -1,14 +1,14 @@
 {
-  "task_id": "3.1",
-  "key": "3.1-sessions-panel",
-  "title": "Sessions Panel Model",
+  "task_id": "3.2",
+  "key": "3.2-calltree-panel",
+  "title": "Call Tree Panel Model",
   "priority": "P0",
-  "estimatedTime": "3h",
+  "estimatedTime": "4h",
   "dependencies": [
     "2.gate"
   ],
-  "file": "3.1-sessions-panel.md",
-  "record": "records/3.1-sessions-panel.md",
-  "startedTime": "2026-05-10 08:00",
+  "file": "3.2-calltree-panel.md",
+  "record": "records/3.2-calltree-panel.md",
+  "startedTime": "2026-05-10 08:09",
   "scope": "all"
 }
