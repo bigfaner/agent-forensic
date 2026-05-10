@@ -1,15 +1,15 @@
 {
-  "task_id": "4.1",
-  "key": "4.1-app-model",
-  "title": "App Model \u0026 Page Assembly",
+  "task_id": "4.2",
+  "key": "4.2-cli-entry",
+  "title": "CLI Entry Point",
   "priority": "P0",
-  "estimatedTime": "4h",
+  "estimatedTime": "1.5h",
   "dependencies": [
-    "3.gate"
+    "3.gate",
+    "4.1"
   ],
-  "file": "4.1-app-model.md",
-  "record": "records/4.1-app-model.md",
-  "startedTime": "2026-05-10 08:42",
-  "breaking": true,
+  "file": "4.2-cli-entry.md",
+  "record": "records/4.2-cli-entry.md",
+  "startedTime": "2026-05-10 08:51",
   "scope": "all"
 }
