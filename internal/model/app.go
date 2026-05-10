@@ -493,6 +493,22 @@ func (m AppModel) SetCurrentSession(session *parser.Session) AppModel {
 	return m
 }
 
+// CurrentSession returns the current active session pointer.
+func (m AppModel) CurrentSession() *parser.Session {
+	return m.currentSession
+}
+
+// CallTree returns a copy of the call tree sub-model.
+func (m AppModel) CallTree() CallTreeModel {
+	return m.callTree
+}
+
+// WithCallTree returns a copy of the AppModel with the call tree replaced.
+func (m AppModel) WithCallTree(ct CallTreeModel) AppModel {
+	m.callTree = ct
+	return m
+}
+
 // View implements tea.Model.
 func (m AppModel) View() string {
 	// Show resize warning if terminal is too small

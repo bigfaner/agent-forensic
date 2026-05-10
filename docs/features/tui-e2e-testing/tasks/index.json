@@ -48,7 +48,7 @@
       "dependencies": [
         "3"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "4-monitoring-flow.md",
       "record": "records/4-monitoring-flow.md",
       "scope": "all"

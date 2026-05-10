@@ -185,6 +185,20 @@ func (m *CallTreeModel) rebuildVisibleNodes() {
 	}
 }
 
+// WithExpanded expands the given turn index and rebuilds visible nodes.
+func (m CallTreeModel) WithExpanded(turnIdx int) CallTreeModel {
+	m.expanded[turnIdx] = true
+	m.rebuildVisibleNodes()
+	return m
+}
+
+// WithFlashExpiry sets the flash expiry time for a specific line number.
+// This is primarily for testing: it allows simulating expired flashes.
+func (m CallTreeModel) WithFlashExpiry(lineNum int, expiry time.Time) CallTreeModel {
+	m.flashNodes[lineNum] = expiry
+	return m
+}
+
 // cleanupExpiredFlashes removes expired flash entries.
 func (m *CallTreeModel) cleanupExpiredFlashes() {
 	now := time.Now()
