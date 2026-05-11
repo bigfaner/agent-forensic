@@ -439,7 +439,6 @@ func (m SessionsModel) renderScrollbar(height, total int) string {
 
 func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth int) {
 	s := m.filtered[idx]
-	timeStr := s.Date.Format("15:04")
 
 	marker := "  "
 	if idx == m.cursor {
@@ -457,7 +456,7 @@ func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth 
 	// lipgloss from word-wrapping at hyphens inside the panel border.
 	title = strings.ReplaceAll(title, "-", "‑")
 
-	row := fmt.Sprintf("%s%s %s", marker, timeStr, title)
+	row := fmt.Sprintf("%s%s", marker, title)
 	row = padToWidth(row, contentWidth)
 
 	if idx == m.cursor {

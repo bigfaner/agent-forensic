@@ -21,18 +21,21 @@ func testSessions() []parser.Session {
 			Date:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
 			ToolCount: 42,
 			Duration:  12*time.Minute + 30*time.Second,
+			Title:     "fix the login bug",
 		},
 		{
 			FilePath:  "/home/user/.claude/session-2026-05-08.jsonl",
 			Date:      time.Date(2026, 5, 8, 14, 30, 0, 0, time.UTC),
 			ToolCount: 18,
 			Duration:  5*time.Minute + 12*time.Second,
+			Title:     "add unit tests",
 		},
 		{
 			FilePath:  "/home/user/.claude/session-2026-05-07.jsonl",
 			Date:      time.Date(2026, 5, 7, 9, 15, 0, 0, time.UTC),
 			ToolCount: 95,
 			Duration:  45*time.Minute + 2*time.Second,
+			Title:     "refactor auth module",
 		},
 	}
 }
@@ -311,7 +314,7 @@ func TestView_Loading(t *testing.T) {
 func TestView_Populated(t *testing.T) {
 	m := newTestModel(testSessions())
 	view := m.View()
-	assert.Contains(t, view, "10:00")
+	assert.Contains(t, view, "fix the login bug")
 	assert.Contains(t, view, "▸")
 }
 
