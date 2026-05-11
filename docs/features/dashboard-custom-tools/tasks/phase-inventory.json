@@ -1,0 +1,18 @@
+[
+  {
+    "phase": 1,
+    "name": "数据模型与聚合逻辑",
+    "source": "design",
+    "gates": [
+      {"afterPhase": 1, "description": "SessionStats 扩展字段编译通过，CalculateStats 聚合结果正确，单元测试全部通过"}
+    ]
+  },
+  {
+    "phase": 2,
+    "name": "渲染、集成与 i18n",
+    "source": "design",
+    "gates": [
+      {"afterPhase": 2, "description": "renderCustomToolsBlock 集成到仪表盘，i18n 键完整，所有测试通过"}
+    ]
+  }
+]

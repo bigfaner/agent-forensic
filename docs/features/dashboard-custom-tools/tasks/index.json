@@ -1,0 +1,254 @@
+{
+  "feature": "dashboard-custom-tools",
+  "prd": "prd/prd-spec.md",
+  "design": "design/tech-design.md",
+  "created": "2026-05-11",
+  "status": "planning",
+  "tasks": {
+    "1-gate": {
+      "id": "1.gate",
+      "title": "Phase 1 Exit Gate",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.summary"
+      ],
+      "status": "pending",
+      "file": "1-gate.md",
+      "record": "records/1-gate.md",
+      "breaking": true,
+      "scope": "all",
+      "type": "gate"
+    },
+    "1-summary": {
+      "id": "1.summary",
+      "title": "Phase 1 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "1.x"
+      ],
+      "status": "pending",
+      "file": "1-summary.md",
+      "record": "records/1-summary.md",
+      "scope": "all",
+      "noTest": true,
+      "type": "doc-generation.summary"
+    },
+    "1.1-extend-session-stats": {
+      "id": "1.1",
+      "title": "扩展 SessionStats 数据模型",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "status": "pending",
+      "file": "1.1-extend-session-stats.md",
+      "record": "records/1.1-extend-session-stats.md",
+      "breaking": true,
+      "scope": "backend",
+      "type": "implementation"
+    },
+    "1.2-calculate-stats-aggregation": {
+      "id": "1.2",
+      "title": "扩展 CalculateStats 聚合逻辑",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "1.1"
+      ],
+      "status": "pending",
+      "file": "1.2-calculate-stats-aggregation.md",
+      "record": "records/1.2-calculate-stats-aggregation.md",
+      "scope": "backend",
+      "type": "implementation"
+    },
+    "2-gate": {
+      "id": "2.gate",
+      "title": "Phase 2 Exit Gate",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "2.summary"
+      ],
+      "status": "pending",
+      "file": "2-gate.md",
+      "record": "records/2-gate.md",
+      "breaking": true,
+      "scope": "all",
+      "type": "gate"
+    },
+    "2-summary": {
+      "id": "2.summary",
+      "title": "Phase 2 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "2.x"
+      ],
+      "status": "pending",
+      "file": "2-summary.md",
+      "record": "records/2-summary.md",
+      "scope": "all",
+      "noTest": true,
+      "type": "doc-generation.summary"
+    },
+    "2.1-render-custom-tools-block": {
+      "id": "2.1",
+      "title": "实现 renderCustomToolsBlock 渲染函数",
+      "priority": "P0",
+      "estimatedTime": "3h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "pending",
+      "file": "2.1-render-custom-tools-block.md",
+      "record": "records/2.1-render-custom-tools-block.md",
+      "scope": "backend",
+      "type": "implementation"
+    },
+    "2.2-i18n-keys": {
+      "id": "2.2",
+      "title": "新增 i18n 翻译键",
+      "priority": "P0",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "pending",
+      "file": "2.2-i18n-keys.md",
+      "record": "records/2.2-i18n-keys.md",
+      "scope": "backend",
+      "type": "implementation"
+    },
+    "2.3-integrate-dashboard": {
+      "id": "2.3",
+      "title": "集成自定义工具区块到仪表盘",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.gate",
+        "2.1",
+        "2.2"
+      ],
+      "status": "pending",
+      "file": "2.3-integrate-dashboard.md",
+      "record": "records/2.3-integrate-dashboard.md",
+      "scope": "backend",
+      "type": "implementation"
+    },
+    "consolidate-specs": {
+      "id": "T-test-5",
+      "title": "Consolidate Specs",
+      "priority": "P2",
+      "estimatedTime": "20min",
+      "dependencies": [
+        "T-test-4.5"
+      ],
+      "status": "pending",
+      "file": "consolidate-specs.md",
+      "record": "records/consolidate-specs.md",
+      "scope": "all",
+      "noTest": true,
+      "type": "doc-generation.consolidate"
+    },
+    "eval-test-cases": {
+      "id": "T-test-1b",
+      "title": "Evaluate e2e Test Cases",
+      "priority": "P1",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "T-test-1"
+      ],
+      "status": "pending",
+      "file": "eval-test-cases.md",
+      "record": "records/eval-test-cases.md",
+      "scope": "all",
+      "mainSession": true,
+      "noTest": true,
+      "type": "test-pipeline.eval-cases"
+    },
+    "gen-test-cases": {
+      "id": "T-test-1",
+      "title": "Generate e2e Test Cases",
+      "priority": "P1",
+      "estimatedTime": "1-2h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "pending",
+      "file": "gen-test-cases.md",
+      "record": "records/gen-test-cases.md",
+      "scope": "all",
+      "noTest": true,
+      "type": "test-pipeline.gen-cases"
+    },
+    "gen-test-scripts": {
+      "id": "T-test-2",
+      "title": "Generate e2e Test Scripts",
+      "priority": "P1",
+      "estimatedTime": "1-2h",
+      "dependencies": [
+        "T-test-1b"
+      ],
+      "status": "pending",
+      "file": "gen-test-scripts.md",
+      "record": "records/gen-test-scripts.md",
+      "scope": "all",
+      "type": "test-pipeline.gen-scripts"
+    },
+    "graduate-tests": {
+      "id": "T-test-4",
+      "title": "Graduate Test Scripts",
+      "priority": "P1",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "T-test-3"
+      ],
+      "status": "pending",
+      "file": "graduate-tests.md",
+      "record": "records/graduate-tests.md",
+      "scope": "all",
+      "type": "test-pipeline.graduate"
+    },
+    "run-e2e-tests": {
+      "id": "T-test-3",
+      "title": "Run e2e Tests",
+      "priority": "P1",
+      "estimatedTime": "30min-1h",
+      "dependencies": [
+        "T-test-2"
+      ],
+      "status": "pending",
+      "file": "run-e2e-tests.md",
+      "record": "records/run-e2e-tests.md",
+      "scope": "all",
+      "type": "test-pipeline.run"
+    },
+    "verify-regression": {
+      "id": "T-test-4.5",
+      "title": "Verify Full E2E Regression",
+      "priority": "P1",
+      "estimatedTime": "15-30min",
+      "dependencies": [
+        "T-test-4"
+      ],
+      "status": "pending",
+      "file": "verify-regression.md",
+      "record": "records/verify-regression.md",
+      "scope": "all",
+      "type": "test-pipeline.verify-regression"
+    }
+  },
+  "statusEnum": [
+    "pending",
+    "in_progress",
+    "completed",
+    "blocked",
+    "skipped",
+    "rejected"
+  ],
+  "priorityEnum": [
+    "P0",
+    "P1",
+    "P2"
+  ]
+}
