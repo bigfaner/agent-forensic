@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -445,12 +446,10 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 	row := fmt.Sprintf("%s%s %s", marker, timeStr, title)
 
 	contentWidth := m.width - 4
-	if len(row) > contentWidth {
-		runes := []rune(row)
-		if len(runes) > contentWidth-1 {
-			row = string(runes[:contentWidth-1]) + "…"
-		}
+	if contentWidth < 1 {
+		contentWidth = 1
 	}
+	row = truncateToWidth(row, contentWidth)
 
 	if idx == m.cursor {
 		style := lipgloss.NewStyle().
@@ -461,6 +460,30 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 		b.WriteString(style.Render(row))
 	}
+}
+
+// truncateToWidth truncates s to fit within maxWidth terminal columns,
+// appending "…" if truncated. Handles CJK double-width characters correctly.
+func truncateToWidth(s string, maxWidth int) string {
+	if runewidth.StringWidth(s) <= maxWidth {
+		return s
+	}
+	ellipsisWidth := runewidth.StringWidth("…")
+	budget := maxWidth - ellipsisWidth
+	if budget <= 0 {
+		return "…"
+	}
+	var out []rune
+	used := 0
+	for _, r := range s {
+		w := runewidth.RuneWidth(r)
+		if used+w > budget {
+			break
+		}
+		out = append(out, r)
+		used += w
+	}
+	return string(out) + "…"
 }
 
 // projectNameFromCwd extracts the last directory name from a cwd path.
