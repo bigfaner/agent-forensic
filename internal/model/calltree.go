@@ -383,7 +383,7 @@ func (m *CallTreeModel) clampScroll() {
 }
 
 func (m CallTreeModel) visibleHeight() int {
-	contentHeight := m.height - 3 // border top + bottom + title
+	contentHeight := m.height - 4 // border top + title + border bottom + padding
 	if contentHeight < 1 {
 		contentHeight = 1
 	}
@@ -456,38 +456,78 @@ func (m CallTreeModel) renderTree() string {
 	}
 
 	visibleHeight := m.visibleHeight()
+	total := len(m.visibleNodes)
 	start := m.scroll
 	end := start + visibleHeight
-	if end > len(m.visibleNodes) {
-		end = len(m.visibleNodes)
+	if end > total {
+		end = total
+	}
+
+	hasScrollbar := total > visibleHeight
+	contentWidth := m.width - 4
+	if hasScrollbar {
+		contentWidth--
+	}
+	if contentWidth < 1 {
+		contentWidth = 1
 	}
 
 	var b strings.Builder
 	for i := start; i < end; i++ {
 		node := m.visibleNodes[i]
 		if node.isTurn {
-			m.renderTurnNode(&b, i, node)
+			m.renderTurnNode(&b, i, node, contentWidth)
 		} else {
-			m.renderToolNode(&b, i, node)
+			m.renderToolNode(&b, i, node, contentWidth)
 		}
 		if i < end-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	if hasScrollbar {
+		scrollbar := m.renderScrollbar(visibleHeight, total)
+		fixedContent := lipgloss.NewStyle().Width(contentWidth).Height(visibleHeight).Render(b.String())
+		return lipgloss.JoinHorizontal(lipgloss.Top, fixedContent, scrollbar)
+	}
+	return b.String()
+}
+
+// renderScrollbar renders a minimal vertical scrollbar indicator.
+func (m CallTreeModel) renderScrollbar(height, total int) string {
+	thumbPos := 0
+	if total > height {
+		thumbPos = m.scroll * (height - 1) / (total - height)
+	}
+
+	trackStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	thumbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
+
+	var b strings.Builder
+	for i := 0; i < height; i++ {
+		if i == thumbPos {
+			b.WriteString(thumbStyle.Render("┃"))
+		} else {
+			b.WriteString(trackStyle.Render("│"))
+		}
+		if i < height-1 {
 			b.WriteString("\n")
 		}
 	}
 	return b.String()
 }
 
-// turnSummary returns the first user message text from a turn's entries.
+// turnSummary returns the first user message text from a turn's entries, with newlines collapsed.
 func turnSummary(turn parser.Turn) string {
 	for _, e := range turn.Entries {
 		if e.Type == parser.EntryMessage && e.Output != "" {
-			return e.Output
+			return strings.ReplaceAll(e.Output, "\n", " ")
 		}
 	}
 	return ""
 }
 
-func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node visibleNode) {
+func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node visibleNode, contentWidth int) {
 	turn := m.turns[node.turnIdx]
 	expanded := m.expanded[node.turnIdx]
 
@@ -502,7 +542,6 @@ func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node vi
 	}
 	line := fmt.Sprintf("%s %s", icon, label)
 
-	contentWidth := m.width - 4
 	if runewidth.StringWidth(line) > contentWidth {
 		line = truncateLineToWidth(line, contentWidth)
 	}
@@ -517,7 +556,7 @@ func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node vi
 	}
 }
 
-func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node visibleNode) {
+func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node visibleNode, contentWidth int) {
 	entry := node.entry
 	turn := m.turns[node.turnIdx]
 
@@ -571,7 +610,7 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 		line = "[NEW] " + line
 	}
 
-	contentWidth := m.width - 4
+	contentWidth = m.width - 4
 	if runewidth.StringWidth(line) > contentWidth {
 		line = truncateLineToWidth(line, contentWidth)
 	}

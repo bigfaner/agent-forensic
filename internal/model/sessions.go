@@ -83,6 +83,30 @@ func (m SessionsModel) SetSessions(sessions []parser.Session) SessionsModel {
 	return m
 }
 
+// AppendSessions replaces the session list without resetting cursor or scroll.
+// Used when loading more sessions so the current selection is preserved.
+func (m SessionsModel) AppendSessions(sessions []parser.Session) SessionsModel {
+	m.sessions = sessions
+	if m.search != SearchNone {
+		m.applyFilter()
+	} else {
+		m.filtered = sessions
+	}
+	if len(m.filtered) == 0 {
+		m.state = StateEmpty
+	} else {
+		m.state = StatePopulated
+	}
+	// Clamp cursor in case the list shrank (shouldn't happen on append, but be safe)
+	if m.cursor >= len(m.filtered) {
+		m.cursor = len(m.filtered) - 1
+	}
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	return m
+}
+
 // SetError transitions the model to error state.
 func (m SessionsModel) SetError(msg string) SessionsModel {
 	m.state = StateError
@@ -117,6 +141,11 @@ func (m SessionsModel) SelectedSession() *parser.Session {
 		return nil
 	}
 	return &m.filtered[m.cursor]
+}
+
+// IsSearching reports whether the panel is currently in search input mode.
+func (m SessionsModel) IsSearching() bool {
+	return m.search == SearchActive
 }
 
 // Init implements tea.Model.

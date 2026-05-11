@@ -48,10 +48,11 @@ type AppModel struct {
 	statusBar StatusBarModel
 
 	// Layout state
-	activePanel ActivePanel
-	activeView  ActiveView
-	width       int
-	height      int
+	activePanel    ActivePanel
+	activeView     ActiveView
+	detailExpanded bool
+	width          int
+	height         int
 
 	// Data state
 	currentSession *parser.Session
@@ -198,6 +199,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SessionSelectMsg:
 		return m.handleSessionSelect(msg)
 
+	case DetailExpandMsg:
+		m.detailExpanded = msg.Expanded
+		m.applyLayout()
+		return m, nil
+
 	case DiagnosisRequestMsg:
 		return m.handleDiagnosisRequest(msg)
 
@@ -230,8 +236,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m AppModel) handleResize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.width = msg.Width
 	m.height = msg.Height
+	m.applyLayout()
+	return m, nil
+}
 
-	// Calculate panel sizes
+// applyLayout distributes panel sizes based on current dimensions and detailExpanded state.
+func (m *AppModel) applyLayout() {
 	sessionsWidth := m.width / 4
 	if sessionsWidth < 25 {
 		sessionsWidth = 25
@@ -239,8 +249,14 @@ func (m AppModel) handleResize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	rightWidth := m.width - sessionsWidth
 	contentHeight := m.height - 1 // status bar takes 1 line
 
-	callTreeHeight := contentHeight * 67 / 100
-	detailHeight := contentHeight - callTreeHeight
+	var callTreeHeight, detailHeight int
+	if m.detailExpanded {
+		detailHeight = contentHeight * 67 / 100
+		callTreeHeight = contentHeight - detailHeight
+	} else {
+		callTreeHeight = contentHeight * 67 / 100
+		detailHeight = contentHeight - callTreeHeight
+	}
 
 	m.sessions = m.sessions.SetSize(sessionsWidth, contentHeight)
 	m.callTree = m.callTree.SetSize(rightWidth, callTreeHeight)
@@ -248,12 +264,15 @@ func (m AppModel) handleResize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.dashboard = m.dashboard.SetSize(m.width, contentHeight)
 	m.diagnosis = m.diagnosis.SetSize(m.width, contentHeight)
 	m.statusBar.SetSize(m.width, 1)
-
-	return m, nil
 }
 
 // handleKey dispatches key events based on current view and focus.
 func (m AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// When sessions panel is in search mode, let it consume all keys first
+	if m.activePanel == PanelSessions && m.sessions.IsSearching() {
+		return m.handleSessionsKey(msg)
+	}
+
 	// Global keys
 	switch msg.String() {
 	case "q":
@@ -298,6 +317,9 @@ func (m AppModel) handleMainKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "2":
 		m.setFocus(PanelCallTree)
+		return m, nil
+	case "3":
+		m.setFocus(PanelDetail)
 		return m, nil
 	case "s":
 		return m.handleDashboardToggle()
@@ -348,10 +370,18 @@ func (m AppModel) handleCallTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleDetailKey delegates to detail model.
+// handleDetailKey delegates to detail model and intercepts app-level messages.
 func (m AppModel) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	updated, cmd := m.detail.Update(msg)
 	m.detail = updated.(DetailModel)
+	if cmd != nil {
+		resultMsg := cmd()
+		if expandMsg, ok := resultMsg.(DetailExpandMsg); ok {
+			m.detailExpanded = expandMsg.Expanded
+			m.applyLayout()
+			return m, nil
+		}
+	}
 	return m, cmd
 }
 
@@ -524,7 +554,7 @@ func (m AppModel) handleLoadMoreSessions(msg LoadMoreSessionsMsg) (tea.Model, te
 	existing := m.sessions.sessions
 	all := append(existing, msg.Sessions...)
 	sortSessionsByDateDesc(all)
-	m.sessions = m.sessions.SetSessions(all)
+	m.sessions = m.sessions.AppendSessions(all)
 	m.sessions = m.sessions.SetHasMore(m.loadedIndex < len(m.allFiles), m.loadedIndex, len(m.allFiles))
 	m.dashboard = m.dashboard.SetSessions(all)
 	return m, nil

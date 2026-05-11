@@ -3,14 +3,19 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 	"github.com/user/agent-forensic/internal/sanitizer"
 )
+
+// DetailExpandMsg is emitted when the user toggles the detail panel expansion.
+type DetailExpandMsg struct{ Expanded bool }
 
 // DetailState represents the display state of the detail panel.
 type DetailState int
@@ -139,7 +144,7 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 			m.expanded = !m.expanded
 			if m.expanded {
 				if m.hasSensitive {
-					m.state = DetailMasked // stays masked when expanded
+					m.state = DetailMasked
 				} else {
 					m.state = DetailExpanded
 				}
@@ -151,6 +156,8 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 				}
 			}
 			m.scroll = 0
+			expanded := m.expanded
+			return m, func() tea.Msg { return DetailExpandMsg{Expanded: expanded} }
 		}
 	case "tab":
 		return m, nil
@@ -262,7 +269,13 @@ func (m DetailModel) buildContent(expanded bool) string {
 	inputLabel := labelStyle.Render("tool_use.input:")
 	b.WriteString(inputLabel)
 	b.WriteString("\n")
-	b.WriteString(contentStyle.Render(indentContent(input, 2)))
+	if len(input) > truncationThreshold && !expanded {
+		b.WriteString(contentStyle.Render(indentContent(input[:truncationThreshold], 2)))
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
+	} else {
+		b.WriteString(contentStyle.Render(indentContent(input, 2)))
+	}
 	b.WriteString("\n")
 
 	// Output section
@@ -308,27 +321,74 @@ func (m DetailModel) buildContent(expanded bool) string {
 func (m DetailModel) renderWithScroll(content string) string {
 	lines := strings.Split(content, "\n")
 	visibleHeight := m.visibleHeight()
+	contentWidth := m.width - 4
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
 
-	if len(lines) <= visibleHeight {
+	// Compute visual row count per logical line (ANSI-aware)
+	rowCounts := make([]int, len(lines))
+	totalVisual := 0
+	for i, line := range lines {
+		rc := visualLineCount(line, contentWidth)
+		rowCounts[i] = rc
+		totalVisual += rc
+	}
+
+	if totalVisual <= visibleHeight {
 		return content
 	}
 
-	// Virtual scroll: show visible window
-	start := m.scroll
-	if start > len(lines)-visibleHeight {
-		start = len(lines) - visibleHeight
+	// Scroll is in visual rows; find the starting logical line
+	startVisual := m.scroll
+	if startVisual > totalVisual-visibleHeight {
+		startVisual = totalVisual - visibleHeight
 	}
-	if start < 0 {
-		start = 0
+	if startVisual < 0 {
+		startVisual = 0
 	}
-	end := start + visibleHeight
-	if end > len(lines) {
-		end = len(lines)
+	cumVisual := 0
+	startLine := 0
+	for i, rc := range rowCounts {
+		if cumVisual+rc > startVisual {
+			startLine = i
+			break
+		}
+		cumVisual += rc
+		startLine = i + 1
 	}
 
-	visible := lines[start:end]
-	return strings.Join(visible, "\n")
+	// Collect logical lines until visibleHeight visual rows are filled
+	var result []string
+	usedVisual := 0
+	for i := startLine; i < len(lines) && usedVisual < visibleHeight; i++ {
+		result = append(result, lines[i])
+		usedVisual += rowCounts[i]
+	}
+
+	return strings.Join(result, "\n")
 }
+
+// ansiEscape matches ANSI color/style escape sequences.
+var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// visualLineCount returns how many terminal rows a line occupies at the given width.
+func visualLineCount(line string, width int) int {
+	if width <= 0 {
+		return 1
+	}
+	plain := ansiEscape.ReplaceAllString(line, "")
+	w := runewidth.StringWidth(plain)
+	if w == 0 {
+		return 1
+	}
+	rows := (w + width - 1) / width
+	if rows == 0 {
+		return 1
+	}
+	return rows
+}
+
 
 // prettyPrintInput attempts to JSON pretty-print the input string.
 func (m DetailModel) prettyPrintInput(input string) string {
