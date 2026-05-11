@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -33,8 +35,10 @@ const truncationThreshold = 200
 
 // DetailModel is a Bubble Tea model for the detail panel (bottom panel, 75% width, lower 33%).
 // Displays full tool parameters, stdout/stderr, and thinking fragments for the selected call tree node.
+// When a turn header is selected, displays the full user prompt and tool statistics.
 type DetailModel struct {
 	entry    parser.TurnEntry
+	turn     *parser.Turn // non-nil when showing turn overview
 	state    DetailState
 	expanded bool
 	focused  bool
@@ -60,6 +64,8 @@ func NewDetailModel() DetailModel {
 // SetEntry loads a TurnEntry for display and transitions to the appropriate state.
 // Passing a zero-value TurnEntry (no ToolName) resets to empty state.
 func (m DetailModel) SetEntry(entry parser.TurnEntry) DetailModel {
+	m.turn = nil // clear turn overview
+
 	if entry.ToolName == "" {
 		m.state = DetailEmpty
 		m.entry = parser.TurnEntry{}
@@ -94,6 +100,17 @@ func (m DetailModel) SetEntry(entry parser.TurnEntry) DetailModel {
 		m.state = DetailTruncated
 	}
 
+	return m
+}
+
+// SetTurn loads a Turn for turn overview display showing the full prompt and tool stats.
+func (m DetailModel) SetTurn(turn parser.Turn) DetailModel {
+	m.turn = &turn
+	m.entry = parser.TurnEntry{}
+	m.expanded = false
+	m.scroll = 0
+	m.state = DetailTruncated
+	m.hasSensitive = false
 	return m
 }
 
@@ -231,6 +248,18 @@ func (m DetailModel) View() string {
 
 func (m DetailModel) buildTitle() string {
 	prefix := i18n.T("panel.detail.title")
+
+	// Turn overview mode
+	if m.turn != nil {
+		toolCount := 0
+		for _, e := range m.turn.Entries {
+			if e.Type == parser.EntryToolUse {
+				toolCount++
+			}
+		}
+		return fmt.Sprintf("%s: Turn %d — %d tools, %s", prefix, m.turn.Index, toolCount, formatDuration(m.turn.Duration))
+	}
+
 	if m.entry.Type != parser.EntryToolUse {
 		return prefix
 	}
@@ -259,6 +288,11 @@ func (m DetailModel) renderContent() string {
 }
 
 func (m DetailModel) buildContent(expanded bool) string {
+	// Turn overview mode
+	if m.turn != nil {
+		return m.buildTurnOverview(expanded)
+	}
+
 	var b strings.Builder
 
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51"))   // bright cyan
@@ -318,6 +352,128 @@ func (m DetailModel) buildContent(expanded bool) string {
 	return b.String()
 }
 
+// buildTurnOverview renders the full user prompt and tool statistics for a turn.
+func (m DetailModel) buildTurnOverview(expanded bool) string {
+	var b strings.Builder
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51"))   // bright cyan
+	contentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("15")) // white
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("242"))    // dim gray
+	statStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))   // light gray
+
+	// Prompt section — collect user message text
+	promptText := m.turnPromptText()
+	if promptText != "" {
+		b.WriteString(labelStyle.Render("prompt:"))
+		b.WriteString("\n")
+		sanitized, _ := sanitizer.Sanitize(promptText)
+		// Compact consecutive blank lines to save vertical space in the viewport
+		compacted := compactBlankLines(sanitized)
+		if len(compacted) > truncationThreshold && !expanded {
+			b.WriteString(contentStyle.Render(indentContent(compacted[:truncationThreshold], 2)))
+			b.WriteString("\n")
+			b.WriteString(dimStyle.Render("  ...truncated (Enter to expand)"))
+		} else {
+			b.WriteString(contentStyle.Render(indentContent(compacted, 2)))
+		}
+		b.WriteString("\n")
+	}
+
+	// Tool statistics
+	toolStats := m.turnToolStats()
+	if len(toolStats) > 0 {
+		b.WriteString(labelStyle.Render(fmt.Sprintf("tools: %d calls, %s", m.turnToolCount(), formatDuration(m.turn.Duration))))
+		b.WriteString("\n")
+
+		// Per-tool breakdown sorted by count descending
+		for _, ts := range toolStats {
+			line := fmt.Sprintf("  %-14s ×%-3d %s", ts.name, ts.count, formatDuration(ts.totalDur))
+			b.WriteString(statStyle.Render(line))
+			b.WriteString("\n")
+		}
+	} else {
+		b.WriteString(dimStyle.Render("tools: none"))
+		b.WriteString("\n")
+	}
+
+	// Anomaly summary
+	anomalyCount := 0
+	for _, e := range m.turn.Entries {
+		if e.Anomaly != nil {
+			anomalyCount++
+		}
+	}
+	if anomalyCount > 0 {
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Render(fmt.Sprintf("anomalies: %d", anomalyCount)))
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// turnPromptText extracts the full user message text from a turn's entries.
+func (m DetailModel) turnPromptText() string {
+	for _, e := range m.turn.Entries {
+		if e.Type == parser.EntryMessage && e.Output != "" {
+			return e.Output
+		}
+	}
+	return ""
+}
+
+// toolStat holds per-tool aggregation for turn overview.
+type toolStat struct {
+	name     string
+	count    int
+	totalDur time.Duration
+}
+
+// turnToolStats computes per-tool call statistics for the turn overview.
+func (m DetailModel) turnToolStats() []toolStat {
+	stats := make(map[string]*toolStat)
+	// Preserve insertion order for stable display
+	var order []string
+
+	for _, e := range m.turn.Entries {
+		if e.Type != parser.EntryToolUse {
+			continue
+		}
+		name := e.ToolName
+		if _, ok := stats[name]; !ok {
+			order = append(order, name)
+			stats[name] = &toolStat{name: name}
+		}
+		stats[name].count++
+		stats[name].totalDur += e.Duration
+	}
+
+	// Sort by count descending, then by name for stability
+	sort.Slice(order, func(i, j int) bool {
+		si, sj := stats[order[i]], stats[order[j]]
+		if si.count != sj.count {
+			return si.count > sj.count
+		}
+		return si.name < sj.name
+	})
+
+	result := make([]toolStat, 0, len(order))
+	for _, name := range order {
+		result = append(result, *stats[name])
+	}
+	return result
+}
+
+// turnToolCount returns the total number of tool_use entries in the turn.
+func (m DetailModel) turnToolCount() int {
+	count := 0
+	for _, e := range m.turn.Entries {
+		if e.Type == parser.EntryToolUse {
+			count++
+		}
+	}
+	return count
+}
+
 func (m DetailModel) renderWithScroll(content string) string {
 	lines := strings.Split(content, "\n")
 	visibleHeight := m.visibleHeight()
@@ -359,14 +515,27 @@ func (m DetailModel) renderWithScroll(content string) string {
 	}
 
 	// Collect logical lines until visibleHeight visual rows are filled
+	// Reserve 1 visual row for scroll indicator at bottom
+	targetVisual := visibleHeight
+	hasMore := false
 	var result []string
 	usedVisual := 0
-	for i := startLine; i < len(lines) && usedVisual < visibleHeight; i++ {
+	for i := startLine; i < len(lines); i++ {
+		if usedVisual+rowCounts[i] > targetVisual {
+			hasMore = true
+			break
+		}
 		result = append(result, lines[i])
 		usedVisual += rowCounts[i]
 	}
 
-	return strings.Join(result, "\n")
+	joined := strings.Join(result, "\n")
+	if m.expanded && (hasMore || startVisual > 0) {
+		scrollHint := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ↓ j/k to scroll")
+		joined += "\n" + scrollHint
+	}
+
+	return joined
 }
 
 // ansiEscape matches ANSI color/style escape sequences.
@@ -412,4 +581,24 @@ func indentContent(content string, spaces int) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+// compactBlankLines reduces runs of 2+ blank lines to a single blank line.
+func compactBlankLines(s string) string {
+	var b strings.Builder
+	prevBlank := false
+	for _, line := range strings.Split(s, "\n") {
+		isBlank := strings.TrimSpace(line) == ""
+		if isBlank && prevBlank {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		if !(isBlank && b.Len() == 0) {
+			b.WriteString(line)
+		}
+		prevBlank = isBlank
+	}
+	return b.String()
 }

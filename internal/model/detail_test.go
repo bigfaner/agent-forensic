@@ -457,3 +457,83 @@ func TestGolden_DetailMasked(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, string(want), got)
 }
+
+// --- Turn overview tests ---
+
+func TestDetail_TurnOverview_SetTurn(t *testing.T) {
+	m := newTestDetailModel()
+	turn := parser.Turn{
+		Index:   1,
+		Entries: []parser.TurnEntry{testDetailEntry()},
+	}
+	m = m.SetTurn(turn)
+	assert.NotNil(t, m.turn)
+	assert.Equal(t, DetailTruncated, m.state)
+}
+
+func TestDetail_TurnOverview_Title(t *testing.T) {
+	m := newTestDetailModel()
+	turn := parser.Turn{
+		Index:   4,
+		Entries: []parser.TurnEntry{testDetailEntry()},
+	}
+	m = m.SetTurn(turn)
+	view := m.View()
+	assert.Contains(t, view, "Turn 4")
+	assert.Contains(t, view, "1 tools")
+}
+
+func TestDetail_TurnOverview_ExpansionPreservesContent(t *testing.T) {
+	// Create a turn with a long prompt including Mermaid content
+	longPrompt := "# /run-tasks\n\nAuto-dispatch tasks.\n\n## Architecture\n\n```mermaid\nflowchart TD\nA --> B\n```\n\n## Rules\n\nFollow all rules."
+	entry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: longPrompt,
+	}
+	turn := parser.Turn{
+		Index:    1,
+		Entries:  []parser.TurnEntry{entry, testDetailEntry()},
+		Duration: 5 * time.Second,
+	}
+
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+
+	// Get unexpanded content — after compacting, short prompt is shown in full
+	unexpanded := m.buildContent(false)
+	assert.Contains(t, unexpanded, "mermaid")
+
+	// Expand — same content, no truncation needed
+	m.expanded = true
+	m.state = DetailExpanded
+	expanded := m.buildContent(true)
+
+	// Expanded should contain the Mermaid content
+	assert.Contains(t, expanded, "flowchart")
+	assert.Contains(t, expanded, "A --> B")
+	assert.Contains(t, expanded, "Rules")
+
+	// Expanded should NOT contain the truncation marker
+	assert.NotContains(t, expanded, "...truncated")
+}
+
+func TestDetail_CompactBlankLines(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"no blank lines", "a\nb\nc", "a\nb\nc"},
+		{"single blank", "a\n\nb", "a\n\nb"},
+		{"double blank", "a\n\n\nb", "a\n\nb"},
+		{"triple blank", "a\n\n\n\nb", "a\n\nb"},
+		{"leading blank", "\n\na", "a"},
+		{"trailing blank", "a\n\n", "a\n"},
+		{"multiple sections", "a\n\n\nb\n\n\nc", "a\n\nb\n\nc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, compactBlankLines(tt.input))
+		})
+	}
+}
