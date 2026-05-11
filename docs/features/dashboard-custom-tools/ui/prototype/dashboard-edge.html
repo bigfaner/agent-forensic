@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>边界状态 — 仪表盘自定义工具区块</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .col-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0 3ch;
+      white-space: normal;
+    }
+    .col-block { white-space: pre; }
+    .col-header { color: var(--color-accent); font-weight: bold; }
+    .row-normal { color: var(--color-text-secondary); }
+    .row-sub    { color: var(--color-text-dim); padding-left: 2ch; }
+    .row-muted  { color: var(--color-text-muted); }
+    .row-none   { color: var(--color-text-muted); font-style: italic; }
+    .section-title { color: var(--color-text-primary); font-weight: bold; }
+    .footnote { color: var(--color-text-muted); margin-top: 8px; font-size: 12px; }
+    .dashboard-sim { white-space: pre; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="nav-bar">
+    <a href="index.html">← 原型导航</a>
+    <span style="color:var(--color-text-dim)">边界状态</span>
+  </div>
+  <div class="page">
+    <p class="page-title">边界状态</p>
+
+    <!-- MCP truncation -->
+    <div class="section-label">MCP 截断 — server 下工具数 &gt; 5（按调用次数降序，取前 5）</div>
+    <div class="terminal-panel focused">
+      <div class="col-grid">
+        <div class="col-block">
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill              </span>
+<span class="row-normal">forge:execute-task  5</span>
+<span class="row-normal">forge:brainstorm    3</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">MCP *              </span>
+<span class="row-normal">web-reader (8 tools) 45</span>
+<span class="row-sub">  webReader          20</span>
+<span class="row-sub">  search             10</span>
+<span class="row-sub">  fetchPage           8</span>
+<span class="row-sub">  summarize           4</span>
+<span class="row-sub">  translate           2</span>
+<span class="row-muted">  ... +3 more</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">Hook               </span>
+<span class="row-normal">PreToolUse   5</span>
+<span class="row-normal">PostToolUse  3</span>
+        </div>
+      </div>
+      <div class="footnote">* 仅统计 mcp__ 前缀工具</div>
+    </div>
+
+    <!-- Skill truncation -->
+    <div class="section-label mt-16">Skill 截断 — 去重后条目数 &gt; 10（按调用次数降序，取前 10）</div>
+    <div class="terminal-panel focused">
+      <div class="col-grid">
+        <div class="col-block">
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill              </span>
+<span class="row-normal">forge:execute-task  12</span>
+<span class="row-normal">forge:brainstorm     8</span>
+<span class="row-normal">forge:quick-tasks    6</span>
+<span class="row-normal">forge:tech-design    5</span>
+<span class="row-normal">forge:write-prd      4</span>
+<span class="row-normal">forge:eval-prd       3</span>
+<span class="row-normal">forge:ui-design      3</span>
+<span class="row-normal">forge:eval-ui        2</span>
+<span class="row-normal">forge:breakdown-tasks 2</span>
+<span class="row-normal">forge:git-commit     1</span>
+<span class="row-muted">... +3 more</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">MCP *              </span>
+<span class="row-none">(none)</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">Hook               </span>
+<span class="row-none">(none)</span>
+        </div>
+      </div>
+      <div class="footnote">* 仅统计 mcp__ 前缀工具</div>
+    </div>
+
+    <!-- Skill fallback -->
+    <div class="section-label mt-16">Skill input 解析失败 — fallback 到 input 前 20 字符</div>
+    <div class="terminal-panel focused">
+      <div class="col-grid">
+        <div class="col-block">
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill              </span>
+<span class="row-normal">forge:brainstorm    3</span>
+<span class="row-normal">{"skill":"unknown"  1</span>
+<span class="row-normal">null                1</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">MCP *              </span>
+<span class="row-none">(none)</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">Hook               </span>
+<span class="row-none">(none)</span>
+        </div>
+      </div>
+      <div class="footnote">* 仅统计 mcp__ 前缀工具</div>
+      <div class="footnote" style="color:var(--color-text-dim);margin-top:4px;">
+        ↑ input.skill 字段缺失时，取 input JSON 前 20 字符作为名称展示
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div class="section-label mt-16">计算中 — CalculateStats() 运行期间</div>
+    <div class="terminal-panel focused">
+      <div class="dashboard-sim"><span class="c-primary">统计仪表盘 — session 2026-05-11</span>
+<span class="c-secondary">总耗时: —          最慢步骤: —</span>
+
+<span class="c-secondary">工具调用统计          耗时统计</span>
+<span class="c-muted">计算中…</span>
+
+<span class="section-title">自定义工具</span>
+<span class="c-muted">计算中…</span>
+</div>
+    </div>
+
+    <!-- Error state -->
+    <div class="section-label mt-16">统计失败 — CalculateStats() 返回错误</div>
+    <div class="terminal-panel focused">
+      <div class="dashboard-sim"><span class="c-primary">统计仪表盘 — session 2026-05-11</span>
+<span class="c-secondary">总耗时: —          最慢步骤: —</span>
+
+<span class="c-secondary">工具调用统计          耗时统计</span>
+<span class="c-error">错误: 无法读取 session 数据</span>
+
+<span class="section-title">自定义工具</span>
+<span class="c-muted">统计失败</span>
+</div>
+    </div>
+
+    <!-- Column height mismatch -->
+    <div class="section-label mt-16">列高不等 — 最高列决定区块高度，较短列底部留空</div>
+    <div class="terminal-panel focused">
+      <div class="col-grid">
+        <div class="col-block">
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill              </span>
+<span class="row-normal">forge:brainstorm    3</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">MCP *              </span>
+<span class="row-normal">web-reader (3 tools) 20</span>
+<span class="row-sub">  webReader          12</span>
+<span class="row-sub">  search              5</span>
+<span class="row-sub">  fetchPage           3</span>
+<span class="row-normal">ones-mcp (2 tools)   9</span>
+<span class="row-sub">  addIssueComment     6</span>
+<span class="row-sub">  updateIssue         3</span>
+        </div>
+        <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">Hook               </span>
+<span class="row-normal">PreToolUse   5</span>
+<span class="row-normal">PostToolUse  3</span>
+        </div>
+      </div>
+      <div class="footnote">* 仅统计 mcp__ 前缀工具</div>
+      <div class="footnote" style="color:var(--color-text-dim);margin-top:4px;">
+        ↑ MCP 列最高（7行），Skill 列（1行）和 Hook 列（2行）底部留空，不补空行
+      </div>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

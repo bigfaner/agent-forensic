@@ -1,0 +1,117 @@
+/* 1. Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* 2. CSS Variables — Terminal TUI theme */
+:root {
+  --color-bg: #0d0d0d;
+  --color-surface: #111111;
+  --color-border: #3a3a3a;
+  --color-border-focus: #00d7ff; /* cyan "51" */
+  --color-text-primary: #ffffff;  /* "15" bright white */
+  --color-text-secondary: #d0d0d0; /* "252" light gray */
+  --color-text-dim: #6c6c6c;      /* "242" dim gray */
+  --color-text-muted: #585858;    /* "240" dark gray */
+  --color-accent: #00d7ff;        /* "51" cyan */
+  --color-error: #ff5f5f;         /* "196" red */
+  --color-warn: #ffd700;          /* "226" yellow */
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --font-size: 13px;
+  --line-height: 1.5;
+  --panel-padding: 12px 16px;
+  --border-radius: 6px;
+}
+
+/* 3. Typography */
+body {
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  background: var(--color-bg);
+  color: var(--color-text-secondary);
+  min-height: 100vh;
+}
+
+/* 4. Layout */
+.page { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+.page-title { color: var(--color-text-primary); font-size: 15px; font-weight: bold; margin-bottom: 24px; }
+
+/* 5. Navigation (index page) */
+.nav-bar {
+  display: flex; gap: 16px; align-items: center;
+  padding: 8px 16px; border-bottom: 1px solid var(--color-border);
+  margin-bottom: 24px;
+}
+.nav-bar a { color: var(--color-accent); text-decoration: none; font-size: 12px; }
+.nav-bar a:hover { text-decoration: underline; }
+
+/* 6. Components */
+
+/* Terminal panel */
+.terminal-panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: var(--panel-padding);
+  background: var(--color-surface);
+  white-space: pre;
+  overflow-x: auto;
+}
+.terminal-panel.focused { border-color: var(--color-border-focus); }
+
+.panel-title { color: var(--color-text-primary); font-weight: bold; display: block; margin-bottom: 12px; }
+
+/* Text color helpers */
+.c-primary   { color: var(--color-text-primary); font-weight: bold; }
+.c-secondary { color: var(--color-text-secondary); }
+.c-dim       { color: var(--color-text-dim); }
+.c-muted     { color: var(--color-text-muted); }
+.c-accent    { color: var(--color-accent); }
+.c-error     { color: var(--color-error); }
+.c-warn      { color: var(--color-warn); }
+
+/* State tabs */
+.state-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.state-tab {
+  padding: 4px 12px; border: 1px solid var(--color-border);
+  border-radius: 4px; cursor: pointer; font-family: var(--font-mono);
+  font-size: 12px; color: var(--color-text-dim); background: transparent;
+}
+.state-tab:hover { border-color: var(--color-accent); color: var(--color-accent); }
+.state-tab.active { border-color: var(--color-accent); color: var(--color-accent); background: rgba(0,215,255,0.08); }
+
+/* State panels */
+.state-panel { display: none; }
+.state-panel.active { display: block; }
+
+/* Section label */
+.section-label {
+  font-size: 11px; color: var(--color-text-muted); text-transform: uppercase;
+  letter-spacing: 0.08em; margin-bottom: 8px; margin-top: 20px;
+}
+.section-label:first-child { margin-top: 0; }
+
+/* Page cards (index) */
+.page-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.page-card {
+  border: 1px solid var(--color-border); border-radius: var(--border-radius);
+  padding: 16px; text-decoration: none; color: inherit;
+  display: block; transition: border-color 0.15s;
+}
+.page-card:hover { border-color: var(--color-accent); }
+.page-card h3 { color: var(--color-text-primary); font-size: 13px; margin-bottom: 6px; }
+.page-card p  { color: var(--color-text-dim); font-size: 12px; line-height: 1.4; }
+
+/* 7. States */
+.loading-text { color: var(--color-text-muted); }
+.error-text   { color: var(--color-error); }
+
+/* 8. Utility */
+.mt-8  { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mb-8  { margin-bottom: 8px; }
+.indent { padding-left: 2ch; }
+
+/* 9. Responsive */
+@media (max-width: 768px) {
+  .page { padding: 16px 12px; }
+  .terminal-panel { font-size: 11px; }
+}

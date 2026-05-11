@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>窄终端布局 — 仪表盘自定义工具区块</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .narrow-sim {
+      max-width: 420px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre;
+    }
+    .col-header { color: var(--color-accent); font-weight: bold; }
+    .row-normal { color: var(--color-text-secondary); }
+    .row-sub    { color: var(--color-text-dim); }
+    .row-muted  { color: var(--color-text-muted); }
+    .section-title { color: var(--color-text-primary); font-weight: bold; }
+    .footnote { color: var(--color-text-muted); margin-top: 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="nav-bar">
+    <a href="index.html">← 原型导航</a>
+    <span style="color:var(--color-text-dim)">窄终端（&lt;80列）</span>
+  </div>
+  <div class="page">
+    <p class="page-title">窄终端布局 — 单列堆叠</p>
+    <p style="color:var(--color-text-dim);font-size:12px;margin-bottom:16px;">
+      终端宽度 &lt; 80 列时，三列改为单列堆叠，顺序 Skill → MCP → Hook。
+    </p>
+
+    <div class="section-label">完整数据</div>
+    <div class="terminal-panel focused narrow-sim">
+<span class="c-primary">统计仪表盘 — session 2026-05-11</span>
+<span class="c-secondary">总耗时: 467m22s   最慢步骤: </span><span class="c-warn">Agent (0s)</span>
+
+<span class="c-secondary">工具调用统计     耗时统计</span>
+<span class="c-secondary">Bash        ████  82   Bash   ░░░░  0%</span>
+<span class="c-secondary">Skill       ██     8   Skill  ░░░░  0%</span>
+<span class="c-secondary">Read        ██    46   Read   ░░░░  0%</span>
+
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill</span>
+<span class="row-normal">forge:brainstorm    3</span>
+<span class="row-normal">forge:execute-task  5</span>
+<span class="row-normal">forge:quick-tasks   2</span>
+
+<span class="col-header">MCP *</span>
+<span class="row-normal">web-reader (2 tools)  12</span>
+<span class="row-sub">  webReader           10</span>
+<span class="row-sub">  search               2</span>
+<span class="row-normal">ones-mcp (1 tool)      8</span>
+<span class="row-sub">  addIssueComment      8</span>
+
+<span class="col-header">Hook</span>
+<span class="row-normal">PreToolUse              5</span>
+<span class="row-normal">PostToolUse             3</span>
+<span class="row-normal">user-prompt-submit-hook 2</span>
+<span class="row-normal">Stop                    1</span>
+
+<span class="footnote">* 仅统计 mcp__ 前缀工具</span>
+    </div>
+
+    <div class="section-label mt-16">部分数据 — 仅 Hook 有数据</div>
+    <div class="terminal-panel focused narrow-sim">
+<span class="c-primary">统计仪表盘 — session 2026-05-11</span>
+<span class="c-secondary">总耗时: 8m30s   最慢步骤: Bash (1s)</span>
+
+<span class="c-secondary">工具调用统计     耗时统计</span>
+<span class="c-secondary">Bash        ████  10   Bash   ████████  98%</span>
+
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill</span>
+<span class="row-muted">(none)</span>
+
+<span class="col-header">MCP *</span>
+<span class="row-muted">(none)</span>
+
+<span class="col-header">Hook</span>
+<span class="row-normal">PreToolUse   10</span>
+<span class="row-normal">PostToolUse   9</span>
+
+<span class="footnote">* 仅统计 mcp__ 前缀工具</span>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宽终端布局 — 仪表盘自定义工具区块</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .dashboard-sim {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre;
+    }
+    .col-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0 3ch;
+      white-space: normal;
+    }
+    .col-block { white-space: pre; }
+    .col-header { color: var(--color-accent); font-weight: bold; }
+    .row-normal { color: var(--color-text-secondary); }
+    .row-sub    { color: var(--color-text-dim); padding-left: 2ch; }
+    .row-muted  { color: var(--color-text-muted); }
+    .row-none   { color: var(--color-text-muted); font-style: italic; }
+    .section-title { color: var(--color-text-primary); font-weight: bold; }
+    .footnote { color: var(--color-text-muted); margin-top: 8px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="nav-bar">
+    <a href="index.html">← 原型导航</a>
+    <span style="color:var(--color-text-dim)">宽终端（≥80列）</span>
+  </div>
+  <div class="page">
+    <p class="page-title">宽终端布局 — 三列并排</p>
+
+    <!-- State tabs -->
+    <div id="wide-tabs" class="tab-group">
+      <div class="state-tabs">
+        <button class="state-tab active" data-target="state-full">完整数据</button>
+        <button class="state-tab" data-target="state-partial">部分数据</button>
+        <button class="state-tab" data-target="state-empty">全空（不渲染）</button>
+      </div>
+
+      <!-- State: full data -->
+      <div id="state-full" class="state-panel active">
+        <div class="section-label">完整数据 — Skill + MCP + Hook 均有数据</div>
+        <div class="terminal-panel focused">
+          <span class="panel-title">统计仪表盘 — session 2026-05-11</span>
+          <div class="dashboard-sim"><span class="c-secondary">总耗时: 467m22s          最慢步骤: </span><span class="c-warn">Agent (0s)</span>
+
+<span class="c-secondary">工具调用统计          耗时统计</span>
+<span class="c-secondary">Bash           ████████████████████████████████████████████████████████████████████████████████  82   Bash       ░░░░░░░░  0%</span>
+<span class="c-secondary">AskUserQuestion ████████████████████████████████████████████████████████████████████████  73   AskUserQuestion ░░░░░░░░  0%</span>
+<span class="c-secondary">Read           ████████████████████████████████████████████  46   Read       ░░░░░░░░  0%</span>
+<span class="c-secondary">Write          ██████████████████████████████████████████  44   Write      ░░░░░░░░  0%</span>
+<span class="c-secondary">Agent          ████████████████████████████  27   Agent      ░░░░░░░░  0%</span>
+<span class="c-secondary">Edit           ██████████████████████████  25   Edit       ░░░░░░░░  0%</span>
+<span class="c-secondary">Skill          ████████  8    Skill      ░░░░░░░░  0%</span>
+<span class="c-secondary">SendMessage    ████  4    SendMessage ░░░░░░░░  0%</span>
+
+</div>
+          <div class="col-grid">
+            <div class="col-block">
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill              </span>
+<span class="row-normal">forge:brainstorm    3</span>
+<span class="row-normal">forge:execute-task  5</span>
+<span class="row-normal">forge:quick-tasks   2</span>
+            </div>
+            <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">MCP *              </span>
+<span class="row-normal">web-reader (2 tools) 12</span>
+<span class="row-sub">  webReader         10</span>
+<span class="row-sub">  search             2</span>
+<span class="row-normal">ones-mcp (1 tool)   8</span>
+<span class="row-sub">  addIssueComment    8</span>
+            </div>
+            <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">Hook               </span>
+<span class="row-normal">PreToolUse              5</span>
+<span class="row-normal">PostToolUse             3</span>
+<span class="row-normal">user-prompt-submit-hook 2</span>
+<span class="row-normal">Stop                    1</span>
+            </div>
+          </div>
+          <div class="footnote">* 仅统计 mcp__ 前缀工具</div>
+        </div>
+      </div>
+
+      <!-- State: partial data -->
+      <div id="state-partial" class="state-panel">
+        <div class="section-label">部分数据 — 仅 Skill 有数据，MCP 和 Hook 为空</div>
+        <div class="terminal-panel focused">
+          <span class="panel-title">统计仪表盘 — session 2026-05-11</span>
+          <div class="dashboard-sim"><span class="c-secondary">总耗时: 45m12s          最慢步骤: Bash (2s)</span>
+
+<span class="c-secondary">工具调用统计          耗时统计</span>
+<span class="c-secondary">Bash    ████████████████████████████████████  18   Bash    ████████  82%</span>
+<span class="c-secondary">Skill   ████████  4    Skill   ░░░░░░░░   0%</span>
+
+</div>
+          <div class="col-grid">
+            <div class="col-block">
+<span class="section-title">自定义工具</span>
+
+<span class="col-header">Skill              </span>
+<span class="row-normal">forge:brainstorm    2</span>
+<span class="row-normal">forge:execute-task  2</span>
+            </div>
+            <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">MCP *              </span>
+<span class="row-none">(none)</span>
+            </div>
+            <div class="col-block">
+<span style="visibility:hidden">自定义工具</span>
+
+<span class="col-header">Hook               </span>
+<span class="row-none">(none)</span>
+            </div>
+          </div>
+          <div class="footnote">* 仅统计 mcp__ 前缀工具</div>
+        </div>
+      </div>
+
+      <!-- State: all empty -->
+      <div id="state-empty" class="state-panel">
+        <div class="section-label">全空 — 三类均无数据，区块不渲染</div>
+        <div class="terminal-panel focused">
+          <span class="panel-title">统计仪表盘 — session 2026-05-11</span>
+          <div class="dashboard-sim"><span class="c-secondary">总耗时: 12m05s          最慢步骤: Bash (1s)</span>
+
+<span class="c-secondary">工具调用统计          耗时统计</span>
+<span class="c-secondary">Bash    ████████████████████████████████████  12   Bash    ████████  95%</span>
+<span class="c-secondary">Read    ████████  4    Read    ░░░░░░░░   5%</span>
+</div>
+          <div class="row-muted" style="margin-top:8px; font-size:12px; font-style:italic;">
+            ↑ 无 Skill / MCP / Hook 数据，「自定义工具」区块不渲染
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initTabs('#wide-tabs');
+    });
+  </script>
+</body>
+</html>

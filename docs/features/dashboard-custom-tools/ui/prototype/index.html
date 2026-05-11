@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仪表盘自定义工具区块 — 原型导航</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page">
+    <p class="page-title">仪表盘自定义工具统计区块 — UI 原型</p>
+    <div class="page-grid">
+      <a href="dashboard-wide.html" class="page-card">
+        <h3>宽终端（≥80列）</h3>
+        <p>三列并排布局：Skill / MCP / Hook，含完整数据、部分数据、全空三种状态</p>
+      </a>
+      <a href="dashboard-narrow.html" class="page-card">
+        <h3>窄终端（&lt;80列）</h3>
+        <p>单列堆叠布局，顺序 Skill → MCP → Hook</p>
+      </a>
+      <a href="dashboard-edge.html" class="page-card">
+        <h3>边界状态</h3>
+        <p>MCP 截断（&gt;5工具）、Skill 截断（&gt;10条）、Skill fallback、计算中、统计失败</p>
+      </a>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
