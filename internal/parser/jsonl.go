@@ -233,12 +233,14 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 			sessionCwd = env.Cwd
 		}
 
-		// Extract title from first user text message
+		// Extract title from first genuine human message (skip system metadata)
 		if sessionTitle == "" {
 			for _, pe := range entries {
 				if pe.Entry.Type == EntryMessage && pe.Entry.Output != "" {
-					sessionTitle = truncateTitle(pe.Entry.Output, 80)
-					break
+					if !isSystemMessage(pe.Entry.Output) {
+						sessionTitle = truncateTitle(pe.Entry.Output, 80)
+						break
+					}
 				}
 			}
 		}
@@ -448,6 +450,27 @@ func parseTimestamp(s string) (time.Time, bool) {
 		return t, true
 	}
 	return time.Time{}, false
+}
+
+// isSystemMessage returns true if the message content looks like system metadata
+// rather than a genuine human message (e.g. command tags, git output, log lines).
+func isSystemMessage(s string) bool {
+	// XML-style command tags injected by Claude Code hooks/skills
+	if strings.HasPrefix(s, "<") {
+		return true
+	}
+	// Skill definition content injected by forge/plugin system
+	if strings.HasPrefix(s, "Base directory for this skill:") {
+		return true
+	}
+	// Timestamp-prefixed log lines (e.g. "2026-05-11 15:50:07.589 [info] ...")
+	if len(s) >= 19 {
+		prefix := s[:19]
+		if len(prefix) > 0 && prefix[4] == '-' && prefix[7] == '-' && prefix[10] == ' ' {
+			return true
+		}
+	}
+	return false
 }
 
 // truncateTitle truncates a string to maxLen runes, stripping newlines.
