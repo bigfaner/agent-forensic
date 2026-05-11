@@ -463,6 +463,10 @@ func isSystemMessage(s string) bool {
 	if strings.HasPrefix(s, "Base directory for this skill:") {
 		return true
 	}
+	// Skill/command definition markdown headers (injected after slash commands)
+	if strings.HasPrefix(s, "# /") {
+		return true
+	}
 	// Claude Code interrupt messages
 	if strings.HasPrefix(s, "[Request interrupted") {
 		return true
