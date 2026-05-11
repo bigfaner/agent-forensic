@@ -531,7 +531,7 @@ func (m DetailModel) renderWithScroll(content string) string {
 
 	joined := strings.Join(result, "\n")
 	if m.expanded && (hasMore || startVisual > 0) {
-		scrollHint := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ↓ j/k to scroll")
+		scrollHint := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ↑ ↓ to scroll")
 		joined += "\n" + scrollHint
 	}
 
