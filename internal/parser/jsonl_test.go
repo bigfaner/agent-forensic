@@ -472,6 +472,66 @@ func TestScanDir_FileInsteadOfDir(t *testing.T) {
 	}
 }
 
+// --- ScanProjectsDir tests ---
+
+func TestScanProjectsDir_FindsNestedJSONL(t *testing.T) {
+	dir := t.TempDir()
+	// Simulate: projects/<project>/<session>.jsonl
+	projectDir := filepath.Join(dir, "projects", "my-project")
+	os.MkdirAll(projectDir, 0755)
+
+	sessionFile := filepath.Join(projectDir, "abc-123.jsonl")
+	os.WriteFile(sessionFile, []byte(`{"type":"message","content":"hi"}`), 0644)
+
+	files, err := ScanProjectsDir(dir)
+	if err != nil {
+		t.Fatalf("ScanProjectsDir() error: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("found %d files, want 1", len(files))
+	}
+	if files[0] != sessionFile {
+		t.Errorf("file = %s, want %s", files[0], sessionFile)
+	}
+}
+
+func TestScanProjectsDir_SkipsSubagents(t *testing.T) {
+	dir := t.TempDir()
+	projectDir := filepath.Join(dir, "projects", "my-project")
+	subagentsDir := filepath.Join(projectDir, "abc-123", "subagents")
+	os.MkdirAll(subagentsDir, 0755)
+
+	// Main session file — should be found
+	mainFile := filepath.Join(projectDir, "abc-123.jsonl")
+	os.WriteFile(mainFile, []byte(`{"type":"message"}`), 0644)
+
+	// Subagent file — should be skipped
+	os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`), 0644)
+
+	files, err := ScanProjectsDir(dir)
+	if err != nil {
+		t.Fatalf("ScanProjectsDir() error: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("found %d files, want 1 (subagents should be skipped)", len(files))
+	}
+	if files[0] != mainFile {
+		t.Errorf("file = %s, want %s", files[0], mainFile)
+	}
+}
+
+func TestScanProjectsDir_NoProjectsDir(t *testing.T) {
+	dir := t.TempDir()
+	// No projects/ subdirectory — should return empty, no error
+	files, err := ScanProjectsDir(dir)
+	if err != nil {
+		t.Fatalf("ScanProjectsDir() error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("found %d files, want 0", len(files))
+	}
+}
+
 func TestParseSession_EmptyLinesSkipped(t *testing.T) {
 	lines := []string{
 		"",

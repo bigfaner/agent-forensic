@@ -29,6 +29,8 @@ type Session struct {
 	ToolCount int           // total tool_use messages
 	Duration  time.Duration // first to last message
 	Turns     []Turn        // ordered turn list
+	Cwd       string        // working directory from first entry
+	Title     string        // first user message text (truncated)
 }
 
 // Turn groups related entries within a session.

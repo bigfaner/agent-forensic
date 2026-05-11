@@ -7,3 +7,4 @@ node_modules/
 docs/features/*/tasks/process/
 docs/forensics/
 tests/e2e/results/
+tmp/

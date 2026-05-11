@@ -1,0 +1,18 @@
+{"type":"message","role":"user","content":"Review the API changes","timestamp":"2026-05-08T09:00:00Z"}
+{"type":"tool_use","name":"Read","input":{"file":"api/handlers.go"},"timestamp":"2026-05-08T09:00:02Z"}
+{"type":"tool_result","name":"Read","output":"package api\n\nfunc ListItems() {}","timestamp":"2026-05-08T09:00:03Z"}
+{"type":"tool_use","name":"Bash","input":{"command":"go vet ./api/..."},"timestamp":"2026-05-08T09:00:05Z"}
+{"type":"tool_result","name":"Bash","output":"api/handlers.go:10: unreachable code","exit_code":1,"timestamp":"2026-05-08T09:00:07Z"}
+{"type":"message","role":"assistant","content":"Found unreachable code in handlers.go","timestamp":"2026-05-08T09:00:08Z"}
+{"type":"message","role":"user","content":"Deploy to staging","timestamp":"2026-05-08T11:00:00Z"}
+{"type":"tool_use","name":"Bash","input":{"command":"kubectl apply -f k8s/staging.yaml"},"timestamp":"2026-05-08T11:00:05Z"}
+{"type":"tool_result","name":"Bash","output":"deployment.apps/api created\nservice/api exposed","exit_code":0,"timestamp":"2026-05-08T11:00:15Z"}
+{"type":"tool_use","name":"Bash","input":{"command":"curl -sf http://staging.internal/health"},"timestamp":"2026-05-08T11:00:20Z"}
+{"type":"tool_result","name":"Bash","output":"{\"status\":\"ok\"}","exit_code":0,"timestamp":"2026-05-08T11:00:22Z"}
+{"type":"message","role":"assistant","content":"Staging deployment successful, health check passed","timestamp":"2026-05-08T11:00:23Z"}
+{"type":"message","role":"user","content":"Check database migration","timestamp":"2026-05-08T14:00:00Z"}
+{"type":"tool_use","name":"Bash","input":{"command":"psql -c '\\dt' staging_db"},"timestamp":"2026-05-08T14:00:02Z"}
+{"type":"tool_result","name":"Bash","output":"users | sessions | logs","exit_code":0,"timestamp":"2026-05-08T14:00:04Z"}
+{"type":"tool_use","name":"Read","input":{"file":"migrations/003_add_index.sql"},"timestamp":"2026-05-08T14:00:06Z"}
+{"type":"tool_result","name":"Read","output":"CREATE INDEX idx_logs_ts ON logs(created_at);","timestamp":"2026-05-08T14:00:07Z"}
+{"type":"message","role":"assistant","content":"Migration looks correct, index will improve query performance","timestamp":"2026-05-08T14:00:08Z"}

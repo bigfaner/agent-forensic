@@ -57,6 +57,9 @@ picker.title: "Switch Session"
 picker.search: "Search"
 picker.no_results: "No matches"
 
+# Session list
+sessions.load_more: "load more"
+
 # Language indicator
 lang.zh: "中"
 lang.en: "EN"

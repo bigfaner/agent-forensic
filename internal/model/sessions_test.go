@@ -311,8 +311,8 @@ func TestView_Loading(t *testing.T) {
 func TestView_Populated(t *testing.T) {
 	m := newTestModel(testSessions())
 	view := m.View()
-	assert.Contains(t, view, "2026-05-09")
-	assert.Contains(t, view, "42")
+	assert.Contains(t, view, "10:00")
+	assert.Contains(t, view, "▸")
 }
 
 func TestView_SelectedRow(t *testing.T) {
