@@ -378,9 +378,19 @@ func (m SessionsModel) renderList() string {
 		end = total
 	}
 
+	// Reserve 1 column for scrollbar when content overflows
+	hasScrollbar := total > visibleHeight
+	rowWidth := m.width - 4
+	if hasScrollbar {
+		rowWidth--
+	}
+	if rowWidth < 1 {
+		rowWidth = 1
+	}
+
 	var b strings.Builder
 	for i := m.scroll; i < end; i++ {
-		m.renderRow(&b, i)
+		m.renderRowWidth(&b, i, rowWidth)
 		if i < end-1 {
 			b.WriteString("\n")
 		}
@@ -394,7 +404,7 @@ func (m SessionsModel) renderList() string {
 	}
 
 	// Add scrollbar if content overflows
-	if total > visibleHeight {
+	if hasScrollbar {
 		scrollbar := m.renderScrollbar(visibleHeight, total)
 		return lipgloss.JoinHorizontal(lipgloss.Top, b.String(), scrollbar)
 	}
@@ -428,7 +438,7 @@ func (m SessionsModel) renderScrollbar(height, total int) string {
 	return b.String()
 }
 
-func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
+func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth int) {
 	s := m.filtered[idx]
 	timeStr := s.Date.Format("15:04")
 
@@ -444,13 +454,11 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 	// Strip newlines so the row stays on a single terminal line
 	title = strings.ReplaceAll(title, "\n", " ")
 	title = strings.ReplaceAll(title, "\r", "")
+	// Replace hyphens with non-breaking hyphens (U+2011) to prevent
+	// lipgloss from word-wrapping at hyphens inside the panel border.
+	title = strings.ReplaceAll(title, "-", "‑")
 
 	row := fmt.Sprintf("%s%s %s", marker, timeStr, title)
-
-	contentWidth := m.width - 4
-	if contentWidth < 1 {
-		contentWidth = 1
-	}
 	row = padToWidth(row, contentWidth)
 
 	if idx == m.cursor {
@@ -462,6 +470,10 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 		b.WriteString(style.Render(row))
 	}
+}
+
+func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
+	m.renderRowWidth(b, idx, m.width-4)
 }
 
 // truncateToWidth truncates s to fit within maxWidth terminal columns,
