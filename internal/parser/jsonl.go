@@ -463,10 +463,18 @@ func isSystemMessage(s string) bool {
 	if strings.HasPrefix(s, "Base directory for this skill:") {
 		return true
 	}
+	// Claude Code interrupt messages
+	if strings.HasPrefix(s, "[Request interrupted") {
+		return true
+	}
+	// Context continuation summary injected by Claude Code
+	if strings.HasPrefix(s, "This session is being continued from a previous conversation") {
+		return true
+	}
 	// Timestamp-prefixed log lines (e.g. "2026-05-11 15:50:07.589 [info] ...")
 	if len(s) >= 19 {
 		prefix := s[:19]
-		if len(prefix) > 0 && prefix[4] == '-' && prefix[7] == '-' && prefix[10] == ' ' {
+		if prefix[4] == '-' && prefix[7] == '-' && prefix[10] == ' ' {
 			return true
 		}
 	}
