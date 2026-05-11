@@ -243,6 +243,19 @@ func (m DetailModel) View() string {
 		Render(content)
 
 	titleStr := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
+
+	// Right-align scroll hint in title bar when expanded content overflows
+	if m.contentNeedsScroll() {
+		hintText := "↑ ↓"
+		hintRendered := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(hintText)
+		innerWidth := m.width - 4
+		titlePlain := ansiEscape.ReplaceAllString(titleStr, "")
+		pad := innerWidth - runewidth.StringWidth(titlePlain) - runewidth.StringWidth(hintText)
+		if pad > 0 {
+			titleStr = titleStr + strings.Repeat(" ", pad) + hintRendered
+		}
+	}
+
 	return panelStyle.Render(titleStr + "\n" + rendered)
 }
 
@@ -514,28 +527,41 @@ func (m DetailModel) renderWithScroll(content string) string {
 		startLine = i + 1
 	}
 
-	// Collect logical lines until visibleHeight visual rows are filled
-	// Reserve 1 visual row for scroll indicator at bottom
+	// Collect logical lines to fill visibleHeight visual rows
 	targetVisual := visibleHeight
-	hasMore := false
 	var result []string
 	usedVisual := 0
 	for i := startLine; i < len(lines); i++ {
 		if usedVisual+rowCounts[i] > targetVisual {
-			hasMore = true
 			break
 		}
 		result = append(result, lines[i])
 		usedVisual += rowCounts[i]
 	}
 
-	joined := strings.Join(result, "\n")
-	if m.expanded && (hasMore || startVisual > 0) {
-		scrollHint := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ↑ ↓ to scroll")
-		joined += "\n" + scrollHint
-	}
+	return strings.Join(result, "\n")
+}
 
-	return joined
+// contentNeedsScroll returns true if expanded content exceeds the visible area.
+func (m DetailModel) contentNeedsScroll() bool {
+	if !m.expanded {
+		return false
+	}
+	content := m.buildContent(true)
+	lines := strings.Split(content, "\n")
+	contentWidth := m.width - 4
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	totalVisual := 0
+	vh := m.visibleHeight()
+	for _, line := range lines {
+		totalVisual += visualLineCount(line, contentWidth)
+		if totalVisual > vh {
+			return true
+		}
+	}
+	return false
 }
 
 // ansiEscape matches ANSI color/style escape sequences.

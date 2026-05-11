@@ -86,6 +86,34 @@ func TestSetSessions_FiltersImageTitles(t *testing.T) {
 	}
 }
 
+func TestSetSessions_DeduplicatesByFilePath(t *testing.T) {
+	dup := testSessions()
+	// Append the first session again (same FilePath)
+	dup = append(dup, dup[0])
+	m := newTestModel(nil)
+	m = m.SetSessions(dup)
+	assert.Equal(t, 3, len(m.filtered))
+	// Verify no duplicate FilePaths
+	seen := map[string]bool{}
+	for _, s := range m.filtered {
+		assert.False(t, seen[s.FilePath], "duplicate FilePath: %s", s.FilePath)
+		seen[s.FilePath] = true
+	}
+}
+
+func TestAppendSessions_DeduplicatesByFilePath(t *testing.T) {
+	base := testSessions()
+	m := newTestModel(nil)
+	m = m.SetSessions(base)
+	assert.Equal(t, 3, len(m.filtered))
+
+	// Simulate the race: append batch that includes an already-loaded session
+	dupBatch := []parser.Session{base[0], base[1]}
+	all := append(m.sessions, dupBatch...)
+	m = m.AppendSessions(all)
+	assert.Equal(t, 3, len(m.filtered))
+}
+
 func TestSetSessions_Empty(t *testing.T) {
 	m := newTestModel(nil)
 	m = m.SetSessions([]parser.Session{})

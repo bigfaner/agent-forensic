@@ -517,6 +517,46 @@ func TestDetail_TurnOverview_ExpansionPreservesContent(t *testing.T) {
 	assert.NotContains(t, expanded, "...truncated")
 }
 
+func TestDetail_ScrollHint_InTitleWhenOverflow(t *testing.T) {
+	// Create content long enough to require scrolling in a small viewport
+	longOutput := strings.Repeat("line of output\n", 50)
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  300,
+		ToolName: "Bash",
+		Input:    `{"command":"npm test"}`,
+		Output:   longOutput,
+		Duration: 10 * time.Second,
+	}
+	m := newTestDetailModel()
+	m = m.SetEntry(entry)
+	m.expanded = true
+	m.state = DetailExpanded
+
+	view := m.View()
+	// Scroll hint should appear in title line (↑ ↓), not in content area
+	assert.Contains(t, view, "↑ ↓")
+	// Old bottom-positioned hint format should not appear
+	assert.NotContains(t, view, "to scroll")
+}
+
+func TestDetail_ScrollHint_NotShownWhenContentFits(t *testing.T) {
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  100,
+		ToolName: "Read",
+		Input:    `{"file_path":"/a/b"}`,
+		Output:   "ok",
+		Duration: 800 * time.Millisecond,
+	}
+	m := newTestDetailModel()
+	m = m.SetEntry(entry)
+	m.expanded = true
+	m.state = DetailExpanded
+	view := m.View()
+	assert.NotContains(t, view, "↑ ↓")
+}
+
 func TestDetail_CompactBlankLines(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -164,7 +164,7 @@ func TestBoundary_StatusBarBasicHintsAt60Cols(t *testing.T) {
 	sb.SetSize(60, 1)
 
 	view := sb.View()
-	viewContains(t, view, "j/k")
+	viewContains(t, view, "↑↓")
 	viewContains(t, view, "q")
 	// Should NOT contain priority-2 hints (available at >=80 cols)
 	viewNotContains(t, view, ":diag")
@@ -176,7 +176,7 @@ func TestBoundary_StatusBarExtendedHintsAt80Cols(t *testing.T) {
 	sb.SetSize(80, 1)
 
 	view := sb.View()
-	viewContains(t, view, "j/k")
+	viewContains(t, view, "↑↓")
 	// At >=80 cols, adds diagnosis and replay hints
 	viewContains(t, view, "d")
 	viewContains(t, view, "s")

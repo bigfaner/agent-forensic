@@ -185,7 +185,9 @@ func (m DashboardModel) View() string {
 		Height(m.height - 2)
 
 	title := i18n.T("panel.dashboard.title")
-	if m.session != nil {
+	if m.session != nil && m.session.Title != "" {
+		title = fmt.Sprintf("%s — %s", title, m.session.Title)
+	} else if m.session != nil {
 		title = fmt.Sprintf("%s — session %s", title, m.session.Date.Format("2006-01-02"))
 	}
 
@@ -243,8 +245,11 @@ func (m DashboardModel) renderDashboard() string {
 	peakLabel := i18n.T("dashboard.peak_step")
 	peak := m.stats.PeakStep
 	if peak.ToolName != "" {
-		peakStr := fmt.Sprintf("%s (%s)", peak.ToolName, formatDuration(peak.Duration))
-		// Highlight in yellow if slow (>= 30s)
+		peakName := peak.ToolName
+		if len(peakName) > 40 {
+			peakName = peakName[:39] + "…"
+		}
+		peakStr := fmt.Sprintf("%s (%s)", peakName, formatDuration(peak.Duration))
 		if peak.Duration >= 30*time.Second {
 			peakStr = lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Render(peakStr)
 		}
@@ -265,18 +270,44 @@ func (m DashboardModel) renderDashboard() string {
 		return entries[i].Name < entries[j].Name
 	})
 
-	// Calculate available width for bars
-	labelWidth := 10                                           // max tool name width
-	countWidth := 6                                            // e.g., "  12"
-	availBarWidth := m.width - 4 - labelWidth - countWidth - 6 // padding
-	if availBarWidth < 5 {
-		availBarWidth = 5
+	// Two-column layout
+	contentWidth := m.width - 4
+	colGap := 3
+	colWidth := (contentWidth - colGap) / 2
+	if colWidth < 20 {
+		colWidth = 20
 	}
 
-	// Tool Calls header
-	toolStatsLabel := i18n.T("dashboard.tool_stats")
-	timeStatsLabel := i18n.T("dashboard.time_stats")
-	b.WriteString(fmt.Sprintf("%-20s %s\n", toolStatsLabel, timeStatsLabel))
+	// Dynamic label width: fit longest tool name, capped by max and column size
+	const maxLabelWidth = 40
+	labelWidth := 5
+	for _, e := range entries {
+		if len(e.Name) > labelWidth {
+			labelWidth = len(e.Name)
+		}
+	}
+	if labelWidth > maxLabelWidth {
+		labelWidth = maxLabelWidth
+	}
+	maxAllowed := colWidth - 9 // bar(3) + space(1) + number(5)
+	if maxAllowed < 5 {
+		maxAllowed = 5
+	}
+	if labelWidth > maxAllowed {
+		labelWidth = maxAllowed
+	}
+	barWidth := colWidth - labelWidth - 6
+	if barWidth < 3 {
+		barWidth = 3
+	}
+
+	// truncateName shortens tool names that exceed labelWidth.
+	truncateName := func(name string) string {
+		if len(name) <= labelWidth {
+			return name
+		}
+		return name[:labelWidth-1] + "…"
+	}
 
 	// Find max count for scaling
 	maxCount := 0
@@ -286,33 +317,43 @@ func (m DashboardModel) renderDashboard() string {
 		}
 	}
 
-	// Render each tool entry
-	for _, entry := range entries {
-		// Count bar: █ chars proportional to count
+	// Build left (tool calls) and right (time stats) columns
+	var leftBuf, rightBuf strings.Builder
+	leftBuf.WriteString(i18n.T("dashboard.tool_stats"))
+	leftBuf.WriteByte('\n')
+	rightBuf.WriteString(i18n.T("dashboard.time_stats"))
+	rightBuf.WriteByte('\n')
+
+	for i, entry := range entries {
+		displayName := truncateName(entry.Name)
 		barLen := 0
 		if maxCount > 0 {
-			barLen = entry.Count * availBarWidth / maxCount
+			barLen = entry.Count * barWidth / maxCount
 		}
 		if barLen < 1 && entry.Count > 0 {
 			barLen = 1
 		}
-		countBar := strings.Repeat("█", barLen)
-		countStr := fmt.Sprintf("%-10s %s %d", entry.Name, countBar, entry.Count)
+		leftBuf.WriteString(fmt.Sprintf("%-*s %s %d", labelWidth, displayName, strings.Repeat("█", barLen), entry.Count))
 
-		// Percentage bar: █░ chars proportional to percentage
-		pctBarWidth := 8
-		filled := int(entry.Pct / 100 * float64(pctBarWidth))
+		filled := int(entry.Pct / 100 * float64(barWidth))
 		if filled < 1 && entry.Pct > 0 {
 			filled = 1
 		}
-		if filled > pctBarWidth {
-			filled = pctBarWidth
+		if filled > barWidth {
+			filled = barWidth
 		}
-		pctBar := strings.Repeat("█", filled) + strings.Repeat("░", pctBarWidth-filled)
-		pctStr := fmt.Sprintf("%-10s %s %3.0f%%", entry.Name, pctBar, entry.Pct)
+		pctBar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+		rightBuf.WriteString(fmt.Sprintf("%-*s %s %3.0f%%", labelWidth, displayName, pctBar, entry.Pct))
 
-		b.WriteString(fmt.Sprintf("%s   %s\n", countStr, pctStr))
+		if i < len(entries)-1 {
+			leftBuf.WriteString("\n\n")
+			rightBuf.WriteString("\n\n")
+		}
 	}
+
+	leftCol := lipgloss.NewStyle().Width(colWidth).Render(leftBuf.String())
+	rightCol := lipgloss.NewStyle().Width(colWidth).Render(rightBuf.String())
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, strings.Repeat(" ", colGap), rightCol))
 
 	return b.String()
 }
