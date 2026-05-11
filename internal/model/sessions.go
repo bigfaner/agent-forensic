@@ -299,7 +299,6 @@ func (m SessionsModel) View() string {
 	content := m.renderContent()
 
 	rendered := lipgloss.NewStyle().
-		Width(m.width - 4).
 		Height(m.height - 4).
 		Render(content)
 
