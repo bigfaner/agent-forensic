@@ -292,7 +292,6 @@ func (m SessionsModel) View() string {
 	panelStyle := lipgloss.NewStyle().
 		BorderForeground(borderColor).
 		Border(lipgloss.RoundedBorder()).
-		Width(m.width - 2).
 		Height(m.height - 2)
 
 	title := i18n.T("panel.sessions.title")
