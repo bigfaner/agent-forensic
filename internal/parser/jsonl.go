@@ -264,7 +264,7 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 
 	session := &Session{
 		FilePath: filePath,
-		Date:     modTime,
+		Date:     firstParsedTimestamp(parsed, modTime),
 		Turns:    groupTurns(parsed),
 		Cwd:      sessionCwd,
 		Title:    sessionTitle,
@@ -434,16 +434,20 @@ func parseFlatEntry(env claudeEnvelope, ts time.Time, hasTS bool, filePath strin
 	return []parsedEntry{{Entry: entry, Timestamp: ts, HasTS: hasTS}}, nil
 }
 
-// parseTimestamp parses an RFC3339 timestamp string.
+// parseTimestamp parses an RFC3339 timestamp string, with or without sub-seconds.
 func parseTimestamp(s string) (time.Time, bool) {
 	if s == "" {
 		return time.Time{}, false
 	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return time.Time{}, false
+	// Try RFC3339 first (no sub-seconds)
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, true
 	}
-	return t, true
+	// Try with milliseconds (Claude Code uses this format)
+	if t, err := time.Parse("2006-01-02T15:04:05.999Z07:00", s); err == nil {
+		return t, true
+	}
+	return time.Time{}, false
 }
 
 // truncateTitle truncates a string to maxLen runes, stripping newlines.
@@ -538,6 +542,17 @@ func computeSessionDuration(entries []parsedEntry) time.Duration {
 		return 0
 	}
 	return last.Sub(first)
+}
+
+// firstParsedTimestamp returns the first timestamp found in parsed entries,
+// falling back to modTime if none have timestamps.
+func firstParsedTimestamp(entries []parsedEntry, fallback time.Time) time.Time {
+	for _, pe := range entries {
+		if pe.HasTS {
+			return pe.Timestamp
+		}
+	}
+	return fallback
 }
 
 // firstTimestamp returns the earliest timestamp in the group.
