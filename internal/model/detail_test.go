@@ -381,23 +381,23 @@ func TestDetailView_EnglishEmpty(t *testing.T) {
 
 // --- ScrollDown with j key ---
 
-func TestDetail_ScrollDown_JKey(t *testing.T) {
+func TestDetail_ScrollDown_DownKey(t *testing.T) {
 	m := newTestDetailModelWithEntry(testDetailEntryLongContent())
 	m.expanded = true
 	m.state = DetailExpanded
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	m = updated.(DetailModel)
 	assert.Equal(t, 1, m.scroll)
 }
 
-// --- ScrollUp with k key ---
+// --- ScrollUp with Up key ---
 
-func TestDetail_ScrollUp_KKey(t *testing.T) {
+func TestDetail_ScrollUp_UpKey(t *testing.T) {
 	m := newTestDetailModelWithEntry(testDetailEntryLongContent())
 	m.expanded = true
 	m.state = DetailExpanded
 	m.scroll = 2
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	m = updated.(DetailModel)
 	assert.Equal(t, 1, m.scroll)
 }

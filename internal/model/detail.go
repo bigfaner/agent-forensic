@@ -180,12 +180,12 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 		return m, nil
 	case "esc":
 		return m, nil
-	case "j", "down":
+	case "down":
 		if m.expanded {
 			m.scroll++
 			m.clampScroll()
 		}
-	case "k", "up":
+	case "up":
 		if m.expanded && m.scroll > 0 {
 			m.scroll--
 		}

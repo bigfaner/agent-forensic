@@ -455,7 +455,7 @@ func TestDashboard_PickerJKey(t *testing.T) {
 	m.Refresh(testDashboardSession())
 	updated, _ := m.Update(createRuneKeyMsg('1'))
 	dm := updated.(DashboardModel)
-	updated, _ = dm.Update(createRuneKeyMsg('j'))
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyDown})
 	dm = updated.(DashboardModel)
 	assert.Equal(t, 1, dm.pickerCursor)
 }
@@ -477,7 +477,7 @@ func TestDashboard_PickerKKey(t *testing.T) {
 	updated, _ := m.Update(createRuneKeyMsg('1'))
 	dm := updated.(DashboardModel)
 	dm.pickerCursor = 1
-	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyUp})
 	dm = updated.(DashboardModel)
 	assert.Equal(t, 0, dm.pickerCursor)
 }

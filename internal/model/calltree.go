@@ -151,6 +151,22 @@ func (m CallTreeModel) SelectedEntry() *parser.TurnEntry {
 	return node.entry
 }
 
+// SelectedTurn returns the Turn at the current cursor position, if the cursor
+// is on a turn header node. Returns false if cursor is on a tool call node.
+func (m CallTreeModel) SelectedTurn() (parser.Turn, bool) {
+	if len(m.visibleNodes) == 0 || m.cursor < 0 || m.cursor >= len(m.visibleNodes) {
+		return parser.Turn{}, false
+	}
+	node := m.visibleNodes[m.cursor]
+	if !node.isTurn {
+		return parser.Turn{}, false
+	}
+	if node.turnIdx < 0 || node.turnIdx >= len(m.turns) {
+		return parser.Turn{}, false
+	}
+	return m.turns[node.turnIdx], true
+}
+
 // SelectedTurnIndex returns the 0-based index of the turn at cursor, or -1.
 func (m CallTreeModel) SelectedTurnIndex() int {
 	if len(m.visibleNodes) == 0 || m.cursor < 0 || m.cursor >= len(m.visibleNodes) {
@@ -264,12 +280,12 @@ func (m CallTreeModel) handleKey(msg tea.KeyMsg) (CallTreeModel, tea.Cmd) {
 	}
 
 	switch msg.String() {
-	case "j", "down":
+	case "down":
 		if m.cursor < len(m.visibleNodes)-1 {
 			m.cursor++
 			m.clampScroll()
 		}
-	case "k", "up":
+	case "up":
 		if m.cursor > 0 {
 			m.cursor--
 			m.clampScroll()

@@ -66,8 +66,22 @@ func NewSessionsModel() SessionsModel {
 	}
 }
 
+// isImageTitle reports whether the title is an auto-generated image attachment message.
+func isImageTitle(title string) bool {
+	return strings.HasPrefix(title, "[Image: source:")
+}
+
 // SetSessions loads session data and transitions to populated or empty state.
 func (m SessionsModel) SetSessions(sessions []parser.Session) SessionsModel {
+	// Filter out sessions whose title is just an image attachment
+	filtered := make([]parser.Session, 0, len(sessions))
+	for _, s := range sessions {
+		if !isImageTitle(s.Title) {
+			filtered = append(filtered, s)
+		}
+	}
+	sessions = filtered
+
 	m.sessions = sessions
 	m.filtered = sessions
 	if len(sessions) == 0 {
@@ -173,12 +187,12 @@ func (m SessionsModel) update(msg tea.Msg) (SessionsModel, tea.Cmd) {
 
 func (m SessionsModel) handleNormalKey(msg tea.KeyMsg) (SessionsModel, tea.Cmd) {
 	switch msg.String() {
-	case "j", "down":
+	case "down":
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered)-1 {
 			m.cursor++
 			m.clampScroll()
 		}
-	case "k", "up":
+	case "up":
 		if m.cursor > 0 {
 			m.cursor--
 			m.clampScroll()

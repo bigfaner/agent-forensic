@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -69,6 +70,22 @@ func TestSetSessions_Populated(t *testing.T) {
 	assert.Equal(t, 0, m.cursor)
 }
 
+func TestSetSessions_FiltersImageTitles(t *testing.T) {
+	sessions := append(testSessions(), parser.Session{
+		FilePath:  "/home/user/.claude/session-image.jsonl",
+		Date:      time.Date(2026, 5, 10, 8, 0, 0, 0, time.UTC),
+		ToolCount: 5,
+		Duration:  2 * time.Minute,
+		Title:     "[Image: source: screenshot.png]",
+	})
+	m := newTestModel(nil)
+	m = m.SetSessions(sessions)
+	assert.Equal(t, 3, len(m.filtered))
+	for _, s := range m.filtered {
+		assert.False(t, strings.HasPrefix(s.Title, "[Image: source:"))
+	}
+}
+
 func TestSetSessions_Empty(t *testing.T) {
 	m := newTestModel(nil)
 	m = m.SetSessions([]parser.Session{})
@@ -109,7 +126,7 @@ func TestNavigateDown(t *testing.T) {
 
 func TestNavigateDown_JKey(t *testing.T) {
 	m := newTestModel(testSessions())
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	assert.Equal(t, 1, updated.(SessionsModel).cursor)
 }
 
@@ -131,7 +148,7 @@ func TestNavigateUp(t *testing.T) {
 func TestNavigateUp_KKey(t *testing.T) {
 	m := newTestModel(testSessions())
 	m.cursor = 2
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	assert.Equal(t, 1, updated.(SessionsModel).cursor)
 }
 

@@ -144,12 +144,12 @@ func (m DashboardModel) handlePickerKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd
 	case "1":
 		m.pickerActive = false
 		return m, nil
-	case "j", "down":
+	case "down":
 		if m.pickerCursor < len(m.sessions)-1 {
 			m.pickerCursor++
 		}
 		return m, nil
-	case "k", "up":
+	case "up":
 		if m.pickerCursor > 0 {
 			m.pickerCursor--
 		}
