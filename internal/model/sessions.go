@@ -449,6 +449,9 @@ func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth 
 	if title == "" {
 		title = projectNameFromCwd(s.Cwd)
 	}
+	if title == "" {
+		title = fileNameWithoutExt(s.FilePath)
+	}
 	// Strip newlines so the row stays on a single terminal line
 	title = strings.ReplaceAll(title, "\n", " ")
 	title = strings.ReplaceAll(title, "\r", "")
@@ -515,13 +518,23 @@ func projectNameFromCwd(cwd string) string {
 	if cwd == "" {
 		return ""
 	}
-	// Handle both / and \ separators
 	cwd = strings.ReplaceAll(cwd, "\\", "/")
 	parts := strings.Split(strings.TrimRight(cwd, "/"), "/")
 	if len(parts) == 0 {
 		return ""
 	}
 	return parts[len(parts)-1]
+}
+
+// fileNameWithoutExt returns the base filename without extension.
+func fileNameWithoutExt(path string) string {
+	path = strings.ReplaceAll(path, "\\", "/")
+	parts := strings.Split(path, "/")
+	name := parts[len(parts)-1]
+	if idx := strings.LastIndex(name, "."); idx > 0 {
+		name = name[:idx]
+	}
+	return name
 }
 
 func formatDuration(d time.Duration) string {
