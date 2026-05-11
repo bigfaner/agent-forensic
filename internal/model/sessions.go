@@ -451,7 +451,7 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 	if contentWidth < 1 {
 		contentWidth = 1
 	}
-	row = truncateToWidth(row, contentWidth)
+	row = padToWidth(row, contentWidth)
 
 	if idx == m.cursor {
 		style := lipgloss.NewStyle().
@@ -486,6 +486,17 @@ func truncateToWidth(s string, maxWidth int) string {
 		used += w
 	}
 	return string(out) + "…"
+}
+
+// padToWidth pads s with spaces to exactly maxWidth terminal columns.
+// If s is already wider, it is truncated first.
+func padToWidth(s string, maxWidth int) string {
+	s = truncateToWidth(s, maxWidth)
+	w := runewidth.StringWidth(s)
+	if w < maxWidth {
+		s += strings.Repeat(" ", maxWidth-w)
+	}
+	return s
 }
 
 // projectNameFromCwd extracts the last directory name from a cwd path.
