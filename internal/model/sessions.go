@@ -442,6 +442,9 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 	if title == "" {
 		title = projectNameFromCwd(s.Cwd)
 	}
+	// Strip newlines so the row stays on a single terminal line
+	title = strings.ReplaceAll(title, "\n", " ")
+	title = strings.ReplaceAll(title, "\r", "")
 
 	row := fmt.Sprintf("%s%s %s", marker, timeStr, title)
 
