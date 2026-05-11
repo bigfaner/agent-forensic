@@ -55,7 +55,7 @@
       "dependencies": [
         "1.1"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "1.2-calculate-stats-aggregation.md",
       "record": "records/1.2-calculate-stats-aggregation.md",
       "scope": "backend",
