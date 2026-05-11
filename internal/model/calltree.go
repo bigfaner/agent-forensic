@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -476,6 +477,16 @@ func (m CallTreeModel) renderTree() string {
 	return b.String()
 }
 
+// turnSummary returns the first user message text from a turn's entries.
+func turnSummary(turn parser.Turn) string {
+	for _, e := range turn.Entries {
+		if e.Type == parser.EntryMessage && e.Output != "" {
+			return e.Output
+		}
+	}
+	return ""
+}
+
 func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node visibleNode) {
 	turn := m.turns[node.turnIdx]
 	expanded := m.expanded[node.turnIdx]
@@ -486,7 +497,15 @@ func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node vi
 	}
 
 	label := fmt.Sprintf("Turn %d (%s)", turn.Index, formatDuration(turn.Duration))
+	if summary := turnSummary(turn); summary != "" {
+		label += " " + summary
+	}
 	line := fmt.Sprintf("%s %s", icon, label)
+
+	contentWidth := m.width - 4
+	if runewidth.StringWidth(line) > contentWidth {
+		line = truncateLineToWidth(line, contentWidth)
+	}
 
 	if cursorIdx == m.cursor {
 		style := lipgloss.NewStyle().
@@ -553,8 +572,8 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 	}
 
 	contentWidth := m.width - 4
-	if len(line) > contentWidth {
-		line = line[:contentWidth-1] + "…"
+	if runewidth.StringWidth(line) > contentWidth {
+		line = truncateLineToWidth(line, contentWidth)
 	}
 
 	if cursorIdx == m.cursor {
@@ -581,4 +600,27 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 		}
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render(line))
 	}
+}
+
+// truncateLineToWidth truncates s to fit within maxWidth terminal columns,
+// appending "…" if truncated. Handles CJK double-width characters.
+func truncateLineToWidth(s string, maxWidth int) string {
+	if runewidth.StringWidth(s) <= maxWidth {
+		return s
+	}
+	budget := maxWidth - runewidth.StringWidth("…")
+	if budget <= 0 {
+		return "…"
+	}
+	var out []rune
+	used := 0
+	for _, r := range s {
+		w := runewidth.RuneWidth(r)
+		if used+w > budget {
+			break
+		}
+		out = append(out, r)
+		used += w
+	}
+	return string(out) + "…"
 }
