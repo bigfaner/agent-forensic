@@ -463,11 +463,12 @@ func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth 
 
 	if idx == m.cursor {
 		style := lipgloss.NewStyle().
+			Inline(true).
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("55"))
 		b.WriteString(style.Render(row))
 	} else {
-		style := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+		style := lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("252"))
 		b.WriteString(style.Render(row))
 	}
 }
