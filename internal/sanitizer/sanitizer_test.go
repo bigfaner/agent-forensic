@@ -1,6 +1,7 @@
 package sanitizer
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -159,4 +160,45 @@ func TestSanitize_MixedContent(t *testing.T) {
 	assert.True(t, masked)
 	assert.Contains(t, output, "***")
 	assert.NotContains(t, output, "abc123")
+}
+
+// --- JSON structure preservation tests ---
+
+func TestSanitize_JSONStructurePreserved_TokenInValue(t *testing.T) {
+	// Bug: \S+ eats JSON structure when token appears inside a JSON string value
+	input := `{"command":"export token=abc123","timeout":30000}`
+	output, masked := Sanitize(input)
+	assert.True(t, masked)
+	assert.True(t, json.Valid([]byte(output)), "sanitized output should be valid JSON: %s", output)
+	assert.Contains(t, output, `"timeout"`, "should preserve all JSON keys")
+}
+
+func TestSanitize_JSONStructurePreserved_ApiKeyInValue(t *testing.T) {
+	input := `{"command":"curl -H api_key=sk-12345 https://api.example.com","retries":3}`
+	output, masked := Sanitize(input)
+	assert.True(t, masked)
+	assert.True(t, json.Valid([]byte(output)), "sanitized output should be valid JSON: %s", output)
+	assert.Contains(t, output, `"retries"`, "should preserve all JSON keys")
+}
+
+func TestSanitize_JSONStructurePreserved_PasswordInValue(t *testing.T) {
+	input := `{"command":"echo password=xyz","env":{"HOME":"/user"}}`
+	output, masked := Sanitize(input)
+	assert.True(t, masked)
+	assert.True(t, json.Valid([]byte(output)), "sanitized output should be valid JSON: %s", output)
+	assert.Contains(t, output, `"env"`, "should preserve all JSON keys")
+}
+
+func TestSanitize_ExpandedDetailShowsAllFields(t *testing.T) {
+	// Simulate the detail panel flow: sanitize → pretty print
+	input := `{"command":"export token=abc123","timeout":30000,"env":{"CI":true}}`
+	sanitized, masked := Sanitize(input)
+	assert.True(t, masked)
+
+	// Verify JSON is still parseable with all fields
+	var parsed map[string]interface{}
+	err := json.Unmarshal([]byte(sanitized), &parsed)
+	assert.NoError(t, err, "sanitized JSON should be parseable")
+	assert.Contains(t, parsed, "timeout", "should preserve 'timeout' field")
+	assert.Contains(t, parsed, "env", "should preserve 'env' field")
 }

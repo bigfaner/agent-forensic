@@ -2,7 +2,7 @@
 │详情: Bash — line 200                                                                                                 │
 │tool_use.input:                                                                                                       │
 │  {                                                                                                                   │
-│    "command": "curl -H 'Authorization: Bearer api_key=*** https://api.example.com"                                   │
+│    "command": "curl -H 'Authorization: Bearer api_key=***' https://api.example.com"                                  │
 │  }                                                                                                                   │
 │tool_result.content:                                                                                                  │
 │  token=***                                                                                                           │
