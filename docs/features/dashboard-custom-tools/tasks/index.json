@@ -40,7 +40,7 @@
       "title": "扩展 SessionStats 数据模型",
       "priority": "P0",
       "estimatedTime": "1h",
-      "status": "pending",
+      "status": "completed",
       "file": "1.1-extend-session-stats.md",
       "record": "records/1.1-extend-session-stats.md",
       "breaking": true,

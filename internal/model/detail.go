@@ -389,7 +389,6 @@ func visualLineCount(line string, width int) int {
 	return rows
 }
 
-
 // prettyPrintInput attempts to JSON pretty-print the input string.
 func (m DetailModel) prettyPrintInput(input string) string {
 	var parsed map[string]interface{}
