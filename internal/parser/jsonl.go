@@ -250,7 +250,8 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 		return nil, NewFileReadError(filePath, err)
 	}
 
-	// Check corruption threshold
+	// Check corruption threshold: only count lines that produced a parse error
+	// (not lines that were simply skipped as non-user/assistant records)
 	totalLines := lineNum
 	if totalLines > 0 && len(parseErrors) > 0 && float64(len(parseErrors))/float64(totalLines) > 0.5 {
 		return nil, NewCorruptSessionError(filePath, totalLines, parseErrors)
@@ -376,6 +377,10 @@ func parseNestedMessage(env claudeEnvelope, ts time.Time, hasTS bool, filePath s
 			entry.Type = EntryToolResult
 			entry.ToolName = block.Name
 			entry.Output = string(block.Content)
+			if block.IsError {
+				ec := 1
+				entry.ExitCode = &ec
+			}
 		case "thinking":
 			entry.Type = EntryThinking
 			entry.Thinking = block.Thinking
@@ -423,7 +428,7 @@ func parseFlatEntry(env claudeEnvelope, ts time.Time, hasTS bool, filePath strin
 	case "message":
 		entry.Type = EntryMessage
 	default:
-		return nil, NewParseError(filePath, lineNum, fmt.Errorf("unknown entry type: %q", env.Type))
+		return nil, nil // skip unknown/metadata record types
 	}
 
 	return []parsedEntry{{Entry: entry, Timestamp: ts, HasTS: hasTS}}, nil

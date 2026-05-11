@@ -75,14 +75,18 @@ func TestValidateDataDir_NotReadable(t *testing.T) {
 }
 
 func TestGetClaudeDir(t *testing.T) {
-	// When HOME is not set, falls back to os.UserHomeDir()
-	// This test clears HOME to test the fallback
+	// When HOME is not set, falls back to os.UserHomeDir().
+	// On some platforms (macOS) UserHomeDir also fails without HOME,
+	// in which case getClaudeDir returns the local fallback path.
 	t.Setenv("HOME", "")
 	home, err := os.UserHomeDir()
-	require.NoError(t, err)
 
 	dir := getClaudeDir()
-	assert.Equal(t, filepath.Join(home, ".claude"), dir)
+	if err != nil {
+		assert.Equal(t, filepath.Join(".", ".claude"), dir)
+	} else {
+		assert.Equal(t, filepath.Join(home, ".claude"), dir)
+	}
 }
 
 func TestGetClaudeDir_RespectsHomeEnv(t *testing.T) {

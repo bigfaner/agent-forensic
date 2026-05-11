@@ -30,31 +30,28 @@ func createTestJSONL(t *testing.T, lines []string) string {
 	return path
 }
 
-// helper: build a JSONL line representing a message
+// helper: build a JSONL line representing a user message
 func makeMessageJSON(ts string) string {
-	return fmt.Sprintf(`{"type":"message","role":"user","content":"hello","timestamp":"%s"}`, ts)
+	return fmt.Sprintf(`{"type":"user","timestamp":"%s","message":{"role":"user","content":"hello"}}`, ts)
 }
 
-// helper: build a JSONL line representing a tool_use
+// helper: build a JSONL line representing an assistant turn with a tool_use block
 func makeToolUseJSON(toolName, input, ts string) string {
-	inputJSON, _ := json.Marshal(input)
-	return fmt.Sprintf(`{"type":"tool_use","name":"%s","input":%s,"timestamp":"%s"}`, toolName, string(inputJSON), ts)
+	return fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"role":"assistant","content":[{"type":"tool_use","id":"test-id","name":"%s","input":%s}]}}`, ts, toolName, input)
 }
 
-// helper: build a JSONL line representing a tool_result
+// helper: build a JSONL line representing a user turn with a tool_result block.
+// exitCode != nil && *exitCode != 0 maps to is_error=true.
 func makeToolResultJSON(toolName, output string, exitCode *int, ts string) string {
 	outputJSON, _ := json.Marshal(output)
-	ecPart := "null"
-	if exitCode != nil {
-		ecPart = fmt.Sprintf("%d", *exitCode)
-	}
-	return fmt.Sprintf(`{"type":"tool_result","name":"%s","output":%s,"exit_code":%s,"timestamp":"%s"}`, toolName, string(outputJSON), ecPart, ts)
+	isError := exitCode != nil && *exitCode != 0
+	return fmt.Sprintf(`{"type":"user","timestamp":"%s","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"test-id","content":%s,"is_error":%v}]}}`, ts, string(outputJSON), isError)
 }
 
-// helper: build a thinking block line
+// helper: build a JSONL line representing an assistant turn with a thinking block
 func makeThinkingJSON(content, ts string) string {
 	contentJSON, _ := json.Marshal(content)
-	return fmt.Sprintf(`{"type":"thinking","thinking":%s,"timestamp":"%s"}`, string(contentJSON), ts)
+	return fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"role":"assistant","content":[{"type":"thinking","thinking":%s}]}}`, ts, string(contentJSON))
 }
 
 // --- Tests ---
@@ -562,17 +559,20 @@ func TestParseSession_EmptyLinesSkipped(t *testing.T) {
 
 func TestParseSession_UnknownEntryType(t *testing.T) {
 	lines := []string{
-		`{"type":"custom_type","data":"test"}`,
+		`{"type":"permission-mode","permissionMode":"bypassPermissions"}`,
 	}
 
 	path := createTestJSONL(t, lines)
-	_, err := ParseSession(path, 0)
-	// Only 1 line and it's corrupt (unknown type), so 100% failure -> CorruptSessionError
-	if err == nil {
-		t.Fatal("expected error for unknown entry type")
+	session, err := ParseSession(path, 0)
+	// Non-user/assistant records are silently skipped; result is an empty session
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v (unknown top-level types should be skipped)", err)
 	}
-	if _, ok := err.(*CorruptSessionError); !ok {
-		t.Errorf("error type = %T, want *CorruptSessionError", err)
+	if session == nil {
+		t.Fatal("expected non-nil session")
+	}
+	if session.ToolCount != 0 {
+		t.Errorf("ToolCount = %d, want 0", session.ToolCount)
 	}
 }
 
