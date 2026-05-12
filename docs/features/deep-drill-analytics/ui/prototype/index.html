@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deep Drill Analytics — Prototype Index</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Deep Drill Analytics — Prototype</h1>
+  <p style="color: var(--text-dim); margin-bottom: 24px;">
+    TUI prototype for the 6 new UI components. Each page simulates terminal rendering.
+  </p>
+
+  <div>
+    <a href="calltree-subagent.html" class="page-card" style="display:inline-block; text-decoration:none;">
+      <h3>Call Tree — SubAgent Expand</h3>
+      <p>UF-1: SubAgent inline expand in Call Tree with depth-2 children, loading/error states. UF-2: Full-screen SubAgent overlay.</p>
+    </a>
+
+    <a href="dashboard-analytics.html" class="page-card" style="display:inline-block; text-decoration:none;">
+      <h3>Dashboard — Analytics Panels</h3>
+      <p>UF-5: File Operations ranking panel. UF-6: Hook Statistics with Type::Target grouping and Timeline.</p>
+    </a>
+
+    <a href="detail-fileops.html" class="page-card" style="display:inline-block; text-decoration:none;">
+      <h3>Detail — File Operations</h3>
+      <p>UF-3: Turn Overview file list. UF-4: SubAgent statistics view with tool stats, files, and duration.</p>
+    </a>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

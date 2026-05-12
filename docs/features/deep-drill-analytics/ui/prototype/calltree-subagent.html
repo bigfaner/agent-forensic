@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call Tree — SubAgent Expand — Deep Drill Analytics</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="page-nav">
+    <a href="index.html">Index</a>
+    <a href="calltree-subagent.html" class="active">Call Tree + SubAgent</a>
+    <a href="dashboard-analytics.html">Dashboard Analytics</a>
+    <a href="detail-fileops.html">Detail File Ops</a>
+  </nav>
+
+  <h2>UF-1: SubAgent Inline Expand (Call Tree)</h2>
+
+  <div class="state-tabs">
+    <button class="btn active" onclick="showState('state-collapsed')">Collapsed</button>
+    <button class="btn" onclick="showState('state-loading')">Loading</button>
+    <button class="btn" onclick="showState('state-expanded')">Expanded</button>
+    <button class="btn" onclick="showState('state-error')">Error</button>
+    <button class="btn" onclick="showState('state-overflow')">Overflow</button>
+  </div>
+
+  <!-- Collapsed state -->
+  <div id="state-collapsed" class="state-content active">
+    <div class="terminal focused" style="height: 320px;">
+      <div class="terminal-title">Call Tree — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">▼ Turn 1 (12.3s)</span>  implement deep drill analytics feature
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/parser/types.go (0.8s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/stats/stats.go (0.3s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/parser/types.go (1.2s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">SubAgent ×3 (4.8s)</span> <span class="c-dim">📦</span>
+  <span class="c-dim">└─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (3.2s)</span>
+
+<span class="c-white">● Turn 2 (8.5s)</span>  fix the failing test cases
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/model/calltree_test.go (0.5s)</span>
+  <span class="c-dim">└─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/model/calltree_test.go (2.1s)</span>
+
+<span class="c-white">● Turn 3 (45.2s)</span>  run full test suite and fix bugs
+  <span class="c-dim">├─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (42.5s)</span> <span class="c-yellow">🟡</span>
+  <span class="c-dim">└─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/model/detail.go (1.8s)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="state-loading" class="state-content">
+    <div class="terminal focused" style="height: 320px;">
+      <div class="terminal-title">Call Tree — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">▼ Turn 1 (12.3s)</span>  implement deep drill analytics feature
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/parser/types.go (0.8s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/stats/stats.go (0.3s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/parser/types.go (1.2s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">SubAgent ×3 (4.8s)</span> <span class="c-dim">📦 ⏳</span>
+  <span class="c-dim">│</span>  <span class="c-dim">Parsing subagent session...</span>
+  <span class="c-dim">└─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (3.2s)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expanded state -->
+  <div id="state-expanded" class="state-content">
+    <div class="terminal focused" style="height: 380px;">
+      <div class="terminal-title">Call Tree — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">▼ Turn 1 (12.3s)</span>  implement deep drill analytics feature
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/parser/types.go (0.8s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/stats/stats.go (0.3s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/parser/types.go (1.2s)</span>
+  <span class="c-dim">├─</span> <span class="c-highlight c-white"> SubAgent ×3 (4.8s) 📦</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/model/app.go (0.2s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/model/app.go (1.5s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">└─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (2.8s)</span>
+  <span class="c-dim">└─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (3.2s)</span>
+
+<span class="c-white">● Turn 2 (8.5s)</span>  fix the failing test cases
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/model/calltree_test.go (0.5s)</span>
+  <span class="c-dim">└─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/model/calltree_test.go (2.1s)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error state -->
+  <div id="state-error" class="state-content">
+    <div class="terminal focused" style="height: 320px;">
+      <div class="terminal-title">Call Tree — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">▼ Turn 1 (12.3s)</span>  implement deep drill analytics feature
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/parser/types.go (0.8s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/stats/stats.go (0.3s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/parser/types.go (1.2s)</span>
+  <span class="c-dim">├─</span> <span class="c-yellow">SubAgent ×3 (4.8s) ⚠</span>
+  <span class="c-dim">└─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (3.2s)</span>
+
+<span class="c-white">● Turn 2 (8.5s)</span>  fix the failing test cases
+      </div>
+    </div>
+  </div>
+
+  <!-- Overflow state -->
+  <div id="state-overflow" class="state-content">
+    <div class="terminal focused" style="height: 420px;">
+      <div class="terminal-title">Call Tree — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">▼ Turn 1 (12.3s)</span>  implement deep drill analytics feature
+  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/parser/types.go (0.8s)</span>
+  <span class="c-dim">├─</span> <span class="c-white">SubAgent ×53 (4.8s)</span> <span class="c-dim">📦</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/model/app.go (0.2s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/model/app.go (1.5s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./... (2.8s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/stats/stats.go (0.1s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/model/calltree.go (0.9s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Write</span> <span class="c-dim">internal/model/subagent.go (0.4s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Bash</span> <span class="c-dim">go build ./... (1.2s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">cmd/root.go (0.1s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">cmd/root.go (0.3s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/i18n/locales/zh.yaml (0.1s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/i18n/locales/zh.yaml (0.2s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Read</span> <span class="c-dim">internal/i18n/locales/en.yaml (0.1s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Edit</span> <span class="c-dim">internal/i18n/locales/en.yaml (0.2s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">├─</span> <span class="c-white">Bash</span> <span class="c-dim">go test ./internal/... (3.1s)</span>
+  <span class="c-dim">│</span>  <span class="c-dim">└─</span> <span class="c-dim">... +43 more</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UF-2: SubAgent Full-Screen Overlay -->
+  <h2 style="margin-top: 32px;">UF-2: SubAgent Full-Screen Overlay</h2>
+  <p style="color: var(--text-dim); margin-bottom: 12px;">Press <code>a</code> on a SubAgent node to open. Press <code>Esc</code> to close.</p>
+
+  <div class="state-tabs">
+    <button class="btn active" onclick="showState('overlay-populated')">Populated</button>
+    <button class="btn" onclick="showState('overlay-empty')">Empty</button>
+    <button class="btn" onclick="showState('overlay-error')">Error</button>
+  </div>
+
+  <div id="overlay-populated" class="state-content active">
+    <div class="terminal" style="height: 480px;">
+      <div class="terminal-title">SubAgent: refactor internal/model — 8 tools, 12.3s</div>
+      <div class="terminal-body">
+<span class="c-white">Tool Statistics</span>
+<span class="c-dim">────────────────</span>
+<span class="bar-row"><span class="bar-label c-white" style="min-width:100px">Read</span><span class="bar-fill c-green" style="width:120px">████████████</span><span class="bar-count c-white">12</span></span>
+<span class="bar-row"><span class="bar-label c-white" style="min-width:100px">Edit</span><span class="bar-fill c-green" style="width:80px">████████</span><span class="bar-count c-white">8</span></span>
+<span class="bar-row"><span class="bar-label c-white" style="min-width:100px">Bash</span><span class="bar-fill c-green" style="width:100px">██████████</span><span class="bar-count c-white">10</span></span>
+<span class="bar-row"><span class="bar-label c-white" style="min-width:100px">Write</span><span class="bar-fill c-green" style="width:30px">███</span><span class="bar-count c-white">3</span></span>
+
+<span class="c-white">File Operations (top 20)</span>
+<span class="c-dim">────────────────────────────────────────────────────</span>
+<span class="bar-row"><span class="bar-label" style="min-width:260px">internal/model/app.go</span><span class="c-green">Read ×5</span> <span class="c-red">Edit ×3</span> <span class="bar-fill c-green" style="width:80px">████████</span><span class="bar-count">8</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:260px">cmd/root.go</span><span class="c-green">Read ×3</span> <span class="c-red">Edit ×1</span> <span class="bar-fill c-green" style="width:40px">████</span><span class="bar-count">4</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:260px">internal/stats/stats.go</span><span class="c-green">Read ×2</span> <span class="bar-fill c-green" style="width:20px">██</span><span class="bar-count">2</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:260px">internal/i18n/locales/zh.yaml</span><span class="c-green">Read ×1</span> <span class="bar-fill c-green" style="width:10px">█</span><span class="bar-count">1</span></span>
+
+<span class="c-white">Duration Distribution</span>
+<span class="c-dim">────────────────────────────────────────────────────</span>
+<span class="bar-row"><span class="bar-label" style="min-width:80px">Bash</span><span class="bar-fill c-green" style="width:160px">████████████████████</span><span class="bar-count c-dim">8.2s (67%)</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:80px">Edit</span><span class="bar-fill c-green" style="width:64px">████████</span><span class="bar-count c-dim">3.1s (25%)</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:80px">Read</span><span class="bar-fill c-green" style="width:32px">████</span><span class="bar-count c-dim">1.0s (8%)</span></span>
+
+<span class="c-dim">Esc:close  j/k:scroll  Tab:sections</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay-empty" class="state-content">
+    <div class="terminal" style="height: 200px;">
+      <div class="terminal-title">SubAgent: refactor internal/model — 0 tools, 0.0s</div>
+      <div class="terminal-body" style="text-align:center; padding-top: 40px;">
+<span class="c-dim">No data</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay-error" class="state-content">
+    <div class="terminal" style="height: 200px;">
+      <div class="terminal-title">SubAgent: refactor internal/model</div>
+      <div class="terminal-body" style="text-align:center; padding-top: 40px;">
+<span class="c-red">Failed to load: corrupt JSONL at line 42</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Analytics — Deep Drill Analytics</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="page-nav">
+    <a href="index.html">Index</a>
+    <a href="calltree-subagent.html">Call Tree + SubAgent</a>
+    <a href="dashboard-analytics.html" class="active">Dashboard Analytics</a>
+    <a href="detail-fileops.html">Detail File Ops</a>
+  </nav>
+
+  <h2>UF-5: Dashboard File Operations Panel</h2>
+
+  <div class="state-tabs">
+    <button class="btn active" onclick="showState('files-populated')">Populated</button>
+    <button class="btn" onclick="showState('files-empty')">No File Ops</button>
+  </div>
+
+  <div id="files-populated" class="state-content active">
+    <div class="terminal" style="height: 360px;">
+      <div class="terminal-title">Dashboard — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">Total Duration: 12m30s</span>          <span class="c-dim">Peak:</span> <span class="c-yellow">Bash go build (45.2s)</span>
+
+<span class="c-white">Tool Calls</span>                    <span class="c-white">Time Distribution</span>
+<span class="c-dim">──────────</span>                    <span class="c-dim">─────────────────</span>
+Read     <span class="c-white">████████████ 12</span>     Read     <span class="c-dim">████░░░░ 32%</span>
+Bash     <span class="c-white">██████████ 10</span>       Bash     <span class="c-dim">██████░░ 48%</span>
+Edit     <span class="c-white">█████ 5</span>             Edit     <span class="c-dim">██░░░░░░ 15%</span>
+Write    <span class="c-white">███ 3</span>               Write    <span class="c-dim">█░░░░░░░  5%</span>
+
+<span class="c-white">File Operations (top 20)</span>
+<span class="c-dim">──────────────────────────────────────────────────────────</span>
+<span class="bar-row"><span class="bar-label" style="min-width:280px">internal/parser/jsonl.go</span><span class="c-green">R×5</span> <span class="c-red">E×3</span> <span class="bar-fill c-green" style="width:80px">████████</span><span class="bar-count">8</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:280px">internal/model/calltree.go</span><span class="c-green">R×3</span> <span class="c-red">E×1</span> <span class="bar-fill c-green" style="width:40px">████</span><span class="bar-count">4</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:280px">internal/stats/stats.go</span><span class="c-green">R×2</span> <span class="c-red">E×1</span> <span class="bar-fill c-green" style="width:30px">███</span><span class="bar-count">3</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:280px">internal/model/detail.go</span><span class="c-green">R×1</span> <span class="c-red">E×1</span> <span class="bar-fill c-green" style="width:20px">██</span><span class="bar-count">2</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:280px">cmd/root.go</span><span class="c-green">R×2</span> <span class="bar-fill c-green" style="width:20px">██</span><span class="bar-count">2</span></span>
+<span class="bar-row"><span class="bar-label" style="min-width:280px">internal/model/dashboard.go</span><span class="c-red">E×1</span> <span class="bar-fill c-red" style="width:10px">█</span><span class="bar-count">1</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="files-empty" class="state-content">
+    <div class="terminal" style="height: 200px;">
+      <div class="terminal-title">Dashboard — 05-12 14:23 agent-forensic refactoring session</div>
+      <div class="terminal-body">
+<span class="c-white">Total Duration: 2m15s</span>          <span class="c-dim">Peak:</span> <span class="c-white">Bash ls (0.5s)</span>
+
+<span class="c-white">Tool Calls</span>                    <span class="c-white">Time Distribution</span>
+<span class="c-dim">──────────</span>                    <span class="c-dim">─────────────────</span>
+Bash     <span class="c-white">███ 3</span>               Bash     <span class="c-dim">████████ 100%</span>
+
+<span class="c-dim">(No file operations in this session)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UF-6: Hook Analysis Panel -->
+  <h2 style="margin-top: 32px;">UF-6: Dashboard Hook Analysis Panel</h2>
+
+  <div class="state-tabs">
+    <button class="btn active" onclick="showState('hooks-populated')">Populated</button>
+    <button class="btn" onclick="showState('hooks-empty')">No Hooks</button>
+  </div>
+
+  <div id="hooks-populated" class="state-content active">
+    <div class="terminal" style="height: 380px;">
+      <div class="terminal-title">Dashboard — Hook Analysis</div>
+      <div class="terminal-body">
+<span class="c-white">Hook Statistics</span>
+<span class="c-dim">──────────────────────────────────────────────────────────</span>
+PreToolUse::Bash        <span class="c-white">×12</span>
+PreToolUse::Edit        <span class="c-white">×5</span>
+PreToolUse::Read        <span class="c-white">×8</span>
+PostToolUse::Bash       <span class="c-white">×10</span>
+PostToolUse::Edit       <span class="c-white">×3</span>
+Stop                    <span class="c-white">×2</span>
+
+<span class="c-white">Hook Timeline (by Turn)</span>
+<span class="c-dim">──────────────────────────────────────────────────────────</span>
+<span class="c-dim">Legend:</span> <span class="c-green">●PreToolUse</span> <span class="c-cyan">●PostToolUse</span> <span class="c-yellow">●Stop</span> <span class="c-magenta">●user-prompt</span>
+
+<span class="c-dim">T1</span>  <span class="c-green">●PreToolUse::Read</span> <span class="c-green">●PreToolUse::Read</span> <span class="c-cyan">●PostToolUse::Read</span> <span class="c-cyan">●PostToolUse::Read</span> <span class="c-green">●PreToolUse::Edit</span> <span class="c-cyan">●PostToolUse::Edit</span> <span class="c-green">●PreToolUse::Bash</span> <span class="c-cyan">●PostToolUse::Bash</span>
+<span class="c-dim">T2</span>  <span class="c-green">●PreToolUse::Edit</span> <span class="c-cyan">●PostToolUse::Edit</span> <span class="c-green">●PreToolUse::Bash</span> <span class="c-cyan">●PostToolUse::Bash</span> <span class="c-yellow">●Stop</span>
+<span class="c-dim">T3</span>  <span class="c-green">●PreToolUse::Read</span> <span class="c-cyan">●PostToolUse::Read</span> <span class="c-green">●PreToolUse::Bash</span> <span class="c-cyan">●PostToolUse::Bash</span> <span class="c-green">●PreToolUse::Edit</span> <span class="c-cyan">●PostToolUse::Edit</span> <span class="c-green">●PreToolUse::Bash</span> <span class="c-cyan">●PostToolUse::Bash</span> <span class="c-yellow">●Stop</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="hooks-empty" class="state-content">
+    <div class="terminal" style="height: 160px;">
+      <div class="terminal-title">Dashboard — Hook Analysis</div>
+      <div class="terminal-body" style="text-align:center; padding-top: 20px;">
+<span class="c-dim">(No hook triggers in this session)</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

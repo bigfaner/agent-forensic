@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detail File Ops — Deep Drill Analytics</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="page-nav">
+    <a href="index.html">Index</a>
+    <a href="calltree-subagent.html">Call Tree + SubAgent</a>
+    <a href="dashboard-analytics.html">Dashboard Analytics</a>
+    <a href="detail-fileops.html" class="active">Detail File Ops</a>
+  </nav>
+
+  <h2>UF-3: Turn Overview File Operations</h2>
+
+  <div class="state-tabs">
+    <button class="btn active" onclick="showState('turn-files')">With Files</button>
+    <button class="btn" onclick="showState('turn-nofiles')">No Files</button>
+  </div>
+
+  <div id="turn-files" class="state-content active">
+    <div class="terminal" style="height: 320px;">
+      <div class="terminal-title">Detail: Turn 1 — 5 tools, 12.3s</div>
+      <div class="terminal-body">
+<span class="c-cyan">prompt:</span>
+  <span class="c-white">implement deep drill analytics feature for agent-forensic</span>
+
+<span class="c-cyan">tools: 5 calls, 12.3s</span>
+  <span class="c-white">Read           ×3  2.1s</span>
+  <span class="c-white">Edit           ×1  3.5s</span>
+  <span class="c-white">SubAgent       ×1  4.8s</span>
+  <span class="c-white">Bash           ×1  6.7s</span>
+
+<span class="c-cyan">files:</span>
+  <span class="c-white">internal/parser/types.go</span>  <span class="c-green">R×2</span> <span class="c-red">E×1</span>
+  <span class="c-white">internal/stats/stats.go</span>    <span class="c-green">R×1</span>
+  <span class="c-white">internal/model/calltree.go</span>  <span class="c-green">R×1</span>
+
+<span class="c-yellow">anomalies: 1</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="turn-nofiles" class="state-content">
+    <div class="terminal" style="height: 200px;">
+      <div class="terminal-title">Detail: Turn 2 — 2 tools, 8.5s</div>
+      <div class="terminal-body">
+<span class="c-cyan">prompt:</span>
+  <span class="c-white">fix the failing test cases</span>
+
+<span class="c-cyan">tools: 2 calls, 8.5s</span>
+  <span class="c-white">Read           ×1  0.5s</span>
+  <span class="c-white">Edit           ×1  2.1s</span>
+
+<span class="c-yellow">anomalies: 0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- UF-4: SubAgent Statistics View -->
+  <h2 style="margin-top: 32px;">UF-4: SubAgent Statistics (Detail Panel)</h2>
+  <p style="color: var(--text-dim); margin-bottom: 12px;">Shown when selecting a SubAgent child node. <code>Tab</code> toggles between stats view and individual tool detail.</p>
+
+  <div class="state-tabs">
+    <button class="btn active" onclick="showState('sa-stats')">Stats View</button>
+    <button class="btn" onclick="showState('sa-detail')">Tool Detail (Tab)</button>
+  </div>
+
+  <div id="sa-stats" class="state-content active">
+    <div class="terminal" style="height: 320px;">
+      <div class="terminal-title">Detail: SubAgent — refactor internal/model</div>
+      <div class="terminal-body">
+<span class="c-cyan">subagent stats:</span>
+
+  <span class="c-cyan">tools: 8 calls, 15.2s</span>
+    <span class="c-white">Read           ×3  2.1s</span>
+    <span class="c-white">Edit           ×2  6.5s</span>
+    <span class="c-white">Bash           ×2  5.8s</span>
+    <span class="c-white">Write          ×1  0.8s</span>
+
+  <span class="c-cyan">files:</span>
+    <span class="c-white">internal/model/app.go</span>  <span class="c-green">R×2</span> <span class="c-red">E×2</span>
+    <span class="c-white">cmd/root.go</span>            <span class="c-green">R×1</span> <span class="c-red">E×1</span>
+
+  <span class="c-cyan">duration:</span> <span class="c-white">avg 1.9s, peak Bash go test (5.2s)</span>
+
+<span class="c-dim">Tab:toggle detail</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="sa-detail" class="state-content">
+    <div class="terminal" style="height: 260px;">
+      <div class="terminal-title">Detail: Bash — line 847</div>
+      <div class="terminal-body">
+<span class="c-cyan">tool_use.input:</span>
+  <span class="c-white">command: "go test ./internal/model/..."</span>
+  <span class="c-white">timeout: 60000</span>
+
+<span class="c-cyan">tool_result.content:</span>
+  <span class="c-white">ok      github.com/user/agent-forensic/internal/model    0.832s</span>
+  <span class="c-white">?       github.com/user/agent-forensic/internal/parser   [no test files]</span>
+
+<span class="c-dim">Tab:toggle stats</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
