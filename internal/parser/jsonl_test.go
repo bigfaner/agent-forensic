@@ -796,3 +796,157 @@ func TestDebugAgentInput_FullFlow(t *testing.T) {
 		}
 	}
 }
+
+// --- ScanSubagentsDir tests ---
+
+func TestScanSubagentsDir_FindsJSONLFiles(t *testing.T) {
+	dir := t.TempDir()
+	// Simulate: <dir>/session.jsonl and <dir>/subagents/agent-001.jsonl
+	sessionFile := filepath.Join(dir, "session.jsonl")
+	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+
+	subagentsDir := filepath.Join(dir, "subagents")
+	os.MkdirAll(subagentsDir, 0755)
+	os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	os.WriteFile(filepath.Join(subagentsDir, "agent-002.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	// Non-JSONL file should be ignored
+	os.WriteFile(filepath.Join(subagentsDir, "notes.txt"), []byte("not jsonl"), 0644)
+
+	files, err := ScanSubagentsDir(sessionFile)
+	if err != nil {
+		t.Fatalf("ScanSubagentsDir() error: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("files count = %d, want 2", len(files))
+	}
+	// Should be sorted by filename
+	expected1 := filepath.Join(subagentsDir, "agent-001.jsonl")
+	expected2 := filepath.Join(subagentsDir, "agent-002.jsonl")
+	if files[0] != expected1 {
+		t.Errorf("files[0] = %s, want %s", files[0], expected1)
+	}
+	if files[1] != expected2 {
+		t.Errorf("files[1] = %s, want %s", files[1], expected2)
+	}
+}
+
+func TestScanSubagentsDir_MissingDir(t *testing.T) {
+	dir := t.TempDir()
+	sessionFile := filepath.Join(dir, "session.jsonl")
+	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+
+	// No subagents/ directory — should return empty slice, no error
+	files, err := ScanSubagentsDir(sessionFile)
+	if err != nil {
+		t.Fatalf("ScanSubagentsDir() error: %v (missing dir should not error)", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("files count = %d, want 0", len(files))
+	}
+}
+
+func TestScanSubagentsDir_EmptyDir(t *testing.T) {
+	dir := t.TempDir()
+	sessionFile := filepath.Join(dir, "session.jsonl")
+	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+
+	subagentsDir := filepath.Join(dir, "subagents")
+	os.MkdirAll(subagentsDir, 0755)
+
+	files, err := ScanSubagentsDir(sessionFile)
+	if err != nil {
+		t.Fatalf("ScanSubagentsDir() error: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("files count = %d, want 0 for empty dir", len(files))
+	}
+}
+
+// --- ParseSubAgent tests ---
+
+func TestParseSubAgent_HappyPath(t *testing.T) {
+	lines := []string{
+		makeMessageJSON("2025-01-01T10:00:00Z"),
+		makeToolUseJSON("Bash", `{"command":"ls"}`, "2025-01-01T10:00:01Z"),
+		makeToolResultJSON("Bash", "file1\nfile2", nil, "2025-01-01T10:00:02Z"),
+	}
+	path := createTestJSONL(t, lines)
+
+	session, err := ParseSubAgent(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSubAgent() error: %v", err)
+	}
+	if session == nil {
+		t.Fatal("session is nil")
+	}
+	if session.FilePath != path {
+		t.Errorf("FilePath = %q, want %q", session.FilePath, path)
+	}
+	if session.ToolCount != 1 {
+		t.Errorf("ToolCount = %d, want 1", session.ToolCount)
+	}
+}
+
+func TestParseSubAgent_EmptyFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "empty.jsonl")
+	os.WriteFile(path, []byte{}, 0644)
+
+	_, err := ParseSubAgent(path, 0)
+	if err == nil {
+		t.Fatal("expected FileEmptyError for empty file")
+	}
+	if _, ok := err.(*FileEmptyError); !ok {
+		t.Errorf("error type = %T, want *FileEmptyError", err)
+	}
+}
+
+func TestParseSubAgent_FileNotFound(t *testing.T) {
+	_, err := ParseSubAgent("/nonexistent/path/agent.jsonl", 0)
+	if err == nil {
+		t.Fatal("expected error for nonexistent file")
+	}
+	if _, ok := err.(*FileReadError); !ok {
+		t.Errorf("error type = %T, want *FileReadError", err)
+	}
+}
+
+func TestParseSubAgent_CorruptFile(t *testing.T) {
+	lines := []string{
+		makeToolUseJSON("Bash", `{"command":"ls"}`, "2025-01-01T10:00:01Z"),
+		"corrupt line 1",
+		"corrupt line 2",
+		"corrupt line 3",
+	}
+	path := createTestJSONL(t, lines)
+
+	_, err := ParseSubAgent(path, 0)
+	if err == nil {
+		t.Fatal("expected CorruptSessionError for >50% corrupt lines")
+	}
+	if _, ok := err.(*CorruptSessionError); !ok {
+		t.Errorf("error type = %T, want *CorruptSessionError", err)
+	}
+}
+
+func TestParseSubAgent_MaxLines(t *testing.T) {
+	exitCode0 := 0
+	var lines []string
+	for i := 0; i < 100; i++ {
+		lines = append(lines, makeToolUseJSON("Bash", fmt.Sprintf(`{"command":"cmd%d"}`, i), "2025-01-01T10:00:01Z"))
+		lines = append(lines, makeToolResultJSON("Bash", "out", &exitCode0, "2025-01-01T10:00:02Z"))
+	}
+	path := createTestJSONL(t, lines)
+
+	session, err := ParseSubAgent(path, 10)
+	if err != nil {
+		t.Fatalf("ParseSubAgent() error: %v", err)
+	}
+	totalEntries := 0
+	for _, turn := range session.Turns {
+		totalEntries += len(turn.Entries)
+	}
+	if totalEntries > 10 {
+		t.Errorf("total entries = %d, want <= 10 (maxLines limit)", totalEntries)
+	}
+}

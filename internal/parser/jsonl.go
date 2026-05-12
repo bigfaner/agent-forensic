@@ -139,6 +139,53 @@ func ScanDir(dirPath string) ([]string, error) {
 	return files, nil
 }
 
+// ScanSubagentsDir discovers SubAgent JSONL files associated with a main session.
+// sessionPath is the main session JSONL file path (e.g. ~/.claude/projects/{encoded-path}/{session}.jsonl).
+// Looks in filepath.Join(filepath.Dir(sessionPath), "subagents")/*.jsonl.
+// Returns sorted list of absolute file paths.
+// Returns empty slice (no error) when the subagents/ directory does not exist.
+func ScanSubagentsDir(sessionPath string) ([]string, error) {
+	subDir := filepath.Join(filepath.Dir(sessionPath), "subagents")
+
+	info, err := os.Stat(subDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, NewDirPermissionError(subDir, err)
+	}
+	if !info.IsDir() {
+		return []string{}, nil
+	}
+
+	entries, err := os.ReadDir(subDir)
+	if err != nil {
+		return nil, NewDirPermissionError(subDir, err)
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".jsonl") {
+			files = append(files, filepath.Join(subDir, entry.Name()))
+		}
+	}
+
+	sort.Strings(files)
+	if files == nil {
+		files = []string{}
+	}
+	return files, nil
+}
+
+// ParseSubAgent parses a single SubAgent session JSONL file.
+// filePath is the subagent JSONL path.
+// maxLines limits parsing (0 = unlimited).
+// Returns a *Session or an error from the existing error chain
+// (FileReadError, FileEmptyError, CorruptSessionError).
+func ParseSubAgent(filePath string, maxLines int) (*Session, error) {
+	return ParseSession(filePath, maxLines)
+}
+
 // ScanProjectsDir recursively scans <claudeDir>/projects/ for session JSONL files.
 // It skips files inside "subagents/" subdirectories.
 // Returns sorted list of absolute file paths.

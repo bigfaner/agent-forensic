@@ -99,3 +99,18 @@ func (e *CorruptSessionError) Error() string {
 	return fmt.Sprintf("corrupt session: %s (%d/%d lines failed)",
 		e.FilePath, e.FailLines, e.TotalLines)
 }
+
+// SubAgentNotFoundError indicates no subagents/ directory or no matching
+// JSONL files exist for a given SubAgent tool_use entry.
+type SubAgentNotFoundError struct {
+	AgentID    string // agent ID from SubAgent tool_use input
+	SessionDir string // expected parent directory
+}
+
+func NewSubAgentNotFoundError(agentID, sessionDir string) *SubAgentNotFoundError {
+	return &SubAgentNotFoundError{AgentID: agentID, SessionDir: sessionDir}
+}
+
+func (e *SubAgentNotFoundError) Error() string {
+	return fmt.Sprintf("subagent not found: %s in %s", e.AgentID, e.SessionDir)
+}
