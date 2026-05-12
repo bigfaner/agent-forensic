@@ -20,6 +20,7 @@ const (
 	SectionTools DashboardSection = iota
 	SectionCustomTools
 	SectionFileOps
+	SectionHookAnalysis
 )
 
 // DashboardModel is a Bubble Tea model for the statistics dashboard overlay.
@@ -159,11 +160,12 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 
 // nextSection cycles to the next available focusable section.
 func (m DashboardModel) nextSection() DashboardSection {
-	hasCustomTools := m.stats != nil && (len(m.stats.SkillCounts) > 0 || len(m.stats.MCPServers) > 0 || len(m.stats.HookCounts) > 0)
+	hasCustomTools := m.stats != nil && (len(m.stats.SkillCounts) > 0 || len(m.stats.MCPServers) > 0)
 	hasFileOps := m.stats != nil && m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0
+	hasHookAnalysis := m.stats != nil && len(m.stats.HookDetails) > 0
 
-	for i := 1; i <= 3; i++ {
-		candidate := (m.focusSection + DashboardSection(i)) % 3
+	for i := 1; i <= 4; i++ {
+		candidate := (m.focusSection + DashboardSection(i)) % 4
 		switch candidate {
 		case SectionTools:
 			return candidate
@@ -173,6 +175,10 @@ func (m DashboardModel) nextSection() DashboardSection {
 			}
 		case SectionFileOps:
 			if hasFileOps {
+				return candidate
+			}
+		case SectionHookAnalysis:
+			if hasHookAnalysis {
 				return candidate
 			}
 		}
@@ -418,6 +424,29 @@ func (m DashboardModel) renderDashboard() string {
 				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations (top 20)", cyan.Render("File Operations (top 20)"), 1)
 			}
 			b.WriteString(fileOpsBlock)
+		}
+	}
+
+	// Hook Analysis panel (Statistics + Timeline)
+	if len(m.stats.HookDetails) > 0 {
+		statsPanel := NewHookStatsPanel()
+		timelinePanel := NewHookTimelinePanel()
+		hookStatsBlock := statsPanel.Render(m.stats.HookDetails, contentWidth)
+		hookTimelineBlock := timelinePanel.Render(m.stats.HookDetails, contentWidth)
+
+		if hookStatsBlock != "" || hookTimelineBlock != "" {
+			b.WriteString("\n\n")
+			// Highlight "Hook Statistics" header when this section is focused
+			if m.focused && m.focusSection == SectionHookAnalysis {
+				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
+				hookStatsBlock = strings.Replace(hookStatsBlock, "Hook Statistics", cyan.Render("Hook Statistics"), 1)
+			}
+			if hookStatsBlock != "" {
+				b.WriteString(hookStatsBlock)
+			}
+			if hookTimelineBlock != "" {
+				b.WriteString(hookTimelineBlock)
+			}
 		}
 	}
 

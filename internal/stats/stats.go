@@ -172,6 +172,19 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 				if marker := parseHookMarker(entry.Output); marker != "" {
 					stats.HookCounts[marker]++
 				}
+				// HookDetails extraction: parse full HookType::Target with turn index
+				if fullID := ParseHookWithTarget(entry.Output); fullID != "" && fullID != entry.Output {
+					hd := buildHookDetail(fullID, turn.Index)
+					stats.HookDetails = append(stats.HookDetails, hd)
+				} else if marker := parseHookMarker(entry.Output); marker != "" {
+					hd := parser.HookDetail{
+						HookType:  marker,
+						Target:    "",
+						TurnIndex: turn.Index,
+						FullID:    marker,
+					}
+					stats.HookDetails = append(stats.HookDetails, hd)
+				}
 			}
 		}
 	}
@@ -232,6 +245,23 @@ func parseMCPToolName(toolName string) (server, tool string) {
 		return "", ""
 	}
 	return rest[:idx], rest[idx+2:]
+}
+
+// buildHookDetail constructs a HookDetail from a FullID string and turn index.
+// FullID format is "HookType::Target" or just "HookType" when no target.
+func buildHookDetail(fullID string, turnIndex int) parser.HookDetail {
+	hookType := fullID
+	target := ""
+	if idx := strings.Index(fullID, "::"); idx >= 0 {
+		hookType = fullID[:idx]
+		target = fullID[idx+2:]
+	}
+	return parser.HookDetail{
+		HookType:  hookType,
+		Target:    target,
+		TurnIndex: turnIndex,
+		FullID:    fullID,
+	}
 }
 
 // parseHookMarker returns the hook type name if the text contains a known hook marker,

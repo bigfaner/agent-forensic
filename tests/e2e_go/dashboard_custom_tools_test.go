@@ -169,7 +169,7 @@ func TestDashboardCustomTools_NarrowTerminalLayout(t *testing.T) {
 	viewContains(t, view, "自定义工具")
 }
 
-// TC-011: Wide terminal uses three-column side-by-side layout
+// TC-011: Wide terminal uses two-column side-by-side layout
 func TestDashboardCustomTools_WideTerminalLayout(t *testing.T) {
 	resetLocale(t)
 	sessions := loadFixtureSessions(t, "session_with_skills.jsonl")
@@ -183,10 +183,9 @@ func TestDashboardCustomTools_WideTerminalLayout(t *testing.T) {
 	m, _ = sendKey(m, "s")
 
 	view := m.View()
-	// Should show three-column layout
+	// Should show two-column layout (Skill + MCP; Hook moved to Hook Analysis panel)
 	viewContains(t, view, "Skill")
 	viewContains(t, view, "MCP")
-	viewContains(t, view, "Hook")
 }
 
 // TC-012: Column with no data shows (none) placeholder

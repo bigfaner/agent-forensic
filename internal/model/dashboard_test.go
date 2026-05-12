@@ -246,6 +246,182 @@ func TestDashboard_JKScroll_InDashboard(t *testing.T) {
 	assert.Equal(t, 0, dm.scrollPos, "k at top should not go below 0")
 }
 
+// --- Hook Analysis Panel integration tests ---
+
+func TestDashboard_HookPanel_Rendered_WhenHasHookData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+					{Type: parser.EntryMessage, Output: "PostToolUse hook result: allowed"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.Contains(t, view, "Hook Statistics", "Dashboard should contain Hook Statistics when session has hooks")
+	assert.Contains(t, view, "Hook Timeline", "Dashboard should contain Hook Timeline when session has hooks")
+}
+
+func TestDashboard_HookPanel_Hidden_WhenNoHookData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 1,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.NotContains(t, view, "Hook Statistics", "Dashboard should NOT contain Hook Statistics when no hooks")
+	assert.NotContains(t, view, "Hook Timeline", "Dashboard should NOT contain Hook Timeline when no hooks")
+}
+
+func TestDashboard_HookPanel_ReplacesOldHookColumn(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	// Old Hook column header should not appear
+	assert.NotContains(t, view, "\nHook\n", "Old Hook column should be replaced by Hook Analysis panel")
+	// New sections should be present
+	assert.Contains(t, view, "Hook Statistics")
+}
+
+func TestDashboard_HookPanel_PositionAfterFileOps(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 5,
+		Duration:  2 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 60 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.Contains(t, view, "File Operations")
+	assert.Contains(t, view, "Hook Statistics")
+
+	// Hook Analysis should appear after File Operations
+	foIdx := strings.Index(view, "File Operations")
+	haIdx := strings.Index(view, "Hook Statistics")
+	assert.Greater(t, haIdx, foIdx, "Hook Analysis should appear after File Operations panel")
+}
+
+func TestDashboard_TabCyclesToHookAnalysis(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Press Tab to cycle to next section
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	dm := updated.(DashboardModel)
+	assert.Equal(t, SectionHookAnalysis, dm.focusSection, "Tab should cycle to HookAnalysis")
+}
+
+func TestDashboard_TabFocus_HookAnalysisHeaderCyan(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Cycle to HookAnalysis section
+	m.focusSection = SectionHookAnalysis
+	view := m.View()
+	assert.Contains(t, view, "Hook Statistics")
+}
+
 // --- Test data helpers ---
 
 func testDashboardSession() *parser.Session {

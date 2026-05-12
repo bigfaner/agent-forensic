@@ -494,6 +494,72 @@ func TestCalculateStats_NewMapsNonNil(t *testing.T) {
 	assert.NotNil(t, s.HookCounts)
 }
 
+// --- HookDetails extraction tests ---
+
+func TestCalculateStats_HookDetails_Extracted(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+					{Type: parser.EntryMessage, Output: "PostToolUse hook result: allowed"},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, Output: "Stop hook triggered"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	assert.Len(t, s.HookDetails, 3, "should extract 3 HookDetail entries")
+
+	// Find each hook type
+	var foundPre, foundPost, foundStop bool
+	for _, hd := range s.HookDetails {
+		switch hd.FullID {
+		case "PreToolUse::Bash":
+			foundPre = true
+			assert.Equal(t, "PreToolUse", hd.HookType)
+			assert.Equal(t, "Bash", hd.Target)
+			assert.Equal(t, 1, hd.TurnIndex)
+		case "PostToolUse":
+			foundPost = true
+			assert.Equal(t, "PostToolUse", hd.HookType)
+			assert.Equal(t, "", hd.Target)
+			assert.Equal(t, 1, hd.TurnIndex)
+		case "Stop":
+			foundStop = true
+			assert.Equal(t, "Stop", hd.HookType)
+			assert.Equal(t, "", hd.Target)
+			assert.Equal(t, 2, hd.TurnIndex)
+		}
+	}
+	assert.True(t, foundPre, "should find PreToolUse::Bash")
+	assert.True(t, foundPost, "should find PostToolUse")
+	assert.True(t, foundStop, "should find Stop")
+}
+
+func TestCalculateStats_HookDetails_EmptyWhenNoHooks(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	assert.Len(t, s.HookDetails, 0, "HookDetails should be empty when no hooks")
+}
+
 // --- ExtractFilePaths tests ---
 
 func TestExtractFilePaths_ReadTool(t *testing.T) {
