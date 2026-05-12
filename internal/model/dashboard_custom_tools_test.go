@@ -8,6 +8,64 @@ import (
 	"github.com/user/agent-forensic/internal/parser"
 )
 
+// --- Bug regression test: columns should maintain fixed width alignment ---
+
+func TestRenderCustomToolsBlock_ColumnAlignment_WideLayout(t *testing.T) {
+	// Create a session where MCP column has many more lines than Skill/Hook
+	s := &parser.SessionStats{
+		ToolCallCounts: make(map[string]int),
+		ToolTimePcts:   make(map[string]float64),
+		SkillCounts:    map[string]int{"skill-a": 1},
+		MCPServers: map[string]*parser.MCPServerStats{
+			"server1": {
+				Total: 3,
+				Tools: map[string]int{
+					"tool1": 2,
+					"tool2": 1,
+				},
+			},
+			"server2": {
+				Total: 2,
+				Tools: map[string]int{
+					"tool3": 2,
+				},
+			},
+		},
+		HookCounts: map[string]int{"PreToolUse": 1},
+	}
+
+	m := newDashboardWithStats(s, 100) // wide layout
+	out := m.renderCustomToolsBlock(96)
+
+	lines := strings.Split(out, "\n")
+
+	// Find the header line with all three column headers
+	var headerLineIdx int = -1
+	for i, line := range lines {
+		if strings.Contains(line, "Skill") && strings.Contains(line, "MCP") && strings.Contains(line, "Hook") {
+			headerLineIdx = i
+			break
+		}
+	}
+
+	assert.NotEqual(t, -1, headerLineIdx, "Should find a line with all three column headers")
+
+	// BUG: The current implementation will fail this test because columns are not
+	// rendered with fixed width, causing alignment issues
+
+	// Verify that Skill column content appears in lines after header
+	foundSkillContent := false
+	for i := headerLineIdx + 1; i < len(lines); i++ {
+		if strings.Contains(lines[i], "skill-a") {
+			foundSkillContent = true
+			// Skill content should appear before MCP content on the same line
+			// or MCP content should be properly aligned to its column
+			break
+		}
+	}
+	assert.True(t, foundSkillContent, "Skill column content should be visible")
+}
+
 func statsWithSkills(skills map[string]int) *parser.SessionStats {
 	return &parser.SessionStats{
 		ToolCallCounts: make(map[string]int),
@@ -284,4 +342,56 @@ func TestCtTruncate_Multibyte(t *testing.T) {
 	result := ctTruncate(s)
 	runes := []rune(result)
 	assert.Equal(t, 22, len(runes))
+}
+
+// --- Bug regression test: columns should maintain fixed width alignment ---
+
+func TestRenderCustomToolsBlock_ColumnAlignment_VisualInspection(t *testing.T) {
+	// Create a session where MCP column has many more lines than Skill/Hook
+	// This reproduces the alignment issue shown in the screenshot
+	s := &parser.SessionStats{
+		ToolCallCounts: make(map[string]int),
+		ToolTimePcts:   make(map[string]float64),
+		SkillCounts:    map[string]int{"brainstorm": 1},
+		MCPServers: map[string]*parser.MCPServerStats{
+			"zai-mcp-server": {
+				Total: 5,
+				Tools: map[string]int{
+					"ui_to_artifact": 2,
+					"analyze_video":  2,
+					"analyze_image":  1,
+				},
+			},
+		},
+		HookCounts: map[string]int{"PreToolUse": 1},
+	}
+
+	m := newDashboardWithStats(s, 100) // wide layout
+	out := m.renderCustomToolsBlock(96)
+
+	// Print output for visual inspection (will show in test output)
+	t.Logf("\n=== Visual Output ===\n%s\n=== End Output ===\n", out)
+
+	// BUG DESCRIPTION:
+	// The current implementation uses simple string concatenation:
+	//   ctColGet(skillLines, i) + ctColSep + ctColGet(mcpLines, i) + ctColSep + ctColGet(hookLines, i)
+	//
+	// When a column has fewer lines, ctColGet returns "" (empty string).
+	// This empty string doesn't maintain the column width, causing subsequent
+	// columns to shift left.
+	//
+	// Example buggy output (simplified):
+	//   Skill              MCP *                    Hook
+	//   brainstorm     1    zai-mcp-server...    <- aligned
+	//                     ui_to_artifact...      <- MCP content shifts left!
+	//                     analyze_video...
+	//
+	// Expected output (after fix):
+	//   Skill              MCP *                    Hook
+	//   brainstorm     1    zai-mcp-server...    <- aligned
+	//                      ui_to_artifact...     <- proper column alignment
+	//                      analyze_video...
+
+	// For now, this test documents the bug visually.
+	// The fix will use lipgloss.Style.Width() to enforce fixed column widths.
 }

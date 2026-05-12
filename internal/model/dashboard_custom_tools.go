@@ -73,8 +73,15 @@ func (m DashboardModel) renderCustomToolsBlock(width int) string {
 			maxLines = len(hookLines)
 		}
 
+		// Root cause: Fixed column widths using lipgloss.Style to prevent
+		// content shifting when columns have unequal line counts
+		colStyle := lipgloss.NewStyle().Width(colWidth)
+
 		for i := 0; i < maxLines; i++ {
-			b.WriteString(ctColGet(skillLines, i) + ctColSep + ctColGet(mcpLines, i) + ctColSep + ctColGet(hookLines, i) + "\n")
+			skillCol := colStyle.Render(ctColGet(skillLines, i))
+			mcpCol := colStyle.Render(ctColGet(mcpLines, i))
+			hookCol := colStyle.Render(ctColGet(hookLines, i))
+			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, skillCol, mcpCol, hookCol) + "\n")
 		}
 		if len(s.MCPServers) > 0 {
 			b.WriteString(muted.Render("* 仅统计 mcp__ 前缀工具") + "\n")
