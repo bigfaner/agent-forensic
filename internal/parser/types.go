@@ -51,6 +51,7 @@ type TurnEntry struct {
 	ExitCode   *int      // Bash-specific (nil for non-Bash tools)
 	Duration   time.Duration
 	Thinking   string      // thinking block content
+	ToolUseID  string      // ID for pairing tool_use with tool_result
 	Anomaly    *Anomaly    // nil if normal
 	Children   []TurnEntry // for sub-agent expansion (future)
 	IsExpanded bool        // UI state: expanded/collapsed

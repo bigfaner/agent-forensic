@@ -37,15 +37,25 @@ func makeMessageJSON(ts string) string {
 
 // helper: build a JSONL line representing an assistant turn with a tool_use block
 func makeToolUseJSON(toolName, input, ts string) string {
-	return fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"role":"assistant","content":[{"type":"tool_use","id":"test-id","name":"%s","input":%s}]}}`, ts, toolName, input)
+	return makeToolUseJSONWithID(toolName, input, ts, "test-id")
+}
+
+// helper: build a JSONL line representing an assistant turn with a tool_use block with custom ID
+func makeToolUseJSONWithID(toolName, input, ts, id string) string {
+	return fmt.Sprintf(`{"type":"assistant","timestamp":"%s","message":{"role":"assistant","content":[{"type":"tool_use","id":"%s","name":"%s","input":%s}]}}`, ts, id, toolName, input)
 }
 
 // helper: build a JSONL line representing a user turn with a tool_result block.
 // exitCode != nil && *exitCode != 0 maps to is_error=true.
 func makeToolResultJSON(toolName, output string, exitCode *int, ts string) string {
+	return makeToolResultJSONWithID(toolName, output, exitCode, ts, "test-id")
+}
+
+// helper: build a JSONL line representing a user turn with a tool_result block with custom ID
+func makeToolResultJSONWithID(toolName, output string, exitCode *int, ts, id string) string {
 	outputJSON, _ := json.Marshal(output)
 	isError := exitCode != nil && *exitCode != 0
-	return fmt.Sprintf(`{"type":"user","timestamp":"%s","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"test-id","content":%s,"is_error":%v}]}}`, ts, string(outputJSON), isError)
+	return fmt.Sprintf(`{"type":"user","timestamp":"%s","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"%s","content":%s,"is_error":%v}]}}`, ts, id, string(outputJSON), isError)
 }
 
 // helper: build a JSONL line representing an assistant turn with a thinking block
@@ -673,5 +683,60 @@ func TestParseSession_SingleEntryTurn(t *testing.T) {
 	// Single entry turn should have 0 duration
 	if session.Turns[0].Duration != 0 {
 		t.Errorf("Turn Duration = %v, want 0 for single entry", session.Turns[0].Duration)
+	}
+}
+
+func TestParseSession_ToolEntryDuration(t *testing.T) {
+	// bug: tool_use and tool_result entries should have Duration set
+	// tool_use duration should be calculated as (tool_result.timestamp - tool_use.timestamp)
+	exitCode0 := 0
+	lines := []string{
+		makeToolUseJSONWithID("Bash", `{"command":"ls"}`, "2025-01-01T10:00:00Z", "tool-1"),
+		makeToolResultJSONWithID("Bash", "out", &exitCode0, "2025-01-01T10:00:05Z", "tool-1"),
+		makeToolUseJSONWithID("Read", `{"file_path":"test.go"}`, "2025-01-01T10:00:10Z", "tool-2"),
+		makeToolResultJSONWithID("Read", "content", nil, "2025-01-01T10:00:12Z", "tool-2"),
+	}
+
+	path := createTestJSONL(t, lines)
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	if len(session.Turns) != 1 {
+		t.Fatalf("Turns count = %d, want 1", len(session.Turns))
+	}
+	entries := session.Turns[0].Entries
+
+	// First tool_use should have 5s duration
+	if entries[0].Type != EntryToolUse {
+		t.Fatalf("Entry[0] type = %v, want EntryToolUse", entries[0].Type)
+	}
+	if entries[0].Duration != 5*time.Second {
+		t.Errorf("Entry[0].Duration (tool_use) = %v, want 5s", entries[0].Duration)
+	}
+
+	// First tool_result should also have 5s duration
+	if entries[1].Type != EntryToolResult {
+		t.Fatalf("Entry[1] type = %v, want EntryToolResult", entries[1].Type)
+	}
+	if entries[1].Duration != 5*time.Second {
+		t.Errorf("Entry[1].Duration (tool_result) = %v, want 5s", entries[1].Duration)
+	}
+
+	// Second tool_use should have 2s duration
+	if entries[2].Type != EntryToolUse {
+		t.Fatalf("Entry[2] type = %v, want EntryToolUse", entries[2].Type)
+	}
+	if entries[2].Duration != 2*time.Second {
+		t.Errorf("Entry[2].Duration (tool_use) = %v, want 2s", entries[2].Duration)
+	}
+
+	// Second tool_result should also have 2s duration
+	if entries[3].Type != EntryToolResult {
+		t.Fatalf("Entry[3] type = %v, want EntryToolResult", entries[3].Type)
+	}
+	if entries[3].Duration != 2*time.Second {
+		t.Errorf("Entry[3].Duration (tool_result) = %v, want 2s", entries[3].Duration)
 	}
 }

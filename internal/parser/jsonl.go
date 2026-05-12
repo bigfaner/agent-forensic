@@ -40,6 +40,7 @@ type claudeMessage struct {
 // contentBlock represents a single block within a message's content array.
 type contentBlock struct {
 	Type      string          `json:"type"`
+	ID        string          `json:"id,omitempty"`
 	Name      string          `json:"name,omitempty"`
 	Input     json.RawMessage `json:"input,omitempty"`
 	Thinking  string          `json:"thinking,omitempty"`
@@ -259,6 +260,9 @@ func parseFromReader(r io.Reader, filePath string, maxLines int, modTime time.Ti
 		return nil, NewCorruptSessionError(filePath, totalLines, parseErrors)
 	}
 
+	// Compute tool entry durations by pairing tool_use with tool_result
+	parsed = computeToolDurations(parsed)
+
 	plainEntries := make([]TurnEntry, len(parsed))
 	for i, pe := range parsed {
 		plainEntries[i] = pe.Entry
@@ -375,10 +379,12 @@ func parseNestedMessage(env claudeEnvelope, ts time.Time, hasTS bool, filePath s
 			entry.Type = EntryToolUse
 			entry.ToolName = block.Name
 			entry.Input = string(block.Input)
+			entry.ToolUseID = block.ID
 		case "tool_result":
 			entry.Type = EntryToolResult
 			entry.ToolName = block.Name
 			entry.Output = string(block.Content)
+			entry.ToolUseID = block.ToolUseID
 			if block.IsError {
 				ec := 1
 				entry.ExitCode = &ec
@@ -573,6 +579,41 @@ func computeSessionDuration(entries []parsedEntry) time.Duration {
 		return 0
 	}
 	return last.Sub(first)
+}
+
+// computeToolDurations pairs tool_use entries with their corresponding tool_result entries
+// and sets the Duration field for both entries based on the timestamp difference.
+func computeToolDurations(entries []parsedEntry) []parsedEntry {
+	// Map tool_use ID to its index in entries
+	toolUseIndex := make(map[string]int)
+	toolUseTimestamps := make(map[string]time.Time)
+
+	// First pass: collect all tool_use entries with their IDs and timestamps
+	for i, pe := range entries {
+		if pe.Entry.Type == EntryToolUse && pe.Entry.ToolUseID != "" {
+			toolUseIndex[pe.Entry.ToolUseID] = i
+			toolUseTimestamps[pe.Entry.ToolUseID] = pe.Timestamp
+		}
+	}
+
+	// Second pass: match tool_result entries with tool_use and compute duration
+	for i, pe := range entries {
+		if pe.Entry.Type == EntryToolResult && pe.Entry.ToolUseID != "" {
+			// Find the matching tool_use entry
+			if toolUseIdx, ok := toolUseIndex[pe.Entry.ToolUseID]; ok {
+				if toolUseTS, ok := toolUseTimestamps[pe.Entry.ToolUseID]; ok && pe.HasTS {
+					duration := pe.Timestamp.Sub(toolUseTS)
+					if duration >= 0 {
+						// Set duration for both tool_use and tool_result
+						entries[toolUseIdx].Entry.Duration = duration
+						entries[i].Entry.Duration = duration
+					}
+				}
+			}
+		}
+	}
+
+	return entries
 }
 
 // firstParsedTimestamp returns the first timestamp found in parsed entries,
