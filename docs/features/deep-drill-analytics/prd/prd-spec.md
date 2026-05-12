@@ -88,22 +88,35 @@ flowchart TD
     CT -->|选中 Turn| TO[Turn Overview 显示]
     CT -->|按 s| DB[打开 Dashboard]
 
-    SA --> SA1[内联显示子会话工具调用]
+    SA --> SA0{SubAgent JSONL?}
+    SA0 -->|存在且可解析| SA1[内联显示子会话工具调用]
+    SA0 -->|缺失或解析失败| SA_ERR[节点保持折叠 显示 ⚠]
+    SA_ERR --> CT
+
     SA1 --> SA2[Detail 展示 SubAgent 统计]
     SA2 --> SA3{用户操作}
     SA3 -->|导航子节点| SA4[查看具体工具详情]
     SA3 -->|按 a| SA5[全屏 SubAgent 视图]
     SA3 -->|按 Esc| CT
 
-    SA5 --> SA6[完整子会话分析]
+    SA5 --> SA5_CHK{子会话数据?}
+    SA5_CHK -->|有数据| SA6[完整子会话分析]
+    SA5_CHK -->|空 JSONL| SA_EMPTY[overlay 显示 No data]
     SA6 -->|按 Esc| CT
+    SA_EMPTY -->|按 Esc| CT
 
     DB --> DB1{Dashboard 面板}
-    DB1 -->|文件面板| FP[文件读写排行 top 20]
-    DB1 -->|Hook 面板| HP[Hook 统计: Type::Target]
+    DB1 -->|文件面板| FP_CHK{有文件操作?}
+    FP_CHK -->|是| FP[文件读写排行 top 20]
+    FP_CHK -->|否| FP_SKIP[跳过文件面板]
+    DB1 -->|Hook 面板| HP_CHK{有 Hook 触发?}
+    HP_CHK -->|是| HP[Hook 统计: Type::Target]
+    HP_CHK -->|否| HP_SKIP[跳过 Hook 面板]
 
     FP -->|按 Esc| CT
+    FP_SKIP --> DB1
     HP -->|按 Esc| CT
+    HP_SKIP --> DB1
 
     TO --> TO1[Detail: prompt + 文件列表 + 工具统计]
     TO1 --> CT
