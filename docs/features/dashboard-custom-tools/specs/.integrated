@@ -1,0 +1,6 @@
+feature: "dashboard-custom-tools"
+integrated: "2026-05-12"
+status: "skipped: all local"
+biz_count: 8
+tech_count: 11
+notes: "No project-level business-rules/ or conventions/ directories exist. All extracted items are feature-specific. Preview files retained for traceability."

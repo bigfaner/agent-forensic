@@ -44,18 +44,18 @@ type visibleNode struct {
 // It displays session call hierarchy with turn nodes, tool call children,
 // anomaly highlighting, and real-time node insertion.
 type CallTreeModel struct {
-	turns        []parser.Turn
-	expanded     map[int]bool // turn index -> expanded state
-	visibleNodes []visibleNode
-	state        PanelState
-	cursor       int
-	scroll       int
-	width        int
-	height       int
-	focused      bool
-	monitoring   bool
-	errMsg          string
-	sessionSummary  string
+	turns          []parser.Turn
+	expanded       map[int]bool // turn index -> expanded state
+	visibleNodes   []visibleNode
+	state          PanelState
+	cursor         int
+	scroll         int
+	width          int
+	height         int
+	focused        bool
+	monitoring     bool
+	errMsg         string
+	sessionSummary string
 
 	// Flash tracking: map[lineNum]expiryTime
 	flashNodes map[int]time.Time

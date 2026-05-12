@@ -168,6 +168,86 @@ func TestSessionStatsStruct(t *testing.T) {
 	}
 }
 
+func TestMCPServerStatsStruct(t *testing.T) {
+	s := MCPServerStats{
+		Total: 7,
+		Tools: map[string]int{
+			"read_file":  4,
+			"write_file": 3,
+		},
+	}
+	if s.Total != 7 {
+		t.Errorf("Total mismatch: got %d, want 7", s.Total)
+	}
+	if s.Tools["read_file"] != 4 {
+		t.Errorf("Tools[read_file] mismatch: got %d, want 4", s.Tools["read_file"])
+	}
+	if s.Tools["write_file"] != 3 {
+		t.Errorf("Tools[write_file] mismatch: got %d, want 3", s.Tools["write_file"])
+	}
+}
+
+func TestSessionStatsNewFields(t *testing.T) {
+	stats := SessionStats{
+		TotalDuration:  5 * time.Minute,
+		ToolCallCounts: map[string]int{},
+		ToolTimePcts:   map[string]float64{},
+		SkillCounts: map[string]int{
+			"record-task": 2,
+			"git-commit":  1,
+		},
+		MCPServers: map[string]*MCPServerStats{
+			"filesystem": {
+				Total: 5,
+				Tools: map[string]int{"read_file": 3, "write_file": 2},
+			},
+		},
+		HookCounts: map[string]int{
+			"PreToolUse":  3,
+			"PostToolUse": 3,
+		},
+	}
+
+	if stats.SkillCounts["record-task"] != 2 {
+		t.Errorf("SkillCounts[record-task] mismatch: got %d, want 2", stats.SkillCounts["record-task"])
+	}
+	if stats.SkillCounts["git-commit"] != 1 {
+		t.Errorf("SkillCounts[git-commit] mismatch: got %d, want 1", stats.SkillCounts["git-commit"])
+	}
+
+	srv := stats.MCPServers["filesystem"]
+	if srv == nil {
+		t.Fatal("MCPServers[filesystem] is nil")
+	}
+	if srv.Total != 5 {
+		t.Errorf("MCPServers[filesystem].Total mismatch: got %d, want 5", srv.Total)
+	}
+	if srv.Tools["read_file"] != 3 {
+		t.Errorf("MCPServers[filesystem].Tools[read_file] mismatch: got %d, want 3", srv.Tools["read_file"])
+	}
+
+	if stats.HookCounts["PreToolUse"] != 3 {
+		t.Errorf("HookCounts[PreToolUse] mismatch: got %d, want 3", stats.HookCounts["PreToolUse"])
+	}
+	if stats.HookCounts["PostToolUse"] != 3 {
+		t.Errorf("HookCounts[PostToolUse] mismatch: got %d, want 3", stats.HookCounts["PostToolUse"])
+	}
+}
+
+func TestSessionStatsNewFieldsNilSafe(t *testing.T) {
+	// zero-value SessionStats should have nil maps (not panic on read)
+	var stats SessionStats
+	if stats.SkillCounts != nil {
+		t.Errorf("zero-value SkillCounts should be nil")
+	}
+	if stats.MCPServers != nil {
+		t.Errorf("zero-value MCPServers should be nil")
+	}
+	if stats.HookCounts != nil {
+		t.Errorf("zero-value HookCounts should be nil")
+	}
+}
+
 func TestToolCallSummaryStruct(t *testing.T) {
 	summary := ToolCallSummary{
 		ToolName: "Edit",
