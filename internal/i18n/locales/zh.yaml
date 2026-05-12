@@ -75,6 +75,7 @@ lang.en: "EN"
 
 # Detail panel
 detail.empty_hint: "选中节点并按 Tab 查看详情"
+detail.expand_hint: "按Enter扩大"
 
 # General
 general.no_selection: "未选择"

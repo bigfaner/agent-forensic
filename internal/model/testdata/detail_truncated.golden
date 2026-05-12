@@ -1,12 +1,12 @@
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│详情: Bash — line 500                                                                                                 │
-│tool_use.input:                                                                                                       │
-│  {                                                                                                                   │
-│    "command": "echo test"                                                                                            │
-│  }                                                                                                                   │
-│tool_result.content:                                                                                                  │
-│                                                                                                                      │
-│xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  │
-│xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                                  │
+│详情: Bash — line 500                                                                                            ↑ ↓  │
+│tool_use.input:                                                                                                    ┃  │
+│  {                                                                                                                │  │
+│    "command": "echo test"                                                                                         │  │
+│  }                                                                                                                │  │
+│tool_result.content:                                                                                               │  │
+│                                                                                                                   │  │
+│xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx│  │
+│xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                              │  │
 │  ...truncated (Enter to expand)                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

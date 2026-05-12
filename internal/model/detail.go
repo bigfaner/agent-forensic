@@ -192,7 +192,18 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 }
 
 func (m *DetailModel) clampScroll() {
-	maxScroll := m.contentLineCount() - m.visibleHeight()
+	content := m.buildContent(m.expanded)
+	lines := strings.Split(content, "\n")
+	contentWidth := m.width - 4
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	totalVisual := 0
+	for _, line := range lines {
+		totalVisual += visualLineCount(line, contentWidth)
+	}
+	visibleHeight := m.visibleHeight()
+	maxScroll := totalVisual - visibleHeight
 	if maxScroll < 0 {
 		maxScroll = 0
 	}
@@ -209,11 +220,7 @@ func (m DetailModel) visibleHeight() int {
 	return contentHeight
 }
 
-// contentLineCount returns the number of content lines for scroll bounds.
-func (m DetailModel) contentLineCount() int {
-	content := m.buildContent(m.expanded)
-	return len(strings.Split(content, "\n"))
-}
+
 
 // View implements tea.Model.
 func (m DetailModel) View() string {
@@ -230,14 +237,14 @@ func (m DetailModel) View() string {
 		BorderForeground(borderColor).
 		Border(lipgloss.RoundedBorder()).
 		Width(m.width - 2).
-		Height(m.height - 2)
+		MaxHeight(m.height - 2)
 
 	title := m.buildTitle()
 	content := m.renderContent()
 
 	rendered := lipgloss.NewStyle().
 		Width(m.width - 4).
-		Height(m.height - 4).
+		MaxHeight(m.height - 4).
 		Render(content)
 
 	titleStr := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
@@ -298,10 +305,7 @@ func (m DetailModel) renderContent() string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(errText)
 	case DetailTruncated, DetailExpanded, DetailMasked:
 		content := m.buildContent(m.expanded)
-		if m.scroll > 0 {
-			return m.renderWithScroll(content)
-		}
-		return content
+		return m.renderWithScroll(content)
 	}
 	return ""
 }
@@ -322,7 +326,7 @@ func (m DetailModel) buildContent(expanded bool) string {
 	inputLabel := labelStyle.Render("tool_use.input:")
 	b.WriteString(inputLabel)
 	b.WriteString("\n")
-	b.WriteString(contentStyle.Render(indentContent(input, 2)))
+	b.WriteString(renderLines(contentStyle, indentContent(input, 2)))
 	b.WriteString("\n")
 
 	// Output section
@@ -332,11 +336,11 @@ func (m DetailModel) buildContent(expanded bool) string {
 	b.WriteString("\n")
 
 	if len(output) > truncationThreshold && !expanded {
-		b.WriteString(contentStyle.Render(indentContent(output[:truncationThreshold], 2)))
+		b.WriteString(renderLines(contentStyle, indentContent(output[:truncationThreshold], 2)))
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
 	} else {
-		b.WriteString(contentStyle.Render(indentContent(output, 2)))
+		b.WriteString(renderLines(contentStyle, indentContent(output, 2)))
 	}
 	b.WriteString("\n")
 
@@ -348,11 +352,11 @@ func (m DetailModel) buildContent(expanded bool) string {
 
 		thinking := m.sanitizedThinking
 		if len(thinking) > truncationThreshold && !expanded {
-			b.WriteString(contentStyle.Render(indentContent(thinking[:truncationThreshold], 2)))
+			b.WriteString(renderLines(contentStyle, indentContent(thinking[:truncationThreshold], 2)))
 			b.WriteString("\n")
 			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
 		} else {
-			b.WriteString(contentStyle.Render(indentContent(thinking, 2)))
+			b.WriteString(renderLines(contentStyle, indentContent(thinking, 2)))
 		}
 		b.WriteString("\n")
 	}
@@ -383,11 +387,11 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 		// Compact consecutive blank lines to save vertical space in the viewport
 		compacted := compactBlankLines(sanitized)
 		if len(compacted) > truncationThreshold && !expanded {
-			b.WriteString(contentStyle.Render(indentContent(compacted[:truncationThreshold], 2)))
+			b.WriteString(renderLines(contentStyle, indentContent(compacted[:truncationThreshold], 2)))
 			b.WriteString("\n")
 			b.WriteString(dimStyle.Render("  ...truncated (Enter to expand)"))
 		} else {
-			b.WriteString(contentStyle.Render(indentContent(compacted, 2)))
+			b.WriteString(renderLines(contentStyle, indentContent(compacted, 2)))
 		}
 		b.WriteString("\n")
 	}
@@ -505,7 +509,9 @@ func (m DetailModel) renderWithScroll(content string) string {
 	}
 
 	if totalVisual <= visibleHeight {
-		return content
+		// Content fits — render at content width, no scrollbar needed.
+		// Use MaxHeight to clip in case wrapping produces slightly more rows.
+		return lipgloss.NewStyle().Width(contentWidth).MaxHeight(visibleHeight).Render(content)
 	}
 
 	// Scroll is in visual rows; find the starting logical line
@@ -527,24 +533,60 @@ func (m DetailModel) renderWithScroll(content string) string {
 		startLine = i + 1
 	}
 
-	// Collect logical lines to fill visibleHeight visual rows
+	// Collect logical lines to fill visibleHeight visual rows.
+	// Always include the starting line even if it overflows.
 	targetVisual := visibleHeight
 	var result []string
 	usedVisual := 0
 	for i := startLine; i < len(lines); i++ {
-		if usedVisual+rowCounts[i] > targetVisual {
-			break
-		}
 		result = append(result, lines[i])
 		usedVisual += rowCounts[i]
+		if usedVisual >= targetVisual {
+			break
+		}
 	}
 
-	return strings.Join(result, "\n")
+	clipped := strings.Join(result, "\n")
+
+	// Reserve 1 char for scrollbar
+	scrollWidth := contentWidth - 1
+	if scrollWidth < 1 {
+		scrollWidth = 1
+	}
+	// MaxHeight clips content to exactly visibleHeight rows so the panel
+	// is never stretched beyond its allocated space.
+	fixedContent := lipgloss.NewStyle().Width(scrollWidth).MaxHeight(visibleHeight).Render(clipped)
+	scrollbar := renderDetailScrollbar(visibleHeight, totalVisual, startVisual)
+	return lipgloss.JoinHorizontal(lipgloss.Top, fixedContent, scrollbar)
+}
+
+// renderDetailScrollbar renders a vertical scrollbar indicator for the detail panel.
+func renderDetailScrollbar(height, total, scroll int) string {
+	thumbPos := 0
+	if total > height {
+		thumbPos = scroll * (height - 1) / (total - height)
+	}
+
+	trackStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	thumbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
+
+	var b strings.Builder
+	for i := 0; i < height; i++ {
+		if i == thumbPos {
+			b.WriteString(thumbStyle.Render("┃"))
+		} else {
+			b.WriteString(trackStyle.Render("│"))
+		}
+		if i < height-1 {
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
 }
 
 // contentNeedsScroll returns true if content exceeds the visible area.
 func (m DetailModel) contentNeedsScroll() bool {
-	content := m.buildContent(true)
+	content := m.buildContent(m.expanded)
 	lines := strings.Split(content, "\n")
 	contentWidth := m.width - 4
 	if contentWidth < 1 {
@@ -591,6 +633,17 @@ func (m DetailModel) prettyPrintInput(input string) string {
 		}
 	}
 	return input
+}
+
+// renderLines applies a lipgloss style to each line individually,
+// avoiding lipgloss Render's default behavior of padding all lines
+// to the width of the longest line in a multi-line string.
+func renderLines(style lipgloss.Style, content string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		lines[i] = style.Render(line)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // indentContent adds indentation to each line of content.

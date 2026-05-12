@@ -1,5 +1,5 @@
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│详情: Bash — line 200                                                                                                 │
+│详情: Bash — line 200                                                                                    按Enter扩大  │
 │tool_use.input:                                                                                                       │
 │  {                                                                                                                   │
 │    "command": "curl -H 'Authorization: Bearer api_key=***' https://api.example.com"                                  │

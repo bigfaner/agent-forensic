@@ -351,6 +351,42 @@ func TestDetail_VirtualScroll_Clamp(t *testing.T) {
 	assert.LessOrEqual(t, m.scroll, 999)
 }
 
+func TestDetail_Scrollbar_MovesWithDownKey(t *testing.T) {
+	longPrompt := strings.Repeat("Lorem ipsum dolor sit amet. ", 20)
+	input := fmt.Sprintf(`{"description":"task","prompt":"%s"}`, longPrompt)
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  1,
+		ToolName: "Agent",
+		Input:    input,
+		Output:   "done",
+		Duration: time.Second,
+	}
+	m := NewDetailModel()
+	m = m.SetSize(80, 8)
+	m = m.SetFocused(true)
+	m = m.SetEntry(entry)
+
+	// Content should overflow, scrollbar should appear
+	view0 := m.View()
+	assert.Contains(t, view0, "│", "scrollbar track should appear")
+
+	// Press down - scroll should increment, scrollbar thumb should move
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(DetailModel)
+	assert.Equal(t, 1, m.scroll, "scroll should be 1 after one down key")
+
+	view1 := m.View()
+	assert.Contains(t, view1, "│", "scrollbar should still appear after scrolling")
+
+	// Press down multiple more times - scroll should keep incrementing
+	for i := 0; i < 5; i++ {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+		m = updated.(DetailModel)
+	}
+	assert.Greater(t, m.scroll, 1, "scroll should be > 1 after multiple down keys")
+}
+
 // --- Init test ---
 
 func TestDetail_Init(t *testing.T) {
@@ -624,12 +660,10 @@ func TestDetail_AgentInput_FullContent(t *testing.T) {
 	assert.NotContains(t, content, "truncated")
 }
 
-func TestDetail_AgentInput_LongPromptVisibleInSmallPanel(t *testing.T) {
-	// Bug: real Agent tool has a long prompt that wraps to many visual rows.
-	// In a small detail panel, renderWithScroll clips to visibleHeight lines,
-	// hiding subagent_type and the closing brace.
-	longPrompt := strings.Repeat("Lorem ipsum dolor sit amet. ", 20) // ~650 chars
-	input := fmt.Sprintf(`{"description":"Execute task 1.1: extend SessionStats data model","subagent_type":"forge:task-executor","prompt":"%s"}`, longPrompt)
+func TestDetail_AgentInput_ScrollbarWhenContentOverflow(t *testing.T) {
+	// When content overflows the panel, a scrollbar should appear (│/┃)
+	longPrompt := strings.Repeat("Lorem ipsum dolor sit amet. ", 20)
+	input := fmt.Sprintf(`{"description":"Execute task 1.1: extend SessionStats","subagent_type":"forge:task-executor","prompt":"%s"}`, longPrompt)
 	entry := parser.TurnEntry{
 		Type:     parser.EntryToolUse,
 		LineNum:  17,
@@ -638,7 +672,6 @@ func TestDetail_AgentInput_LongPromptVisibleInSmallPanel(t *testing.T) {
 		Output:   "ok",
 		Duration: 157 * time.Second,
 	}
-	// Small panel: 80 chars wide, 8 lines tall → visibleHeight = 4
 	m := NewDetailModel()
 	m = m.SetSize(80, 8)
 	m = m.SetFocused(true)
@@ -647,6 +680,53 @@ func TestDetail_AgentInput_LongPromptVisibleInSmallPanel(t *testing.T) {
 	view := m.View()
 	t.Logf("View output:\n%s", view)
 
-	// The initial view must show the subagent_type field
-	assert.Contains(t, view, `"subagent_type"`, "Agent input JSON should show subagent_type field in initial view")
+	// Scrollbar should be visible
+	assert.Contains(t, view, "│", "Scrollbar track should appear when content overflows")
+}
+
+func TestDetail_AllContentReachableByScrolling(t *testing.T) {
+	// Content with a very long line that wraps to many visual rows.
+	// All lines must be reachable by scrolling - no lines should be skipped.
+	longPrompt := strings.Repeat("Lorem ipsum dolor sit amet. ", 30)
+	input := fmt.Sprintf(`{"description":"Write tool test","prompt":"%s"}`, longPrompt)
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  1,
+		ToolName: "Write",
+		Input:    input,
+		Output:   "file written successfully",
+		Duration: time.Second,
+	}
+	m := NewDetailModel()
+	m = m.SetSize(80, 8)
+	m = m.SetFocused(true)
+	m = m.SetEntry(entry)
+
+	// Scroll through all content and collect every rendered line
+	seen := make(map[string]bool)
+	for scroll := 0; ; scroll++ {
+		m.scroll = scroll
+		m.clampScroll()
+		if m.scroll != scroll {
+			break // clamped past max
+		}
+		view := m.renderContent()
+		clean := ansiEscape.ReplaceAllString(view, "")
+		for _, line := range strings.Split(clean, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" && trimmed != "│" && trimmed != "┃" {
+				seen[trimmed] = true
+			}
+		}
+	}
+
+	// The output section should be reachable by scrolling
+	foundOutput := false
+	for k := range seen {
+		if strings.Contains(k, "file written") || strings.Contains(k, "tool_result.content") {
+			foundOutput = true
+			break
+		}
+	}
+	assert.True(t, foundOutput, "output section should be reachable by scrolling, seen: %+v", seen)
 }

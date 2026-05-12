@@ -75,6 +75,7 @@ lang.en: "EN"
 
 # Detail panel
 detail.empty_hint: "Select a node and press Tab for details"
+detail.expand_hint: "Enter to expand"
 
 # General
 general.no_selection: "No selection"
