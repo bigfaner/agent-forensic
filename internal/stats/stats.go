@@ -8,6 +8,78 @@ import (
 	"github.com/user/agent-forensic/internal/parser"
 )
 
+// FileOpStats holds aggregated file operation statistics.
+type FileOpStats struct {
+	Files map[string]*FileOpCount // file path → operation counts
+}
+
+// FileOpCount holds per-file operation counts.
+type FileOpCount struct {
+	ReadCount  int // Read tool call count
+	EditCount  int // Write/Edit tool call count
+	TotalCount int // ReadCount + EditCount
+}
+
+// ExtractFilePaths extracts file paths from tool call entries and aggregates
+// them into FileOpStats. Read tool calls increment ReadCount; Write/Edit tool
+// calls increment EditCount. Entries without input.file_path are silently skipped.
+func ExtractFilePaths(entries []parser.TurnEntry) *FileOpStats {
+	result := &FileOpStats{
+		Files: make(map[string]*FileOpCount),
+	}
+
+	for i := range entries {
+		entry := &entries[i]
+		if entry.Type != parser.EntryToolUse {
+			continue
+		}
+
+		var isRead, isEdit bool
+		switch entry.ToolName {
+		case "Read":
+			isRead = true
+		case "Write", "Edit":
+			isEdit = true
+		default:
+			continue
+		}
+
+		filePath := extractFilePath(entry.Input)
+		if filePath == "" {
+			continue
+		}
+
+		fc, ok := result.Files[filePath]
+		if !ok {
+			fc = &FileOpCount{}
+			result.Files[filePath] = fc
+		}
+		if isRead {
+			fc.ReadCount++
+		}
+		if isEdit {
+			fc.EditCount++
+		}
+		fc.TotalCount = fc.ReadCount + fc.EditCount
+	}
+
+	return result
+}
+
+// extractFilePath parses the input JSON and returns the file_path field.
+// Returns "" if the field is missing, not a string, or JSON is malformed.
+func extractFilePath(rawInput string) string {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(rawInput), &m); err != nil {
+		return ""
+	}
+	fp, ok := m["file_path"].(string)
+	if !ok {
+		return ""
+	}
+	return fp
+}
+
 // CalculateStats aggregates session data for dashboard display.
 // Returns SessionStats with tool call counts, time percentages, peak step, and total duration.
 // Returns zero-value stats for nil or empty sessions.

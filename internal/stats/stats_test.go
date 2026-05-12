@@ -493,3 +493,164 @@ func TestCalculateStats_NewMapsNonNil(t *testing.T) {
 	assert.NotNil(t, s.MCPServers)
 	assert.NotNil(t, s.HookCounts)
 }
+
+// --- ExtractFilePaths tests ---
+
+func TestExtractFilePaths_ReadTool(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"/src/main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	fc := stats.Files["/src/main.go"]
+	assert.NotNil(t, fc)
+	assert.Equal(t, 1, fc.ReadCount)
+	assert.Equal(t, 0, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_WriteTool(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"/src/output.txt"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	fc := stats.Files["/src/output.txt"]
+	assert.Equal(t, 0, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_EditTool(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"/src/config.yaml"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	fc := stats.Files["/src/config.yaml"]
+	assert.Equal(t, 0, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_MixedTools(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"output.txt"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 2)
+
+	fc := stats.Files["main.go"]
+	assert.Equal(t, 2, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 3, fc.TotalCount)
+
+	fc = stats.Files["output.txt"]
+	assert.Equal(t, 0, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_EntryWithoutFilePath(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"command":"ls"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	assert.NotNil(t, stats.Files["main.go"])
+}
+
+func TestExtractFilePaths_MalformedJSON(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `not valid json`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	assert.NotNil(t, stats.Files["main.go"])
+}
+
+func TestExtractFilePaths_EmptySlice(t *testing.T) {
+	stats := ExtractFilePaths([]parser.TurnEntry{})
+
+	assert.NotNil(t, stats)
+	assert.NotNil(t, stats.Files)
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_NonToolUseEntries(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryThinking, Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryMessage, Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolResult, Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_OtherToolsIgnored(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Skill", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_FilePathNotString(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":123}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_EmptyFilePath(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":""}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	assert.NotNil(t, stats.Files["main.go"])
+}
+
+func TestExtractFilePaths_TotalCountComputed(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"a.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	fc := stats.Files["a.go"]
+	assert.Equal(t, 3, fc.ReadCount)
+	assert.Equal(t, 3, fc.EditCount)
+	assert.Equal(t, 6, fc.TotalCount)
+}
+
+func TestExtractFilePaths_StoresPathAsIs(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"/Users/dev/project/src/main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Contains(t, stats.Files, "/Users/dev/project/src/main.go")
+}
