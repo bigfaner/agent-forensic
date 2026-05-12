@@ -10,6 +10,47 @@ import (
 	"github.com/user/agent-forensic/internal/parser"
 )
 
+// --- Bug regression test: custom tools block should be rendered ---
+
+func TestDashboard_CustomToolsBlock_Rendered_WhenHasData(t *testing.T) {
+	// Reset locale for consistent output
+	_ = i18n.SetLocale("zh")
+	t.Cleanup(func() { _ = i18n.SetLocale("zh") })
+
+	// Create session with MCP tools
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Title:     "Test session",
+		Turns: []parser.Turn{
+			{
+				Index:     1,
+				StartTime: time.Now(),
+				Duration:  30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{
+						Type:     parser.EntryToolUse,
+						ToolName: "mcp__test-server__testTool",
+						Duration: 10 * time.Second,
+					},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	// BUG: This test will fail because renderCustomToolsBlock is never called
+	assert.Contains(t, view, "自定义工具", "Custom tools block should be rendered when session has MCP tools")
+}
+
+// --- End bug regression test ---
+
 // --- Test data helpers ---
 
 func testDashboardSession() *parser.Session {

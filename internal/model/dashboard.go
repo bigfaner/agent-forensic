@@ -355,6 +355,13 @@ func (m DashboardModel) renderDashboard() string {
 	rightCol := lipgloss.NewStyle().Width(colWidth).Render(rightBuf.String())
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, strings.Repeat(" ", colGap), rightCol))
 
+	// Custom tools block (Skill/MCP/Hook)
+	customToolsBlock := m.renderCustomToolsBlock(contentWidth)
+	if customToolsBlock != "" {
+		b.WriteString("\n\n")
+		b.WriteString(customToolsBlock)
+	}
+
 	return b.String()
 }
 
