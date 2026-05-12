@@ -640,6 +640,15 @@ func (m *AppModel) setFocus(panel ActivePanel) {
 
 // updateDetailFromCallTree syncs the detail panel with the selected call tree node.
 func (m *AppModel) updateDetailFromCallTree() {
+	// Check if cursor is on a SubAgent node with error — show error in detail
+	if err := m.callTree.SelectedSubAgentError(); err != nil {
+		m.detail = m.detail.SetEntry(parser.TurnEntry{
+			Type:   parser.EntryMessage,
+			Output: fmt.Sprintf("SubAgent load error: %s", err.Error()),
+		})
+		return
+	}
+
 	// Check if a turn header is selected — show turn overview
 	if turn, ok := m.callTree.SelectedTurn(); ok {
 		m.detail = m.detail.SetTurn(turn)

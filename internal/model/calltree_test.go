@@ -967,3 +967,241 @@ func TestCallTree_SubAgentExpandAfterError(t *testing.T) {
 	// Now children should appear — SubAgent child Edit is unique at depth 2
 	assert.Contains(t, view, "│  ├─ Edit")
 }
+
+// --- Task 3.1: toggleExpand() integration tests ---
+
+func TestCallTree_ToggleExpand_SubAgentNode(t *testing.T) {
+	// toggleExpand on a SubAgent node should toggle expand/collapse
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+
+	// Navigate to SubAgent entry (index 2: Turn(0), Read(1), SubAgent(2))
+	m.cursor = 2
+	m.toggleExpand()
+
+	// SubAgent should now be expanded
+	assert.True(t, m.IsSubAgentExpanded(0, 1))
+	// Children should be visible: Turn(0) + Read(1) + SubAgent(2) + child-Read(3) + child-Edit(4) + child-Bash(5) + Write(6) = 7
+	assert.Equal(t, 7, len(m.visibleNodes))
+
+	// Toggle again should collapse
+	m.toggleExpand()
+	assert.False(t, m.IsSubAgentExpanded(0, 1))
+	assert.Equal(t, 4, len(m.visibleNodes))
+}
+
+func TestCallTree_ToggleExpand_SubAgentErrorNode_NoExpand(t *testing.T) {
+	// toggleExpand on an error-state SubAgent should NOT expand
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentError(0, 1, parser.NewFileReadError("subagents/abc.jsonl", fmt.Errorf("not found")))
+
+	// Navigate to SubAgent entry
+	m.cursor = 2
+	m.toggleExpand()
+
+	// Should NOT be expanded due to error
+	assert.False(t, m.IsSubAgentExpanded(0, 1))
+	// No children should be visible
+	assert.Equal(t, 4, len(m.visibleNodes))
+}
+
+func TestCallTree_ToggleExpand_SubAgentNodeViaEnter(t *testing.T) {
+	// Enter key on SubAgent node triggers toggleExpand
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m.cursor = 2
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(CallTreeModel)
+	assert.True(t, m.IsSubAgentExpanded(0, 1))
+
+	// Enter again should collapse
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(CallTreeModel)
+	assert.False(t, m.IsSubAgentExpanded(0, 1))
+}
+
+func TestCallTree_ToggleExpand_SubAgentErrorNode_EnterNoExpand(t *testing.T) {
+	// Enter on error-state SubAgent node should not expand
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentError(0, 1, parser.NewFileReadError("subagents/abc.jsonl", fmt.Errorf("not found")))
+	m.cursor = 2
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(CallTreeModel)
+	assert.False(t, m.IsSubAgentExpanded(0, 1))
+}
+
+func TestCallTree_ToggleExpand_TurnNode_Unchanged(t *testing.T) {
+	// Non-SubAgent expand/collapse should still work
+	m := newTestCallTreeModel(testTurns())
+	m.cursor = 0
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(CallTreeModel)
+	assert.True(t, m.expanded[0])
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(CallTreeModel)
+	assert.False(t, m.expanded[0])
+}
+
+func TestCallTree_ToggleExpand_NonSubAgentToolNode_NoOp(t *testing.T) {
+	// toggleExpand on a regular tool node (not SubAgent) should be no-op
+	m := newTestCallTreeModel(testTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	// Cursor on Read tool entry (index 1)
+	m.cursor = 1
+	m.toggleExpand()
+	// No expand change should happen for regular tool nodes
+	assert.Equal(t, 6, len(m.visibleNodes))
+}
+
+func TestCallTree_SubAgentDepth2_Navigation(t *testing.T) {
+	// j/k navigation works for depth-2 child nodes
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+	// Nodes: Turn(0), Read(1), SubAgent(2), child-Read(3), child-Edit(4), child-Bash(5), Write(6)
+	assert.Equal(t, 7, len(m.visibleNodes))
+
+	// Navigate to child-Read
+	m.cursor = 3
+	assert.Equal(t, 2, m.visibleNodes[m.cursor].depth)
+	assert.Equal(t, "Read", m.visibleNodes[m.cursor].entry.ToolName)
+
+	// Navigate down to child-Edit
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(CallTreeModel)
+	assert.Equal(t, 4, m.cursor)
+	assert.Equal(t, "Edit", m.visibleNodes[m.cursor].entry.ToolName)
+
+	// Navigate down to child-Bash
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(CallTreeModel)
+	assert.Equal(t, 5, m.cursor)
+	assert.Equal(t, "Bash", m.visibleNodes[m.cursor].entry.ToolName)
+
+	// Navigate up back to child-Edit
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(CallTreeModel)
+	assert.Equal(t, 4, m.cursor)
+}
+
+func TestCallTree_SelectedSubAgentStats_NilWhenNotSubAgentChild(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+
+	// Cursor on turn header
+	m.cursor = 0
+	assert.Nil(t, m.SelectedSubAgentStats())
+
+	// Cursor on regular tool
+	m.cursor = 1
+	assert.Nil(t, m.SelectedSubAgentStats())
+
+	// Cursor on SubAgent parent
+	m.cursor = 2
+	assert.Nil(t, m.SelectedSubAgentStats())
+}
+
+func TestCallTree_SelectedSubAgentError_NilWhenNotSubAgentNode(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+
+	// Cursor on turn header
+	m.cursor = 0
+	assert.Nil(t, m.SelectedSubAgentError())
+
+	// Cursor on regular tool
+	m.cursor = 1
+	assert.Nil(t, m.SelectedSubAgentError())
+}
+
+func TestCallTree_SelectedSubAgentError_WhenSubAgentNode(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	expectedErr := parser.NewFileReadError("subagents/abc.jsonl", fmt.Errorf("not found"))
+	m = m.SetSubAgentError(0, 1, expectedErr)
+
+	// Cursor on SubAgent parent
+	m.cursor = 2
+	err := m.SelectedSubAgentError()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "subagents/abc.jsonl")
+}
+
+func TestCallTree_SessionPath_SetViaSession(t *testing.T) {
+	// sessionPath should be set when using SetSession
+	session := &parser.Session{
+		FilePath:  "/home/user/.claude/session-2026-05-09.jsonl",
+		Date:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+		ToolCount: 1,
+		Duration:  5 * time.Second,
+		Turns:     subAgentTurns(),
+	}
+	m := NewCallTreeModel()
+	m = m.SetSize(80, 20)
+	m = m.SetSession(session)
+	assert.Equal(t, "/home/user/.claude/session-2026-05-09.jsonl", m.sessionPath)
+}
+
+func TestCallTree_SubAgentLoadDoneMsg_RebuildsNodes(t *testing.T) {
+	// SubAgentLoadDoneMsg should update entry children and rebuild
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m.sessionPath = "/home/user/.claude/session.jsonl"
+	// Expand the SubAgent first
+	m = m.SetSubAgentExpanded(0, 1, true)
+
+	// Simulate loading children via message
+	newChildren := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, LineNum: 100, ToolName: "Grep", Duration: 500 * time.Millisecond},
+		{Type: parser.EntryToolUse, LineNum: 101, ToolName: "Glob", Duration: 200 * time.Millisecond},
+	}
+	msg := SubAgentLoadDoneMsg{
+		TurnIdx:  0,
+		EntryIdx: 1,
+		Children: newChildren,
+		Err:      nil,
+	}
+	updated, _ := m.Update(msg)
+	m = updated.(CallTreeModel)
+
+	// Children should be injected and visible
+	assert.Equal(t, 6, len(m.visibleNodes)) // Turn + Read + SubAgent + Grep + Glob + Write
+	assert.Equal(t, "Grep", m.visibleNodes[3].entry.ToolName)
+	assert.Equal(t, "Glob", m.visibleNodes[4].entry.ToolName)
+}
+
+func TestCallTree_SubAgentLoadDoneMsg_Error(t *testing.T) {
+	// SubAgentLoadDoneMsg with error should store error, not expand
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentExpanded(0, 1, true)
+
+	msg := SubAgentLoadDoneMsg{
+		TurnIdx:  0,
+		EntryIdx: 1,
+		Err:      parser.NewFileReadError("subagents/abc.jsonl", fmt.Errorf("not found")),
+	}
+	updated, _ := m.Update(msg)
+	m = updated.(CallTreeModel)
+
+	// Error should be stored
+	assert.NotNil(t, m.SubAgentError(0, 1))
+	// Children should NOT be visible
+	assert.Equal(t, 4, len(m.visibleNodes))
+}

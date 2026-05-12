@@ -61,6 +61,7 @@ type CallTreeModel struct {
 	monitoring     bool
 	errMsg         string
 	sessionSummary string
+	sessionPath    string // path to the loaded session JSONL (for SubAgent loading)
 
 	// Flash tracking: map[lineNum]expiryTime
 	flashNodes map[int]time.Time
@@ -121,6 +122,7 @@ func (m CallTreeModel) SetTurns(turns []parser.Turn) CallTreeModel {
 func (m CallTreeModel) SetSession(session *parser.Session) CallTreeModel {
 	if session == nil {
 		m.sessionSummary = ""
+		m.sessionPath = ""
 		return m.SetTurns(nil)
 	}
 
@@ -135,6 +137,7 @@ func (m CallTreeModel) SetSession(session *parser.Session) CallTreeModel {
 		formatDurationCT(session.Duration),
 		title,
 	)
+	m.sessionPath = session.FilePath
 
 	return m.SetTurns(session.Turns)
 }
@@ -315,6 +318,8 @@ func (m CallTreeModel) update(msg tea.Msg) (CallTreeModel, tea.Cmd) {
 		})
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	case SubAgentLoadDoneMsg:
+		return m.handleSubAgentLoadDone(msg)
 	}
 	return m, nil
 }
@@ -362,6 +367,25 @@ func (m *CallTreeModel) toggleExpand() {
 	node := m.visibleNodes[m.cursor]
 	if node.isTurn {
 		m.expanded[node.turnIdx] = !m.expanded[node.turnIdx]
+		m.rebuildVisibleNodes()
+		// Clamp cursor after rebuild
+		if m.cursor >= len(m.visibleNodes) {
+			m.cursor = len(m.visibleNodes) - 1
+		}
+		return
+	}
+
+	// SubAgent node expand/collapse
+	if node.entry != nil && node.entry.ToolName == "SubAgent" {
+		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
+
+		// Error state: do not expand
+		if m.subAgentErrors[key] != nil {
+			return
+		}
+
+		// Toggle expand/collapse
+		m.subAgentExpanded[key] = !m.subAgentExpanded[key]
 		m.rebuildVisibleNodes()
 		// Clamp cursor after rebuild
 		if m.cursor >= len(m.visibleNodes) {
@@ -838,6 +862,74 @@ func (m CallTreeModel) renderStyledLine(b *strings.Builder, cursorIdx int, line 
 func (m CallTreeModel) SetASCIIMode(ascii bool) CallTreeModel {
 	m.asciiMode = ascii
 	return m
+}
+
+// SelectedSubAgentStats returns the SubAgentStats when the cursor is on a depth-2 SubAgent child.
+// Returns nil if the cursor is not on a SubAgent child or no stats are available.
+func (m CallTreeModel) SelectedSubAgentStats() *parser.SubAgentStats {
+	if len(m.visibleNodes) == 0 || m.cursor < 0 || m.cursor >= len(m.visibleNodes) {
+		return nil
+	}
+	node := m.visibleNodes[m.cursor]
+	// Only return stats for depth-2 SubAgent children
+	if node.depth != 2 || node.subIdx < 0 {
+		return nil
+	}
+	// For now, return nil since SubAgentStats for inline children is computed
+	// at a higher level during app integration. This method is a hook for
+	// updateDetailFromCallTree to detect SubAgent child selection.
+	// The actual stats come from SessionStats.SubAgents map.
+	return nil
+}
+
+// SelectedSubAgentError returns the error for the SubAgent node at cursor.
+// Returns nil if the cursor is not on a SubAgent node or no error exists.
+func (m CallTreeModel) SelectedSubAgentError() error {
+	if len(m.visibleNodes) == 0 || m.cursor < 0 || m.cursor >= len(m.visibleNodes) {
+		return nil
+	}
+	node := m.visibleNodes[m.cursor]
+
+	// Check if this is the SubAgent parent node with an error
+	if !node.isTurn && node.entry != nil && node.entry.ToolName == "SubAgent" {
+		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
+		return m.subAgentErrors[key]
+	}
+
+	// Also check if this is a depth-2 child — look up parent error
+	if node.depth == 2 && node.subIdx >= 0 {
+		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
+		return m.subAgentErrors[key]
+	}
+
+	return nil
+}
+
+// handleSubAgentLoadDone processes async SubAgent load results.
+func (m CallTreeModel) handleSubAgentLoadDone(msg SubAgentLoadDoneMsg) (CallTreeModel, tea.Cmd) {
+	if msg.TurnIdx < 0 || msg.EntryIdx < 0 {
+		return m, nil
+	}
+
+	key := fmt.Sprintf("%d-%d", msg.TurnIdx, msg.EntryIdx)
+
+	if msg.Err != nil {
+		m.subAgentErrors[key] = msg.Err
+		m.subAgentExpanded[key] = false
+		m.rebuildVisibleNodes()
+		return m, nil
+	}
+
+	// Inject children into the entry
+	if msg.TurnIdx < len(m.turns) && msg.EntryIdx < len(m.turns[msg.TurnIdx].Entries) {
+		entry := &m.turns[msg.TurnIdx].Entries[msg.EntryIdx]
+		if len(msg.Children) > 0 {
+			entry.Children = msg.Children
+		}
+	}
+
+	m.rebuildVisibleNodes()
+	return m, nil
 }
 
 // SetSubAgentError sets an error for a specific SubAgent node.

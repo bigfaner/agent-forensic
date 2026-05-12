@@ -46,9 +46,12 @@ type SubAgentLoadMsg struct {
 
 // SubAgentLoadDoneMsg carries the async parse result.
 type SubAgentLoadDoneMsg struct {
-	AgentID string
-	Stats   *parser.SubAgentStats
-	Err     error // non-nil if parse failed
+	AgentID  string
+	Stats    *parser.SubAgentStats
+	Err      error              // non-nil if parse failed
+	TurnIdx  int                // tree integration: turn index in call tree (-1 if N/A)
+	EntryIdx int                // tree integration: entry index within turn (-1 if N/A)
+	Children []parser.TurnEntry // tree integration: parsed children for inline expand
 }
 
 // NewSubAgentOverlayModel creates the overlay in hidden state.
