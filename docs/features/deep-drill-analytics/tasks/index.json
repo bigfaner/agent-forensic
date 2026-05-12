@@ -154,7 +154,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.4-build-subagent-stats-view.md",
       "record": "records/2.4-build-subagent-stats-view.md",
       "scope": "all"

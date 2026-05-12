@@ -956,6 +956,173 @@ func TestRenderFileList_OverflowMoreInSecondaryColor(t *testing.T) {
 	assert.Contains(t, result, "+2 more")
 }
 
+// --- SubAgent Statistics View tests (UF-4) ---
+
+func testSubAgentStats() *parser.SubAgentStats {
+	return &parser.SubAgentStats{
+		ToolCounts: map[string]int{
+			"Read":  3,
+			"Edit":  2,
+			"Bash":  2,
+			"Write": 1,
+		},
+		ToolDurs: map[string]time.Duration{
+			"Read":  2100 * time.Millisecond,
+			"Edit":  6500 * time.Millisecond,
+			"Bash":  5800 * time.Millisecond,
+			"Write": 800 * time.Millisecond,
+		},
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"internal/model/app.go": {ReadCount: 2, EditCount: 2, TotalCount: 4},
+				"cmd/root.go":           {ReadCount: 1, EditCount: 1, TotalCount: 2},
+			},
+		},
+		ToolCount: 8,
+		Duration:  15200 * time.Millisecond,
+	}
+}
+
+func newTestDetailModelWithSubAgentStats() DetailModel {
+	m := newTestDetailModel()
+	m = m.SetSubAgentStats(testSubAgentStats())
+	return m
+}
+
+func TestDetail_SetSubAgentStats_EnablesSubAgentMode(t *testing.T) {
+	m := newTestDetailModel()
+	stats := testSubAgentStats()
+	m = m.SetSubAgentStats(stats)
+	assert.True(t, m.showSubAgentStats, "showSubAgentStats should be true after SetSubAgentStats")
+	assert.Equal(t, DetailTruncated, m.state)
+	assert.NotNil(t, m.subAgentStats)
+}
+
+func TestDetail_SetSubAgentStats_NilClearsMode(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	m = m.SetSubAgentStats(nil)
+	assert.False(t, m.showSubAgentStats)
+	assert.Nil(t, m.subAgentStats)
+}
+
+func TestDetail_SetEntry_ClearsSubAgentStats(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	m = m.SetEntry(testDetailEntry())
+	assert.False(t, m.showSubAgentStats, "SetEntry should clear subagent stats mode")
+	assert.Nil(t, m.subAgentStats)
+}
+
+func TestDetail_SetTurn_ClearsSubAgentStats(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	m = m.SetTurn(parser.Turn{Index: 1, Entries: []parser.TurnEntry{}})
+	assert.False(t, m.showSubAgentStats, "SetTurn should clear subagent stats mode")
+}
+
+func TestDetail_SubAgentStats_LabelInCyan(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	assert.Contains(t, content, "subagent stats:")
+}
+
+func TestDetail_SubAgentStats_ToolsBlock(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	// Should contain "tools: N calls, duration"
+	assert.Contains(t, clean, "tools: 8 calls, 15s")
+	// Per-tool breakdown
+	assert.Contains(t, clean, "Read")
+	assert.Contains(t, clean, "Edit")
+	assert.Contains(t, clean, "Bash")
+	assert.Contains(t, clean, "Write")
+}
+
+func TestDetail_SubAgentStats_FilesBlock(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	assert.Contains(t, clean, "files:")
+	assert.Contains(t, clean, "internal/model/app.go")
+	assert.Contains(t, clean, "cmd/root.go")
+	assert.Contains(t, clean, "R×2")
+	assert.Contains(t, clean, "E×2")
+}
+
+func TestDetail_SubAgentStats_DurationBlock(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	// Duration format: "avg Xs, peak {tool} ({duration})"
+	assert.Contains(t, clean, "duration:")
+	assert.Contains(t, clean, "avg ")
+	assert.Contains(t, clean, "peak ")
+	assert.Contains(t, clean, "Edit")
+	assert.Contains(t, clean, "6s")
+}
+
+func TestDetail_SubAgentStats_TabTogglesView(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	assert.True(t, m.showSubAgentStats, "stats view should be default")
+
+	// Tab should switch to tool detail view
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(DetailModel)
+	assert.False(t, m.showSubAgentStats, "after Tab, should show tool detail view")
+
+	// Tab again should switch back to stats view
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(DetailModel)
+	assert.True(t, m.showSubAgentStats, "after second Tab, should show stats view again")
+}
+
+func TestDetail_SubAgentStats_NoFileOps(t *testing.T) {
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{
+			"Bash": 1,
+		},
+		ToolDurs: map[string]time.Duration{
+			"Bash": 5 * time.Second,
+		},
+		FileOps:   nil,
+		ToolCount: 1,
+		Duration:  5 * time.Second,
+	}
+	m := newTestDetailModel()
+	m = m.SetSubAgentStats(stats)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	// No files block when FileOps is nil
+	assert.NotContains(t, clean, "files:")
+	assert.Contains(t, clean, "tools:")
+	assert.Contains(t, clean, "duration:")
+}
+
+func TestDetail_SubAgentStats_StatsViewDefaultOnSetSubAgentStats(t *testing.T) {
+	m := newTestDetailModel()
+	m = m.SetSubAgentStats(testSubAgentStats())
+	// Stats view is default
+	assert.True(t, m.showSubAgentStats)
+	content := m.buildContent(false)
+	assert.Contains(t, content, "subagent stats:")
+}
+
+func TestDetail_SubAgentStats_ViewRendering(t *testing.T) {
+	// Verify the full view renders correctly with subagent stats
+	m := NewDetailModel()
+	m = m.SetSize(120, 20)
+	m = m.SetFocused(true)
+	m = m.SetSubAgentStats(testSubAgentStats())
+	view := m.View()
+	clean := ansiEscape.ReplaceAllString(view, "")
+
+	// View should contain key elements
+	assert.Contains(t, clean, "SubAgent")
+	assert.Contains(t, clean, "subagent stats:")
+	assert.Contains(t, clean, "tools: 8 calls")
+	assert.Contains(t, clean, "files:")
+	assert.Contains(t, clean, "duration:")
+}
+
 func TestDetail_PanelHeight_FixedWithLongContent(t *testing.T) {
 	longContent := strings.Repeat("package main\n\nfunc main() {\n\t\"hello\"\n}\n\n", 50)
 	longJSON := fmt.Sprintf(`{"file_path":"/very/long/path/to/file.go","content":%q}`, longContent)

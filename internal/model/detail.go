@@ -52,6 +52,10 @@ type DetailModel struct {
 	sanitizedOutput   string
 	sanitizedThinking string
 	hasSensitive      bool
+
+	// SubAgent stats view state (UF-4)
+	subAgentStats     *parser.SubAgentStats // non-nil when showing subagent stats
+	showSubAgentStats bool                  // true = stats view, false = tool detail view
 }
 
 // NewDetailModel creates a new detail panel model in empty state.
@@ -64,7 +68,9 @@ func NewDetailModel() DetailModel {
 // SetEntry loads a TurnEntry for display and transitions to the appropriate state.
 // Passing a zero-value TurnEntry (no ToolName) resets to empty state.
 func (m DetailModel) SetEntry(entry parser.TurnEntry) DetailModel {
-	m.turn = nil // clear turn overview
+	m.turn = nil          // clear turn overview
+	m.subAgentStats = nil // clear subagent stats
+	m.showSubAgentStats = false
 
 	if entry.ToolName == "" {
 		m.state = DetailEmpty
@@ -107,6 +113,8 @@ func (m DetailModel) SetEntry(entry parser.TurnEntry) DetailModel {
 func (m DetailModel) SetTurn(turn parser.Turn) DetailModel {
 	m.turn = &turn
 	m.entry = parser.TurnEntry{}
+	m.subAgentStats = nil
+	m.showSubAgentStats = false
 	m.expanded = false
 	m.scroll = 0
 	m.state = DetailTruncated
@@ -131,6 +139,25 @@ func (m DetailModel) SetFocused(focused bool) DetailModel {
 func (m DetailModel) SetSize(width, height int) DetailModel {
 	m.width = width
 	m.height = height
+	return m
+}
+
+// SetSubAgentStats loads SubAgent statistics for the stats view (UF-4).
+// Passing nil clears the subagent stats mode.
+func (m DetailModel) SetSubAgentStats(stats *parser.SubAgentStats) DetailModel {
+	if stats == nil {
+		m.subAgentStats = nil
+		m.showSubAgentStats = false
+		return m
+	}
+	m.subAgentStats = stats
+	m.showSubAgentStats = true // stats view is default
+	m.turn = nil
+	m.entry = parser.TurnEntry{}
+	m.expanded = false
+	m.scroll = 0
+	m.state = DetailTruncated
+	m.hasSensitive = false
 	return m
 }
 
@@ -177,6 +204,10 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 			return m, func() tea.Msg { return DetailExpandMsg{Expanded: expanded} }
 		}
 	case "tab":
+		if m.subAgentStats != nil {
+			m.showSubAgentStats = !m.showSubAgentStats
+			m.scroll = 0
+		}
 		return m, nil
 	case "esc":
 		return m, nil
@@ -270,6 +301,21 @@ func (m DetailModel) View() string {
 func (m DetailModel) buildTitle() string {
 	prefix := i18n.T("panel.detail.title")
 
+	// SubAgent stats mode
+	if m.subAgentStats != nil {
+		if m.showSubAgentStats {
+			return fmt.Sprintf("%s: SubAgent — %d tools, %s", prefix, m.subAgentStats.ToolCount, formatDuration(m.subAgentStats.Duration))
+		}
+		// Tool detail view — use entry title if available
+		if m.entry.Type == parser.EntryToolUse {
+			if m.entry.ExitCode != nil {
+				return fmt.Sprintf("%s: %s — exit=%d, line %d", prefix, m.entry.ToolName, *m.entry.ExitCode, m.entry.LineNum)
+			}
+			return fmt.Sprintf("%s: %s — line %d", prefix, m.entry.ToolName, m.entry.LineNum)
+		}
+		return fmt.Sprintf("%s: SubAgent", prefix)
+	}
+
 	// Turn overview mode
 	if m.turn != nil {
 		toolCount := 0
@@ -312,6 +358,11 @@ func (m DetailModel) buildContent(expanded bool) string {
 	// Turn overview mode
 	if m.turn != nil {
 		return m.buildTurnOverview(expanded)
+	}
+
+	// SubAgent stats mode (UF-4)
+	if m.subAgentStats != nil && m.showSubAgentStats {
+		return m.buildSubAgentStats()
 	}
 
 	var b strings.Builder
@@ -905,5 +956,93 @@ func compactBlankLines(s string) string {
 		}
 		prevBlank = isBlank
 	}
+	return b.String()
+}
+
+// buildSubAgentStats renders the SubAgent statistics view (UF-4).
+// Shows tools breakdown, files list, and duration summary.
+func (m DetailModel) buildSubAgentStats() string {
+	var b strings.Builder
+	stats := m.subAgentStats
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51")) // bright cyan
+	statStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // light gray
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("242"))  // dim gray
+
+	// Section label
+	b.WriteString(labelStyle.Render("subagent stats:"))
+	b.WriteString("\n")
+
+	// Tools sub-block
+	b.WriteString("  ")
+	b.WriteString(labelStyle.Render(fmt.Sprintf("tools: %d calls, %s", stats.ToolCount, formatDuration(stats.Duration))))
+	b.WriteString("\n")
+
+	if len(stats.ToolCounts) > 0 {
+		// Sort by count descending, then by name for stability
+		type toolEntry struct {
+			name  string
+			count int
+			dur   time.Duration
+		}
+		var entries []toolEntry
+		for name, count := range stats.ToolCounts {
+			dur := stats.ToolDurs[name]
+			entries = append(entries, toolEntry{name: name, count: count, dur: dur})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].count != entries[j].count {
+				return entries[i].count > entries[j].count
+			}
+			return entries[i].name < entries[j].name
+		})
+
+		for _, e := range entries {
+			line := fmt.Sprintf("    %-14s ×%-3d %s", e.name, e.count, formatDuration(e.dur))
+			b.WriteString(statStyle.Render(line))
+			b.WriteString("\n")
+		}
+	} else {
+		b.WriteString(dimStyle.Render("    tools: none"))
+		b.WriteString("\n")
+	}
+
+	// Files sub-block (reuse renderFileList)
+	contentWidth := m.width - 4
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	fileSection := renderFileList(stats.FileOps, contentWidth)
+	if fileSection != "" {
+		// Indent the files section by 2 spaces
+		lines := strings.Split(fileSection, "\n")
+		for _, line := range lines {
+			if line != "" {
+				b.WriteString("  ")
+				b.WriteString(line)
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	// Duration sub-block: "avg Xs, peak {tool} ({duration})"
+	if stats.ToolCount > 0 {
+		avgDur := stats.Duration / time.Duration(stats.ToolCount)
+		// Find peak tool by longest total duration
+		peakTool := ""
+		peakDur := time.Duration(0)
+		for name, dur := range stats.ToolDurs {
+			if dur > peakDur {
+				peakDur = dur
+				peakTool = name
+			}
+		}
+		b.WriteString("  ")
+		b.WriteString(labelStyle.Render("duration:"))
+		b.WriteString(" ")
+		b.WriteString(statStyle.Render(fmt.Sprintf("avg %s, peak %s (%s)", formatDuration(avgDur), peakTool, formatDuration(peakDur))))
+		b.WriteString("\n")
+	}
+
 	return b.String()
 }
