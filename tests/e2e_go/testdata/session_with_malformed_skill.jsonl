@@ -1,0 +1,3 @@
+{"type":"message","role":"user","timestamp":"2024-05-12T10:00:00Z","content":{"type":"text","text":"Let me use skill with malformed input"}}
+{"type":"tool_use","name":"Skill","id":"toolu_01","input":{"invalid":"no skill field","data":"some data"},"timestamp":"2024-05-12T10:00:01Z"}
+{"type":"tool_result","name":"Skill","id":"toolu_01","output":"Skill executed","timestamp":"2024-05-12T10:00:02Z"}

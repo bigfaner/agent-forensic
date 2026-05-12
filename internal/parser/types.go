@@ -72,10 +72,21 @@ type ToolCallSummary struct {
 	Duration time.Duration
 }
 
+// MCPServerStats holds aggregated stats for one MCP server.
+type MCPServerStats struct {
+	Total int            // sum of all tool call counts under this server
+	Tools map[string]int // tool name → call count
+}
+
 // SessionStats holds computed statistics for a session.
 type SessionStats struct {
 	TotalDuration  time.Duration
 	ToolCallCounts map[string]int     // tool name to count
 	ToolTimePcts   map[string]float64 // tool name to percentage (0-100)
 	PeakStep       ToolCallSummary    // single slowest tool call
+
+	// custom tool stats
+	SkillCounts map[string]int             // skill name → call count
+	MCPServers  map[string]*MCPServerStats // server name → stats
+	HookCounts  map[string]int             // hook type → trigger count
 }
