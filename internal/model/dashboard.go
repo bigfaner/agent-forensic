@@ -188,7 +188,7 @@ func (m DashboardModel) View() string {
 	if m.session != nil && m.session.Title != "" {
 		title = fmt.Sprintf("%s — %s", title, m.session.Title)
 	} else if m.session != nil {
-		title = fmt.Sprintf("%s — session %s", title, m.session.Date.Format("2006-01-02"))
+		title = fmt.Sprintf("%s — session %s", title, m.session.Date.Local().Format("2006-01-02"))
 	}
 
 	content := m.renderContent()
@@ -390,7 +390,7 @@ func (m DashboardModel) renderPicker() string {
 
 	var b strings.Builder
 	for i, s := range m.sessions {
-		dateStr := s.Date.Format("2006-01-02")
+		dateStr := s.Date.Local().Format("2006-01-02")
 		calls := fmt.Sprintf("%4d", s.ToolCount)
 		durStr := formatDuration(s.Duration)
 

@@ -435,7 +435,15 @@ func TestFormatDuration_Zero(t *testing.T) {
 }
 
 func TestFormatDuration_ExactMinute(t *testing.T) {
-	assert.Equal(t, "1m00s", formatDuration(1*time.Minute))
+	assert.Equal(t, "1m0s", formatDuration(1*time.Minute))
+}
+
+func TestFormatDuration_Hours(t *testing.T) {
+	assert.Equal(t, "1h5m50s", formatDuration(1*time.Hour+5*time.Minute+50*time.Second))
+}
+
+func TestFormatDuration_ExactHour(t *testing.T) {
+	assert.Equal(t, "1h0m0s", formatDuration(1*time.Hour))
 }
 
 // --- Init test ---

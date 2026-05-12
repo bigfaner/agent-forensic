@@ -408,7 +408,7 @@ func TestStatusBarView_DoesNotExceedWidth(t *testing.T) {
 	view := m.View()
 	// Strip ANSI escape codes for length measurement
 	stripped := stripAnsi(view)
-	assert.LessOrEqual(t, len(stripped), 65) // allow small margin for CJK
+	assert.LessOrEqual(t, len(stripped), 75) // allow margin for CJK + labels
 }
 
 // --- Update returns correct model type ---

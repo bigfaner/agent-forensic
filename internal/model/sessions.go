@@ -56,6 +56,7 @@ type SessionsModel struct {
 	hasMore     bool
 	loadedCount int
 	totalCount  int
+	loadingMore bool
 }
 
 // NewSessionsModel creates a new sessions panel model in loading state.
@@ -147,6 +148,7 @@ func (m SessionsModel) SetHasMore(hasMore bool, loaded, total int) SessionsModel
 	m.hasMore = hasMore
 	m.loadedCount = loaded
 	m.totalCount = total
+	m.loadingMore = false
 	return m
 }
 
@@ -206,6 +208,11 @@ func (m SessionsModel) handleNormalKey(msg tea.KeyMsg) (SessionsModel, tea.Cmd) 
 			m.cursor++
 			m.clampScroll()
 		}
+		// Auto-load more when cursor reaches the last item
+		if len(m.filtered) > 0 && m.cursor == len(m.filtered)-1 && m.hasMore && !m.loadingMore {
+			m.loadingMore = true
+			return m, func() tea.Msg { return LoadMoreRequestMsg{} }
+		}
 	case "up":
 		if m.cursor > 0 {
 			m.cursor--
@@ -221,7 +228,8 @@ func (m SessionsModel) handleNormalKey(msg tea.KeyMsg) (SessionsModel, tea.Cmd) 
 		m.search = SearchActive
 		m.searchBuf = ""
 	case "G", "g":
-		if m.hasMore {
+		if m.hasMore && !m.loadingMore {
+			m.loadingMore = true
 			return m, func() tea.Msg { return LoadMoreRequestMsg{} }
 		}
 	case "tab":
@@ -286,12 +294,12 @@ func (m *SessionsModel) applyFilter() {
 	result := make([]parser.Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		if isDate {
-			dateStr := s.Date.Format("2006-01-02")
+			dateStr := s.Date.Local().Format("2006-01-02")
 			if strings.Contains(dateStr, query) {
 				result = append(result, s)
 				continue
 			}
-			shortDate := s.Date.Format("01-02")
+			shortDate := s.Date.Local().Format("01-02")
 			if len(query) == 5 && strings.Contains(shortDate, query) {
 				result = append(result, s)
 			}
@@ -450,7 +458,12 @@ func (m SessionsModel) renderList() string {
 
 	// Append "load more" footer
 	if m.hasMore {
-		footer := fmt.Sprintf(" G: %s (%d/%d)", i18n.T("sessions.load_more"), m.loadedCount, m.totalCount)
+		var footer string
+		if m.loadingMore {
+			footer = fmt.Sprintf(" ⋯ %s (%d/%d)", i18n.T("status.loading"), m.loadedCount, m.totalCount)
+		} else {
+			footer = fmt.Sprintf(" G: %s (%d/%d)", i18n.T("sessions.load_more"), m.loadedCount, m.totalCount)
+		}
 		footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
 		b.WriteString("\n" + footerStyle.Render(footer))
 	}
@@ -594,7 +607,12 @@ func formatDuration(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%ds", int(d.Seconds()))
 	}
-	mins := int(d.Minutes())
-	secs := int(d.Seconds()) - mins*60
-	return fmt.Sprintf("%dm%02ds", mins, secs)
+	totalSecs := int(d.Seconds())
+	hours := totalSecs / 3600
+	mins := (totalSecs % 3600) / 60
+	secs := totalSecs % 60
+	if hours > 0 {
+		return fmt.Sprintf("%dh%dm%ds", hours, mins, secs)
+	}
+	return fmt.Sprintf("%dm%ds", mins, secs)
 }

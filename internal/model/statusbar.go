@@ -140,6 +140,7 @@ func (m StatusBarModel) buildNormalHints() string {
 	p3 := []string{
 		hint("1", ":sess"),
 		hint("2", ":call"),
+		hint("3", ":detail"),
 		hint("m", ":mon"),
 		monitoring,
 	}
@@ -207,10 +208,10 @@ func (m StatusBarModel) buildErrorHints() string {
 	return m.joinWithLanguage(parts)
 }
 
-// joinWithLanguage places hints on the left and version+language on the far right.
+// joinWithLanguage places hints on the left and language+version on the far right.
 func (m StatusBarModel) joinWithLanguage(parts []string) string {
 	left := strings.Join(parts, " ")
-	right := m.versionIndicator() + " " + m.languageIndicator()
+	right := m.languageIndicator() + "  " + m.versionIndicator()
 
 	leftW := lipgloss.Width(left)
 	rightW := lipgloss.Width(right)
@@ -222,7 +223,7 @@ func (m StatusBarModel) joinWithLanguage(parts []string) string {
 	return left + strings.Repeat(" ", pad) + right
 }
 
-// versionIndicator returns the styled version string.
+// versionIndicator returns the styled version string with label.
 func (m StatusBarModel) versionIndicator() string {
 	v := m.version
 	if v == "" {
@@ -231,7 +232,14 @@ func (m StatusBarModel) versionIndicator() string {
 	if v != "dev" && !strings.HasPrefix(v, "v") {
 		v = "v" + v
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(v)
+	var label string
+	if m.locale == "en" {
+		label = "Version:"
+	} else {
+		label = "版本:"
+	}
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("242"))
+	return style.Render(label + " " + v)
 }
 
 // monitoringText returns the styled monitoring status indicator.
@@ -260,13 +268,15 @@ func (m StatusBarModel) monitoringText() string {
 	return style.Render(text)
 }
 
-// languageIndicator returns the styled language indicator string.
+// languageIndicator returns the styled language indicator string with label.
 func (m StatusBarModel) languageIndicator() string {
-	var text string
+	var label, value string
 	if m.locale == "en" {
-		text = "EN"
+		label = "Lang:"
+		value = "EN"
 	} else {
-		text = "中"
+		label = "语言:"
+		value = "中"
 	}
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(text)
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(label + value)
 }
