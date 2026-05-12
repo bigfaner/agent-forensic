@@ -58,7 +58,7 @@
       "title": "Implement Hook Target Extraction",
       "priority": "P0",
       "estimatedTime": "2h",
-      "status": "pending",
+      "status": "completed",
       "file": "1.3-hook-target-extraction.md",
       "record": "records/1.3-hook-target-extraction.md",
       "scope": "all"

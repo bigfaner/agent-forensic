@@ -654,3 +654,91 @@ func TestExtractFilePaths_StoresPathAsIs(t *testing.T) {
 
 	assert.Contains(t, stats.Files, "/Users/dev/project/src/main.go")
 }
+
+// --- ParseHookWithTarget tests ---
+
+func TestParseHookWithTarget_PreToolUseWithTarget(t *testing.T) {
+	assert.Equal(t, "PreToolUse::Bash", ParseHookWithTarget("PreToolUse hook for Bash"))
+}
+
+func TestParseHookWithTarget_PreToolUseWithTargetMixedCase(t *testing.T) {
+	assert.Equal(t, "PreToolUse::Bash", ParseHookWithTarget("pretooluse hook for Bash"))
+}
+
+func TestParseHookWithTarget_PostToolUseResultAllowed(t *testing.T) {
+	// "result: allowed" is not a meaningful target, falls back to hook type only
+	assert.Equal(t, "PostToolUse", ParseHookWithTarget("PostToolUse hook result: allowed"))
+}
+
+func TestParseHookWithTarget_PostToolUseForTool(t *testing.T) {
+	assert.Equal(t, "PostToolUse::Edit", ParseHookWithTarget("PostToolUse hook for Edit"))
+}
+
+func TestParseHookWithTarget_PreToolUseNoTargetMatch(t *testing.T) {
+	// "PreToolUse triggered" doesn't match the regex, falls back to marker detection
+	assert.Equal(t, "PreToolUse", ParseHookWithTarget("PreToolUse triggered"))
+}
+
+func TestParseHookWithTarget_PostToolUseNoTargetMatch(t *testing.T) {
+	assert.Equal(t, "PostToolUse", ParseHookWithTarget("PostToolUse hook ran"))
+}
+
+func TestParseHookWithTarget_Stop(t *testing.T) {
+	assert.Equal(t, "Stop", ParseHookWithTarget("Stop hook triggered"))
+}
+
+func TestParseHookWithTarget_UserPromptSubmitHook(t *testing.T) {
+	assert.Equal(t, "user-prompt-submit-hook", ParseHookWithTarget("user-prompt-submit-hook fired"))
+}
+
+func TestParseHookWithTarget_UserPromptSubmitHookAngleBrackets(t *testing.T) {
+	assert.Equal(t, "user-prompt-submit-hook", ParseHookWithTarget("<user-prompt-submit-hook>"))
+}
+
+func TestParseHookWithTarget_NoMatch(t *testing.T) {
+	assert.Equal(t, "some random text", ParseHookWithTarget("some random text"))
+}
+
+func TestParseHookWithTarget_Empty(t *testing.T) {
+	assert.Equal(t, "", ParseHookWithTarget(""))
+}
+
+func TestParseHookWithTarget_PreToolUseForEdit(t *testing.T) {
+	assert.Equal(t, "PreToolUse::Edit", ParseHookWithTarget("PreToolUse hook for Edit"))
+}
+
+func TestParseHookWithTarget_PostToolUseResultDenied(t *testing.T) {
+	// "result: Denied" is not a meaningful target, falls back to hook type only
+	assert.Equal(t, "PostToolUse", ParseHookWithTarget("PostToolUse hook result: Denied"))
+}
+
+func TestParseHookWithTarget_CaseInsensitiveHookType(t *testing.T) {
+	// The regex is case-insensitive; canonical form should be returned
+	assert.Equal(t, "PreToolUse::Bash", ParseHookWithTarget("PRETOOLUSE hook for Bash"))
+}
+
+// --- HookDetail struct test ---
+
+func TestHookDetail_FullIDWithTarget(t *testing.T) {
+	hd := HookDetail{
+		HookType:  "PreToolUse",
+		Target:    "Bash",
+		TurnIndex: 3,
+		FullID:    "PreToolUse::Bash",
+	}
+	assert.Equal(t, "PreToolUse::Bash", hd.FullID)
+	assert.Equal(t, "PreToolUse", hd.HookType)
+	assert.Equal(t, "Bash", hd.Target)
+	assert.Equal(t, 3, hd.TurnIndex)
+}
+
+func TestHookDetail_FullIDWithoutTarget(t *testing.T) {
+	hd := HookDetail{
+		HookType:  "Stop",
+		Target:    "",
+		TurnIndex: 5,
+		FullID:    "Stop",
+	}
+	assert.Equal(t, "Stop", hd.FullID)
+	assert.Empty(t, hd.Target)
+}

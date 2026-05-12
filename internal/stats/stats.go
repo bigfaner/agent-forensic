@@ -2,11 +2,56 @@ package stats
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/user/agent-forensic/internal/parser"
 )
+
+// hookTargetRegex extracts the target tool name from PreToolUse/PostToolUse hook output.
+// Only matches the "for <tool-name>" pattern; "result:" text is not a meaningful target.
+var hookTargetRegex = regexp.MustCompile(`(?i)(PreToolUse|PostToolUse)\s+hook\s+for\s+(\w+)`)
+
+// HookDetail holds detailed information about a single hook invocation.
+type HookDetail struct {
+	HookType  string // PreToolUse, PostToolUse, Stop, user-prompt-submit-hook
+	Target    string // target tool name or command (may be empty)
+	TurnIndex int    // 1-based turn number when the hook fired
+	FullID    string // "HookType::Target" or "HookType" (Target empty)
+}
+
+// knownHookTypes maps lowercase hook type names to their canonical form.
+var knownHookTypes = map[string]string{
+	"pretooluse":  "PreToolUse",
+	"posttooluse": "PostToolUse",
+}
+
+// ParseHookWithTarget parses hook trigger text to extract type and target command.
+// Returns "HookType::Target" for PreToolUse/PostToolUse hooks with a target,
+// "HookType" for hooks without a target (Stop, user-prompt-submit-hook), or
+// the original text if no known hook marker is found.
+func ParseHookWithTarget(text string) string {
+	// Try PreToolUse/PostToolUse with target extraction via regex
+	if matches := hookTargetRegex.FindStringSubmatch(text); len(matches) >= 3 {
+		rawType := matches[1]
+		target := matches[2]
+		if canonical, ok := knownHookTypes[strings.ToLower(rawType)]; ok {
+			return canonical + "::" + target
+		}
+		return rawType + "::" + target
+	}
+
+	// Fallback to existing marker detection (Stop, user-prompt-submit-hook, and
+	// PreToolUse/PostToolUse without a matching target pattern)
+	for _, marker := range []string{"PreToolUse", "PostToolUse", "Stop", "user-prompt-submit-hook"} {
+		if strings.Contains(text, marker) {
+			return marker
+		}
+	}
+
+	return text
+}
 
 // FileOpStats holds aggregated file operation statistics.
 type FileOpStats struct {
