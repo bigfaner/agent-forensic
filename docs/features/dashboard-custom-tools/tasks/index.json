@@ -99,7 +99,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.1-render-custom-tools-block.md",
       "record": "records/2.1-render-custom-tools-block.md",
       "scope": "backend",
@@ -113,7 +113,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.2-i18n-keys.md",
       "record": "records/2.2-i18n-keys.md",
       "scope": "backend",
