@@ -776,6 +776,17 @@ func (m *AppModel) updateDetailFromCallTree() {
 		return
 	}
 
+	// Check if cursor is on a depth-2 SubAgent child — show SubAgent stats view (UF-4)
+	if node := m.callTree.selectedNode(); node != nil && node.depth == 2 && node.subIdx >= 0 {
+		// Find parent SubAgent entry to get its children
+		parentEntry := m.callTree.parentSubAgentEntry(node)
+		if parentEntry != nil && len(parentEntry.Children) > 0 {
+			subStats := computeSubAgentStats(parentEntry.Children)
+			m.detail = m.detail.SetSubAgentStats(subStats)
+			return
+		}
+	}
+
 	// Check if a turn header is selected — show turn overview
 	if turn, ok := m.callTree.SelectedTurn(); ok {
 		m.detail = m.detail.SetTurn(turn)

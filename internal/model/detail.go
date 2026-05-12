@@ -14,6 +14,7 @@ import (
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 	"github.com/user/agent-forensic/internal/sanitizer"
+	"github.com/user/agent-forensic/internal/stats"
 )
 
 // DetailExpandMsg is emitted when the user toggles the detail panel expansion.
@@ -460,6 +461,17 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 	} else {
 		b.WriteString(dimStyle.Render("tools: none"))
 		b.WriteString("\n")
+	}
+
+	// File operations section (UF-3)
+	fileOps := stats.ExtractFilePaths(m.turn.Entries)
+	contentWidth := m.width - 4
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	fileSection := renderFileList(fileOps, contentWidth)
+	if fileSection != "" {
+		b.WriteString(fileSection)
 	}
 
 	// Anomaly summary

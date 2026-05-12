@@ -247,7 +247,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.3-integrate-detail-panels.md",
       "record": "records/3.3-integrate-detail-panels.md",
       "scope": "all"

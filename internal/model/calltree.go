@@ -199,6 +199,30 @@ func (m CallTreeModel) SelectedTurnIndex() int {
 	return m.visibleNodes[m.cursor].turnIdx
 }
 
+// selectedNode returns the visibleNode at the current cursor position, or nil.
+func (m CallTreeModel) selectedNode() *visibleNode {
+	if len(m.visibleNodes) == 0 || m.cursor < 0 || m.cursor >= len(m.visibleNodes) {
+		return nil
+	}
+	return &m.visibleNodes[m.cursor]
+}
+
+// parentSubAgentEntry returns the parent SubAgent TurnEntry for a depth-2 child node.
+// Returns nil if the parent cannot be found.
+func (m CallTreeModel) parentSubAgentEntry(node *visibleNode) *parser.TurnEntry {
+	if node.turnIdx < 0 || node.turnIdx >= len(m.turns) {
+		return nil
+	}
+	if node.entryIdx < 0 || node.entryIdx >= len(m.turns[node.turnIdx].Entries) {
+		return nil
+	}
+	parent := &m.turns[node.turnIdx].Entries[node.entryIdx]
+	if parent.ToolName != "SubAgent" {
+		return nil
+	}
+	return parent
+}
+
 // AddEntry adds a new entry to a turn and triggers real-time flash.
 // The target turn is auto-expanded and the new entry gets a cyan flash.
 func (m CallTreeModel) AddEntry(turnIdx int, entry parser.TurnEntry) CallTreeModel {

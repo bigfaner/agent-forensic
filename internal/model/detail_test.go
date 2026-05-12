@@ -1123,6 +1123,138 @@ func TestDetail_SubAgentStats_ViewRendering(t *testing.T) {
 	assert.Contains(t, clean, "duration:")
 }
 
+// --- UF-3 Integration: Turn Overview File List in buildTurnOverview ---
+
+func TestDetail_TurnOverview_IncludesFilesSection(t *testing.T) {
+	readEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Read",
+		Input:    `{"file_path":"/project/src/index.ts"}`,
+		Output:   "content",
+		Duration: 500 * time.Millisecond,
+	}
+	editEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Edit",
+		Input:    `{"file_path":"/project/src/index.ts"}`,
+		Output:   "ok",
+		Duration: 800 * time.Millisecond,
+	}
+	promptEntry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: "Fix the bug",
+	}
+
+	turn := parser.Turn{
+		Index:    2,
+		Entries:  []parser.TurnEntry{promptEntry, readEntry, editEntry},
+		Duration: 1300 * time.Millisecond,
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	// Should contain files section after tools
+	assert.Contains(t, clean, "files:", "buildTurnOverview should include files section")
+	assert.Contains(t, clean, "index.ts", "files section should show file name")
+	assert.Contains(t, clean, "R×1", "files section should show read count")
+	assert.Contains(t, clean, "E×1", "files section should show edit count")
+}
+
+func TestDetail_TurnOverview_NoFilesSectionWhenNoFileOps(t *testing.T) {
+	bashEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Bash",
+		Input:    `{"command":"go test"}`,
+		Output:   "ok",
+		Duration: 1 * time.Second,
+	}
+	promptEntry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: "Run tests",
+	}
+
+	turn := parser.Turn{
+		Index:    1,
+		Entries:  []parser.TurnEntry{promptEntry, bashEntry},
+		Duration: 1 * time.Second,
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	assert.NotContains(t, clean, "files:", "buildTurnOverview should not include files section when no file ops")
+}
+
+func TestDetail_TurnOverview_FilesAfterToolsBeforeAnomalies(t *testing.T) {
+	readEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Read",
+		Input:    `{"file_path":"/src/app.go"}`,
+		Output:   "content",
+		Duration: 300 * time.Millisecond,
+	}
+	editEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Edit",
+		Input:    `{"file_path":"/src/app.go"}`,
+		Output:   "ok",
+		Duration: 800 * time.Millisecond,
+		Anomaly:  &parser.Anomaly{Type: parser.AnomalySlow, ToolName: "Edit"},
+	}
+	promptEntry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: "Edit the file",
+	}
+
+	turn := parser.Turn{
+		Index:    3,
+		Entries:  []parser.TurnEntry{promptEntry, readEntry, editEntry},
+		Duration: 1100 * time.Millisecond,
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	// Verify ordering: tools section before files section before anomalies
+	toolsIdx := strings.Index(clean, "tools:")
+	filesIdx := strings.Index(clean, "files:")
+	anomalyIdx := strings.Index(clean, "anomalies:")
+
+	assert.Greater(t, filesIdx, 0, "files section should exist")
+	assert.Greater(t, filesIdx, toolsIdx, "files section should come after tools section")
+	if anomalyIdx > 0 {
+		assert.Greater(t, anomalyIdx, filesIdx, "anomalies should come after files section")
+	}
+}
+
+func TestDetail_TurnOverview_FilesSectionHiddenForEmptyTurn(t *testing.T) {
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{},
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	assert.NotContains(t, clean, "files:", "buildTurnOverview should not include files section for empty turn")
+}
+
+// --- UF-4 Integration: SubAgent Stats in updateDetailFromCallTree ---
+
+func TestDetail_SetEntry_PreservesNonSubAgentBehavior(t *testing.T) {
+	// Non-SubAgent entries should work exactly as before
+	m := newTestDetailModel()
+	m = m.SetEntry(testDetailEntry())
+	assert.Equal(t, DetailTruncated, m.state)
+	assert.Nil(t, m.subAgentStats)
+	assert.False(t, m.showSubAgentStats)
+}
+
 func TestDetail_PanelHeight_FixedWithLongContent(t *testing.T) {
 	longContent := strings.Repeat("package main\n\nfunc main() {\n\t\"hello\"\n}\n\n", 50)
 	longJSON := fmt.Sprintf(`{"file_path":"/very/long/path/to/file.go","content":%q}`, longContent)

@@ -1168,3 +1168,103 @@ func TestComputeSubAgentStats_NoFileOpsForNonFileTools(t *testing.T) {
 	assert.Equal(t, 1, stats.ToolCount)
 	assert.Empty(t, stats.FileOps.Files)
 }
+
+// --- UF-4 Integration: updateDetailFromCallTree SubAgent stats detection ---
+
+func TestApp_UpdateDetailFromCallTree_SubAgentChildShowsStats(t *testing.T) {
+	// When a depth-2 SubAgent child is selected, detail should show SubAgent stats
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Duration: time.Second, Input: `{"file_path":"/a/b.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 2 * time.Second, Input: `{"command":"go test"}`},
+	}
+	agentEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "SubAgent",
+		Input:    `{"description":"test agent"}`,
+		Children: children,
+	}
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{agentEntry},
+	}
+
+	m := NewAppModel("/test/dir", "dev")
+	m.callTree = m.callTree.SetTurns([]parser.Turn{turn})
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.callTree = m.callTree.SetFocused(true)
+	// Expand turn to show SubAgent entry
+	m.callTree.expanded[0] = true
+	// Expand SubAgent to show its children (depth-2 nodes)
+	m.callTree.subAgentExpanded["0-0"] = true
+	m.callTree.rebuildVisibleNodes()
+
+	// Find the depth-2 child node cursor position
+	childIdx := -1
+	for i, n := range m.callTree.visibleNodes {
+		if n.depth == 2 {
+			childIdx = i
+			break
+		}
+	}
+	assert.GreaterOrEqual(t, childIdx, 0, "should find a depth-2 child node")
+
+	m.callTree.cursor = childIdx
+	m.updateDetailFromCallTree()
+
+	assert.NotNil(t, m.detail.subAgentStats, "detail should show subagent stats for depth-2 child")
+	assert.True(t, m.detail.showSubAgentStats, "stats view should be default mode")
+}
+
+func TestApp_UpdateDetailFromCallTree_NonSubAgentShowsEntry(t *testing.T) {
+	// Non-SubAgent entries should work as before
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Bash",
+		Input:    `{"command":"go test"}`,
+		Output:   "ok",
+		Duration: time.Second,
+	}
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{entry},
+	}
+
+	m := NewAppModel("/test/dir", "dev")
+	m.callTree = m.callTree.SetTurns([]parser.Turn{turn})
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+
+	// Cursor on the tool entry (index 1, after turn header)
+	m.callTree.cursor = 1
+	m.updateDetailFromCallTree()
+
+	assert.Nil(t, m.detail.subAgentStats, "non-subagent entry should not show subagent stats")
+	assert.Equal(t, "Bash", m.detail.entry.ToolName)
+}
+
+func TestApp_UpdateDetailFromCallTree_TurnHeaderShowsTurnOverview(t *testing.T) {
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Bash",
+		Duration: time.Second,
+	}
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{entry},
+	}
+
+	m := NewAppModel("/test/dir", "dev")
+	m.callTree = m.callTree.SetTurns([]parser.Turn{turn})
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+
+	// Cursor on turn header (index 0)
+	m.callTree.cursor = 0
+	m.updateDetailFromCallTree()
+
+	assert.NotNil(t, m.detail.turn, "turn header should show turn overview")
+	assert.Nil(t, m.detail.subAgentStats)
+}
