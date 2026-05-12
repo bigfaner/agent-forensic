@@ -89,7 +89,7 @@ func (m AppModel) Init() tea.Cmd {
 	return m.loadSessions()
 }
 
-const maxRecentSessions = 10
+const maxRecentSessions = 20
 
 // loadSessions returns a tea.Cmd that discovers all session files, sorts by
 // modification time descending, parses the most recent batch, and delivers
