@@ -314,6 +314,8 @@ func (m DashboardModel) renderDashboard() string {
 		b.WriteString(fmt.Sprintf("%s   %s\n", countStr, pctStr))
 	}
 
+	b.WriteString(m.renderCustomToolsBlock(m.width - 4))
+
 	return b.String()
 }
 
