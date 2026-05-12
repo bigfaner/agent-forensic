@@ -8,3 +8,6 @@ docs/features/*/tasks/process/
 docs/forensics/
 tests/e2e/results/
 tmp/
+bin/
+agent-forensic
+agent-forensic.exe

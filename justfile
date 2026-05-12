@@ -130,4 +130,7 @@ e2e-verify feature="":
         fi
     fi
 
+release:
+    bash scripts/build.sh
+
 # --- end forge standard recipes ---
