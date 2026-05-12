@@ -1,0 +1,35 @@
+[
+  {
+    "phase": 1,
+    "name": "Parser & Stats Foundation",
+    "source": "design",
+    "gates": [
+      {
+        "afterPhase": 1,
+        "description": "Verify parser (SubAgent loading) and stats (file path, hook target, extended models) interfaces compile and unit tests pass"
+      }
+    ]
+  },
+  {
+    "phase": 2,
+    "name": "UI Component Build",
+    "source": "design",
+    "gates": [
+      {
+        "afterPhase": 2,
+        "description": "Verify all 6 UI component builds render correctly with mock data and unit tests pass"
+      }
+    ]
+  },
+  {
+    "phase": 3,
+    "name": "UI Component Integration",
+    "source": "design",
+    "gates": [
+      {
+        "afterPhase": 3,
+        "description": "Verify all components integrated into existing panels, cross-panel interactions work, full feature e2e ready"
+      }
+    ]
+  }
+]
