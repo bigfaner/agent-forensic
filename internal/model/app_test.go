@@ -804,3 +804,367 @@ func ternary(cond bool, a, b string) string {
 	}
 	return b
 }
+
+// --- SubAgent overlay integration tests ---
+
+func makeSubAgentSession() *parser.Session {
+	return &parser.Session{
+		FilePath:  "/test/subagent_session.jsonl",
+		Date:      time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:     1,
+				StartTime: time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC),
+				Duration:  30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{
+						Type:     parser.EntryToolUse,
+						LineNum:  1,
+						ToolName: "Read",
+						Duration: 5 * time.Second,
+					},
+					{
+						Type:     parser.EntryToolUse,
+						LineNum:  2,
+						ToolName: "SubAgent",
+						Duration: 20 * time.Second,
+						Children: []parser.TurnEntry{
+							{Type: parser.EntryToolUse, ToolName: "Read", Duration: 3 * time.Second},
+							{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestSubAgentOverlay_aKeyOpensWhenOnSubAgentNode(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	// Expand turn to show children
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+
+	// Move cursor to the SubAgent node (index 2: turn header, Read, SubAgent)
+	m.callTree.cursor = 2
+
+	// Press 'a' to open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+
+	assert.Equal(t, ViewSubAgent, m.activeView)
+	assert.True(t, m.subagentOverlay.IsActive())
+}
+
+func TestSubAgentOverlay_aKeyNoopWhenNotOnSubAgentNode(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	// Expand turn to show children
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+
+	// Cursor on the Read tool (not SubAgent)
+	m.callTree.cursor = 1
+
+	// Press 'a' — should be no-op
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+
+	assert.Equal(t, ViewMain, m.activeView)
+	assert.False(t, m.subagentOverlay.IsActive())
+}
+
+func TestSubAgentOverlay_aKeyNoopWhenNoSession(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	m.activePanel = PanelCallTree
+
+	// Press 'a' with no session loaded
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+
+	assert.Equal(t, ViewMain, m.activeView)
+	assert.False(t, m.subagentOverlay.IsActive())
+}
+
+func TestSubAgentOverlay_EscClosesAndReturnsToCallTree(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	// Expand turn and position on SubAgent
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+	assert.Equal(t, ViewSubAgent, m.activeView)
+
+	// Press Esc to close
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	m = updated.(AppModel)
+
+	assert.Equal(t, ViewMain, m.activeView)
+	assert.False(t, m.subagentOverlay.IsActive())
+	// Cursor should still be on the SubAgent node
+	assert.Equal(t, 2, m.callTree.cursor)
+}
+
+func TestSubAgentOverlay_WindowResizePropagates(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+	assert.Equal(t, ViewSubAgent, m.activeView)
+
+	// Resize while overlay active
+	updated, _ = m.Update(tea.WindowSizeMsg{Width: 140, Height: 50})
+	m = updated.(AppModel)
+
+	assert.Equal(t, 140, m.subagentOverlay.width)
+	assert.Equal(t, 50, m.subagentOverlay.height)
+}
+
+func TestSubAgentOverlay_DelegatesKeysWhenActive(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+
+	// Tab should cycle overlay sections (not panel focus)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(AppModel)
+	assert.Equal(t, 1, m.subagentOverlay.focusedSection)
+	assert.Equal(t, ViewSubAgent, m.activeView)
+}
+
+func TestSubAgentOverlay_ViewRendersOverlay(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+
+	view := m.View()
+	assert.NotEmpty(t, view)
+	// Overlay should contain tool stats section
+	assert.Contains(t, view, "Tool Statistics")
+}
+
+func TestSubAgentOverlay_OverlayDataFromSessionStats(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+
+	// Verify overlay has the correct data (computed from Children)
+	assert.NotNil(t, m.subagentOverlay.stats)
+	assert.Equal(t, 2, m.subagentOverlay.stats.ToolCount)
+}
+
+func TestSubAgentOverlay_qClosesOverlay(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+	assert.Equal(t, ViewSubAgent, m.activeView)
+
+	// Press 'q' to close
+	updated, _ = m.Update(keyMsg("q"))
+	m = updated.(AppModel)
+
+	assert.Equal(t, ViewMain, m.activeView)
+	assert.False(t, m.subagentOverlay.IsActive())
+}
+
+func TestSubAgentOverlay_DimsExistingContent(t *testing.T) {
+	m := NewAppModel("/test", "dev")
+	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
+	m = updated.(AppModel)
+
+	session := makeSubAgentSession()
+	m.currentSession = session
+	m.callTree = m.callTree.SetSession(session)
+	m.callTree = m.callTree.SetFocused(true)
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.activePanel = PanelCallTree
+
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 2
+
+	// Get main view before overlay
+	mainView := m.View()
+
+	// Open overlay
+	updated, _ = m.Update(keyMsg("a"))
+	m = updated.(AppModel)
+	overlayView := m.View()
+
+	// Overlay view should be different from main view
+	assert.NotEqual(t, mainView, overlayView)
+	// Overlay view should contain overlay content
+	assert.Contains(t, overlayView, "Tool Statistics")
+}
+
+// --- computeSubAgentStats tests ---
+
+func TestComputeSubAgentStats_BasicToolCounting(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Duration: 3 * time.Second},
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second},
+		{Type: parser.EntryToolUse, ToolName: "Read", Duration: 2 * time.Second},
+	}
+	stats := computeSubAgentStats(children)
+
+	assert.Equal(t, 3, stats.ToolCount)
+	assert.Equal(t, 2, stats.ToolCounts["Read"])
+	assert.Equal(t, 1, stats.ToolCounts["Bash"])
+	assert.Equal(t, 10*time.Second, stats.Duration)
+	assert.Equal(t, 5*time.Second, stats.ToolDurs["Bash"])
+	assert.Equal(t, 5*time.Second, stats.ToolDurs["Read"])
+}
+
+func TestComputeSubAgentStats_Empty(t *testing.T) {
+	stats := computeSubAgentStats(nil)
+	assert.Equal(t, 0, stats.ToolCount)
+	assert.Empty(t, stats.ToolCounts)
+
+	stats = computeSubAgentStats([]parser.TurnEntry{})
+	assert.Equal(t, 0, stats.ToolCount)
+}
+
+func TestComputeSubAgentStats_FileOps(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Duration: time.Second, Input: `{"file_path":"/a/b.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Duration: time.Second, Input: `{"file_path":"/a/b.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Duration: time.Second, Input: `{"file_path":"/c/d.go"}`},
+	}
+	stats := computeSubAgentStats(children)
+
+	assert.Equal(t, 3, stats.ToolCount)
+	assert.Equal(t, 2, stats.FileOps.Files["/a/b.go"].TotalCount)
+	assert.Equal(t, 1, stats.FileOps.Files["/a/b.go"].ReadCount)
+	assert.Equal(t, 1, stats.FileOps.Files["/a/b.go"].EditCount)
+	assert.Equal(t, 1, stats.FileOps.Files["/c/d.go"].TotalCount)
+	assert.Equal(t, 1, stats.FileOps.Files["/c/d.go"].EditCount)
+}
+
+func TestComputeSubAgentStats_SkipsNonToolEntries(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryMessage, Output: "hello"},
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: time.Second},
+	}
+	stats := computeSubAgentStats(children)
+	assert.Equal(t, 1, stats.ToolCount)
+}
+
+func TestComputeSubAgentStats_NoFileOpsForNonFileTools(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: time.Second, Input: `{"command":"ls"}`},
+	}
+	stats := computeSubAgentStats(children)
+	assert.Equal(t, 1, stats.ToolCount)
+	assert.Empty(t, stats.FileOps.Files)
+}

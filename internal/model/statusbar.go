@@ -17,6 +17,7 @@ const (
 	StatusBarModeDiagnosis
 	StatusBarModeDashboard
 	StatusBarModeError
+	StatusBarModeSubAgent
 )
 
 // StatusBarModel renders the bottom status line of the TUI.
@@ -106,6 +107,8 @@ func (m StatusBarModel) buildHints() string {
 		return m.buildDashboardHints()
 	case StatusBarModeError:
 		return m.buildErrorHints()
+	case StatusBarModeSubAgent:
+		return m.buildSubAgentHints()
 	default:
 		return m.buildNormalHints()
 	}
@@ -204,6 +207,15 @@ func (m StatusBarModel) buildErrorHints() string {
 	parts := []string{
 		hint("r", ":retry"),
 		hint("Esc", ":dismiss"),
+	}
+	return m.joinWithLanguage(parts)
+}
+
+func (m StatusBarModel) buildSubAgentHints() string {
+	parts := []string{
+		hint("Esc", ":close"),
+		hint("j/k", ":scroll"),
+		hint("Tab", ":sections"),
 	}
 	return m.joinWithLanguage(parts)
 }

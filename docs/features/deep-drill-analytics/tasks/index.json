@@ -234,7 +234,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.2-assembly-subagent-overlay.md",
       "record": "records/3.2-assembly-subagent-overlay.md",
       "scope": "all"

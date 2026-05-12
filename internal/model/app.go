@@ -1,8 +1,10 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -26,6 +28,7 @@ const (
 	ViewMain      ActiveView = iota // default 3-panel layout
 	ViewDashboard                   // dashboard overlay
 	ViewDiagnosis                   // diagnosis modal
+	ViewSubAgent                    // SubAgent full-screen overlay
 )
 
 // minTermWidth and minTermHeight define the minimum terminal size.
@@ -40,12 +43,13 @@ const (
 // and terminal resize handling.
 type AppModel struct {
 	// Sub-models
-	sessions  SessionsModel
-	callTree  CallTreeModel
-	detail    DetailModel
-	dashboard DashboardModel
-	diagnosis DiagnosisModal
-	statusBar StatusBarModel
+	sessions        SessionsModel
+	callTree        CallTreeModel
+	detail          DetailModel
+	dashboard       DashboardModel
+	diagnosis       DiagnosisModal
+	statusBar       StatusBarModel
+	subagentOverlay SubAgentOverlayModel
 
 	// Layout state
 	activePanel    ActivePanel
@@ -69,15 +73,16 @@ type AppModel struct {
 // NewAppModel creates a new root AppModel with all sub-models initialized.
 func NewAppModel(dataDir string, version string) AppModel {
 	m := AppModel{
-		sessions:    NewSessionsModel(),
-		callTree:    NewCallTreeModel(),
-		detail:      NewDetailModel(),
-		dashboard:   NewDashboardModel(),
-		diagnosis:   NewDiagnosisModal(),
-		statusBar:   NewStatusBarModel(version),
-		activePanel: PanelSessions,
-		activeView:  ViewMain,
-		dataDir:     dataDir,
+		sessions:        NewSessionsModel(),
+		callTree:        NewCallTreeModel(),
+		detail:          NewDetailModel(),
+		dashboard:       NewDashboardModel(),
+		diagnosis:       NewDiagnosisModal(),
+		statusBar:       NewStatusBarModel(version),
+		subagentOverlay: NewSubAgentOverlayModel(),
+		activePanel:     PanelSessions,
+		activeView:      ViewMain,
+		dataDir:         dataDir,
 	}
 	// Initialize focus state: sessions panel focused by default
 	m.setFocus(PanelSessions)
@@ -237,6 +242,11 @@ func (m AppModel) handleResize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.width = msg.Width
 	m.height = msg.Height
 	m.applyLayout()
+	// Propagate resize to SubAgent overlay if active
+	if m.subagentOverlay.IsActive() {
+		updated, _ := m.subagentOverlay.Update(msg)
+		m.subagentOverlay = updated.(SubAgentOverlayModel)
+	}
 	return m, nil
 }
 
@@ -263,6 +273,8 @@ func (m *AppModel) applyLayout() {
 	m.detail = m.detail.SetSize(rightWidth, detailHeight)
 	m.dashboard = m.dashboard.SetSize(m.width, contentHeight)
 	m.diagnosis = m.diagnosis.SetSize(m.width, contentHeight)
+	m.subagentOverlay.width = m.width
+	m.subagentOverlay.height = contentHeight
 	m.statusBar.SetSize(m.width, 1)
 }
 
@@ -296,6 +308,8 @@ func (m AppModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDashboardKeys(msg)
 	case ViewDiagnosis:
 		return m.handleDiagnosisKeys(msg)
+	case ViewSubAgent:
+		return m.handleSubAgentOverlayKeys(msg)
 	default:
 		return m.handleMainKeys(msg)
 	}
@@ -350,6 +364,16 @@ func (m AppModel) handleSessionsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleCallTreeKey delegates to call tree model.
 // Intercepts messages that need app-level handling (diagnosis, dashboard toggle).
 func (m AppModel) handleCallTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Intercept 'a' key for SubAgent overlay
+	if msg.String() == "a" {
+		entry := m.callTree.SelectedEntry()
+		if entry != nil && entry.ToolName == "SubAgent" {
+			return m.handleSubAgentOverlayOpen()
+		}
+		// 'a' on non-SubAgent node is a no-op
+		return m, nil
+	}
+
 	updated, cmd := m.callTree.Update(msg)
 	m.callTree = updated.(CallTreeModel)
 
@@ -435,6 +459,109 @@ func (m AppModel) handleDiagnosisKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// handleSubAgentOverlayOpen opens the SubAgent full-screen overlay.
+func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
+	entry := m.callTree.SelectedEntry()
+	if entry == nil || entry.ToolName != "SubAgent" {
+		return m, nil
+	}
+
+	// Compute SubAgentStats from entry Children
+	stats := computeSubAgentStats(entry.Children)
+	agentID := "SubAgent"
+	if len(entry.Children) > 0 {
+		agentID = fmt.Sprintf("SubAgent (%d tools)", len(entry.Children))
+	}
+
+	m.subagentOverlay = m.subagentOverlay.Show(agentID, stats)
+	m.subagentOverlay.width = m.width
+	m.subagentOverlay.height = m.height
+	m.activeView = ViewSubAgent
+	m.updateStatusBarMode()
+	return m, nil
+}
+
+// handleSubAgentOverlayKeys handles keys when the SubAgent overlay is active.
+func (m AppModel) handleSubAgentOverlayKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	keyStr := msg.String()
+
+	switch keyStr {
+	case "esc", "q":
+		m.subagentOverlay = m.subagentOverlay.Hide()
+		m.activeView = ViewMain
+		m.updateStatusBarMode()
+		return m, nil
+	}
+
+	// Delegate all other keys to the overlay
+	updated, cmd := m.subagentOverlay.Update(msg)
+	m.subagentOverlay = updated.(SubAgentOverlayModel)
+	return m, cmd
+}
+
+// computeSubAgentStats builds SubAgentStats from a slice of TurnEntry children.
+func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
+	stats := &parser.SubAgentStats{
+		ToolCounts: make(map[string]int),
+		ToolDurs:   map[string]time.Duration{},
+		FileOps:    &parser.FileOpStats{Files: make(map[string]*parser.FileOpCount)},
+	}
+
+	var totalDur time.Duration
+	for i := range children {
+		child := &children[i]
+		if child.Type != parser.EntryToolUse {
+			continue
+		}
+		stats.ToolCounts[child.ToolName]++
+		stats.ToolDurs[child.ToolName] += child.Duration
+		totalDur += child.Duration
+		stats.ToolCount++
+
+		// File operation tracking for Read/Write/Edit
+		switch child.ToolName {
+		case "Read":
+			fp := extractFilePathFromInput(child.Input)
+			if fp != "" {
+				fc := stats.FileOps.Files[fp]
+				if fc == nil {
+					fc = &parser.FileOpCount{}
+					stats.FileOps.Files[fp] = fc
+				}
+				fc.ReadCount++
+				fc.TotalCount++
+			}
+		case "Write", "Edit":
+			fp := extractFilePathFromInput(child.Input)
+			if fp != "" {
+				fc := stats.FileOps.Files[fp]
+				if fc == nil {
+					fc = &parser.FileOpCount{}
+					stats.FileOps.Files[fp] = fc
+				}
+				fc.EditCount++
+				fc.TotalCount++
+			}
+		}
+	}
+
+	stats.Duration = totalDur
+	return stats
+}
+
+// extractFilePathFromInput extracts file_path from a tool_use input JSON string.
+func extractFilePathFromInput(input string) string {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(input), &m); err != nil {
+		return ""
+	}
+	fp, ok := m["file_path"].(string)
+	if !ok {
+		return ""
+	}
+	return fp
 }
 
 // handleSessionSelect processes a session selection event.
@@ -668,6 +795,8 @@ func (m *AppModel) updateStatusBarMode() {
 		m.statusBar.SetMode(StatusBarModeDashboard)
 	case ViewDiagnosis:
 		m.statusBar.SetMode(StatusBarModeDiagnosis)
+	case ViewSubAgent:
+		m.statusBar.SetMode(StatusBarModeSubAgent)
 	default:
 		if m.sessions.search != SearchNone {
 			m.statusBar.SetMode(StatusBarModeSearch)
@@ -722,6 +851,8 @@ func (m AppModel) View() string {
 		return m.renderDashboardView()
 	case ViewDiagnosis:
 		return m.renderDiagnosisView()
+	case ViewSubAgent:
+		return m.renderSubAgentOverlayView()
 	default:
 		return m.renderMainView()
 	}
@@ -777,4 +908,19 @@ func (m AppModel) renderDiagnosisView() string {
 	}
 
 	return diagView
+}
+
+// renderSubAgentOverlayView renders the main view with SubAgent overlay on top.
+func (m AppModel) renderSubAgentOverlayView() string {
+	// Render main view as background (dimmed by overlay)
+	mainView := m.renderMainView()
+
+	overlayView := m.subagentOverlay.View()
+	if overlayView == "" {
+		return mainView
+	}
+
+	// Overlay renders above existing content
+	_ = mainView // main view is the background; overlay covers it
+	return overlayView
 }
