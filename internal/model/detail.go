@@ -237,14 +237,14 @@ func (m DetailModel) View() string {
 		BorderForeground(borderColor).
 		Border(lipgloss.RoundedBorder()).
 		Width(m.width - 2).
-		MaxHeight(m.height - 2)
+		Height(m.height - 2)
 
 	title := m.buildTitle()
 	content := m.renderContent()
 
 	rendered := lipgloss.NewStyle().
 		Width(m.width - 4).
-		MaxHeight(m.height - 4).
+		Height(m.height - 4).
 		Render(content)
 
 	titleStr := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
@@ -499,7 +499,7 @@ func (m DetailModel) renderWithScroll(content string) string {
 		contentWidth = 1
 	}
 
-	// Compute visual row count per logical line (ANSI-aware)
+	// Use a first pass at contentWidth to decide if scrollbar is needed.
 	rowCounts := make([]int, len(lines))
 	totalVisual := 0
 	for i, line := range lines {
@@ -508,13 +508,31 @@ func (m DetailModel) renderWithScroll(content string) string {
 		totalVisual += rc
 	}
 
-	if totalVisual <= visibleHeight {
-		// Content fits — render at content width, no scrollbar needed.
-		// Use MaxHeight to clip in case wrapping produces slightly more rows.
-		return lipgloss.NewStyle().Width(contentWidth).MaxHeight(visibleHeight).Render(content)
+	needsScrollbar := totalVisual > visibleHeight
+
+	// When scrollbar is present, render width is 1 char narrower.
+	renderWidth := contentWidth
+	if needsScrollbar {
+		renderWidth = contentWidth - 1
+		if renderWidth < 1 {
+			renderWidth = 1
+		}
+		// Recompute visual rows at the narrower width.
+		totalVisual = 0
+		for i, line := range lines {
+			rc := visualLineCount(line, renderWidth)
+			rowCounts[i] = rc
+			totalVisual += rc
+		}
+		needsScrollbar = totalVisual > visibleHeight
 	}
 
-	// Scroll is in visual rows; find the starting logical line
+	if !needsScrollbar {
+		clipped := m.clipToVisualRows(lines, rowCounts, renderWidth, 0, visibleHeight)
+		return lipgloss.NewStyle().Width(contentWidth).Render(clipped)
+	}
+
+	// Determine scroll offset in visual rows
 	startVisual := m.scroll
 	if startVisual > totalVisual-visibleHeight {
 		startVisual = totalVisual - visibleHeight
@@ -522,42 +540,116 @@ func (m DetailModel) renderWithScroll(content string) string {
 	if startVisual < 0 {
 		startVisual = 0
 	}
+
+	// Find the starting logical line from visual offset
 	cumVisual := 0
 	startLine := 0
+	startLineSkipRows := 0
 	for i, rc := range rowCounts {
 		if cumVisual+rc > startVisual {
 			startLine = i
+			startLineSkipRows = startVisual - cumVisual
 			break
 		}
 		cumVisual += rc
 		startLine = i + 1
 	}
 
-	// Collect logical lines to fill visibleHeight visual rows.
-	// Always include the starting line even if it overflows.
-	targetVisual := visibleHeight
-	var result []string
-	usedVisual := 0
-	for i := startLine; i < len(lines); i++ {
-		result = append(result, lines[i])
-		usedVisual += rowCounts[i]
-		if usedVisual >= targetVisual {
-			break
-		}
-	}
+	clipped := m.clipToVisualRows(lines[startLine:], rowCounts[startLine:], renderWidth, startLineSkipRows, visibleHeight)
 
-	clipped := strings.Join(result, "\n")
-
-	// Reserve 1 char for scrollbar
-	scrollWidth := contentWidth - 1
-	if scrollWidth < 1 {
-		scrollWidth = 1
-	}
-	// MaxHeight clips content to exactly visibleHeight rows so the panel
-	// is never stretched beyond its allocated space.
-	fixedContent := lipgloss.NewStyle().Width(scrollWidth).MaxHeight(visibleHeight).Render(clipped)
+	fixedContent := lipgloss.NewStyle().Width(renderWidth).Render(clipped)
 	scrollbar := renderDetailScrollbar(visibleHeight, totalVisual, startVisual)
 	return lipgloss.JoinHorizontal(lipgloss.Top, fixedContent, scrollbar)
+}
+
+// clipToVisualRows collects exactly maxRows visual rows from lines, wrapping
+// each at renderWidth. skipRows visual rows are skipped in the first line.
+func (m DetailModel) clipToVisualRows(lines []string, rowCounts []int, renderWidth, skipRows, maxRows int) string {
+	var visualRows []string
+	collected := 0
+	for i := 0; i < len(lines) && collected < maxRows; i++ {
+		wrapped := wrapLineToWidth(lines[i], renderWidth)
+		skip := 0
+		if i == 0 {
+			skip = skipRows
+		}
+		for j := skip; j < len(wrapped) && collected < maxRows; j++ {
+			visualRows = append(visualRows, wrapped[j])
+			collected++
+		}
+	}
+	return strings.Join(visualRows, "\n")
+}
+
+// wrapLineToWidth wraps a single line into multiple visual rows at the given width.
+// ANSI escape sequences are preserved but not counted toward width.
+func wrapLineToWidth(line string, width int) []string {
+	if width <= 0 || line == "" {
+		return []string{line}
+	}
+	plain := ansiEscape.ReplaceAllString(line, "")
+	if runewidth.StringWidth(plain) <= width {
+		return []string{line}
+	}
+
+	// Split line into segments of (ansi_prefix, visible_char) pairs
+	type segment struct {
+		ansi    string // preceding ANSI codes
+		char    rune
+		charW   int
+		isANSI  bool
+		ansiStr string // standalone ANSI sequence
+	}
+	var segs []segment
+	var pendingANSI strings.Builder
+	inEscape := false
+	for _, r := range line {
+		if r == '\x1b' {
+			inEscape = true
+			pendingANSI.WriteRune(r)
+			continue
+		}
+		if inEscape {
+			pendingANSI.WriteRune(r)
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEscape = false
+				segs = append(segs, segment{isANSI: true, ansiStr: pendingANSI.String()})
+				pendingANSI.Reset()
+			}
+			continue
+		}
+		w := runewidth.RuneWidth(r)
+		segs = append(segs, segment{char: r, charW: w})
+	}
+
+	var rows []string
+	var buf strings.Builder
+	used := 0
+	curANSI := "" // accumulated ANSI state
+	for _, s := range segs {
+		if s.isANSI {
+			curANSI += s.ansiStr
+			buf.WriteString(s.ansiStr)
+			continue
+		}
+		if used+s.charW > width {
+			rows = append(rows, buf.String())
+			buf.Reset()
+			if curANSI != "" {
+				buf.WriteString(curANSI)
+			}
+			used = 0
+		}
+		buf.WriteRune(s.char)
+		used += s.charW
+	}
+	if buf.Len() > 0 {
+		rows = append(rows, buf.String())
+	}
+	if len(rows) == 0 {
+		rows = []string{""}
+	}
+	return rows
 }
 
 // renderDetailScrollbar renders a vertical scrollbar indicator for the detail panel.

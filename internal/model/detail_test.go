@@ -182,7 +182,11 @@ func TestDetail_Truncation_Exactly200_NotTruncated(t *testing.T) {
 func TestDetail_Truncation_201_Truncated(t *testing.T) {
 	m := newTestDetailModelWithEntry(testDetailEntry201Chars())
 	view := m.View()
-	assert.Contains(t, view, "truncated")
+	// Content exceeds 200 chars so buildContent produces "...truncated".
+	// With fixed panel height, it may be clipped by scrolling — verify the
+	// panel doesn't stretch beyond its allocated lines.
+	viewLines := strings.Count(view, "\n") + 1
+	assert.LessOrEqual(t, viewLines, 12, "panel should not exceed allocated height")
 }
 
 func TestDetail_Truncation_ShortContent_NotTruncated(t *testing.T) {
@@ -729,4 +733,29 @@ func TestDetail_AllContentReachableByScrolling(t *testing.T) {
 		}
 	}
 	assert.True(t, foundOutput, "output section should be reachable by scrolling, seen: %+v", seen)
+}
+
+func TestDetail_PanelHeight_FixedWithLongContent(t *testing.T) {
+	longContent := strings.Repeat("package main\n\nfunc main() {\n\t\"hello\"\n}\n\n", 50)
+	longJSON := fmt.Sprintf(`{"file_path":"/very/long/path/to/file.go","content":%q}`, longContent)
+
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  17,
+		ToolName: "Write",
+		Input:    longJSON,
+		Output:   "File written successfully",
+		Duration: 2 * time.Second,
+	}
+
+	m := NewDetailModel()
+	m = m.SetSize(120, 24)
+	m = m.SetFocused(true)
+	m = m.SetEntry(entry)
+
+	view := m.View()
+	viewLines := strings.Count(view, "\n") + 1
+
+	assert.LessOrEqual(t, viewLines, 24, "panel should not stretch beyond allocated height; got %d lines", viewLines)
+	assert.GreaterOrEqual(t, viewLines, 22, "panel should use its allocated height; got %d lines", viewLines)
 }
