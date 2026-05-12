@@ -115,7 +115,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.1-build-subagent-expand.md",
       "record": "records/2.1-build-subagent-expand.md",
       "scope": "all"

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -656,4 +657,313 @@ func TestCallTree_NodeSelectionMsg(t *testing.T) {
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	assert.Nil(t, cmd) // Tab does not emit command; parent handles focus
 	_ = updated
+}
+
+// --- SubAgent inline expand tests ---
+
+// subAgentTurns returns test turns with a SubAgent entry.
+func subAgentTurns() []parser.Turn {
+	return []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "Read",
+					Input:    `{"file_path":"/project/src/main.go"}`,
+					Duration: 300 * time.Millisecond,
+				},
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  2,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: []parser.TurnEntry{
+						{Type: parser.EntryToolUse, LineNum: 10, ToolName: "Read", Duration: 200 * time.Millisecond},
+						{Type: parser.EntryToolUse, LineNum: 11, ToolName: "Edit", Duration: 1500 * time.Millisecond},
+						{Type: parser.EntryToolUse, LineNum: 12, ToolName: "Bash", Input: `{"command":"go test ./..."}`, Duration: 2800 * time.Millisecond},
+					},
+				},
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  3,
+					ToolName: "Write",
+					Input:    `{"file_path":"/project/config.yaml"}`,
+					Duration: 200 * time.Millisecond,
+				},
+			},
+		},
+	}
+}
+
+func TestCallTree_SubAgentCollapsed(t *testing.T) {
+	// Collapsed state: SubAgent ×N (duration) 📦
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	view := m.View()
+	assert.Contains(t, view, "SubAgent ×3")
+	assert.Contains(t, view, "📦")
+	// Children should NOT be visible when collapsed — the SubAgent child "Edit" should not appear
+	assert.NotContains(t, view, "│  ├─ Edit")
+	// Also the child "Bash" connector should not be at depth 2
+	assert.NotContains(t, view, "│  └─ Bash")
+}
+
+func TestCallTree_SubAgentExpanded(t *testing.T) {
+	// Expanded state: children visible at depth 2
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+	view := m.View()
+	// Should contain the SubAgent parent
+	assert.Contains(t, view, "SubAgent ×3")
+	// Should contain children with depth-2 connectors
+	assert.Contains(t, view, "│  ├─ Read")
+	assert.Contains(t, view, "│  ├─ Edit")
+	assert.Contains(t, view, "│  └─ Bash")
+}
+
+func TestCallTree_SubAgentExpandedNavigable(t *testing.T) {
+	// Children should be navigable via cursor
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+	// Turn(0) + Read(1) + SubAgent(2) + Read-child(3) + Edit-child(4) + Bash-child(5) + Write(6) = 7
+	assert.Equal(t, 7, len(m.visibleNodes))
+	// Verify depth-2 nodes
+	assert.Equal(t, 2, m.visibleNodes[3].depth)
+	assert.Equal(t, 0, m.visibleNodes[3].subIdx)
+	assert.Equal(t, 2, m.visibleNodes[4].depth)
+	assert.Equal(t, 1, m.visibleNodes[4].subIdx)
+	assert.Equal(t, 2, m.visibleNodes[5].depth)
+	assert.Equal(t, 2, m.visibleNodes[5].subIdx)
+}
+
+func TestCallTree_SubAgentErrorState(t *testing.T) {
+	// Error state: ⚠ suffix, children hidden
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentError(0, 1, parser.NewFileReadError("subagents/abc.jsonl", fmt.Errorf("not found")))
+	m = m.SetSubAgentExpanded(0, 1, true) // try to expand
+	view := m.View()
+	assert.Contains(t, view, "⚠")
+	assert.Contains(t, view, "file not found")
+	// Children should NOT be visible — check for SubAgent child "Edit" which doesn't appear at depth 1
+	assert.NotContains(t, view, "│  ├─ Edit")
+}
+
+func TestCallTree_SubAgentErrorState_Corrupt(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentError(0, 1, parser.NewCorruptSessionError("subagents/abc.jsonl", 100, nil))
+	view := m.View()
+	assert.Contains(t, view, "⚠")
+	assert.Contains(t, view, "corrupt data")
+}
+
+func TestCallTree_SubAgentErrorState_Empty(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentError(0, 1, parser.NewFileEmptyError("subagents/abc.jsonl"))
+	view := m.View()
+	assert.Contains(t, view, "⚠")
+	assert.Contains(t, view, "empty session")
+}
+
+func TestCallTree_SubAgentErrorState_NotFound(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentError(0, 1, parser.NewSubAgentNotFoundError("abc123", "/sessions"))
+	view := m.View()
+	assert.Contains(t, view, "⚠")
+	assert.Contains(t, view, "no subagent data")
+}
+
+func TestCallTree_SubAgentASCIIMode(t *testing.T) {
+	// ASCII fallback: [A] instead of 📦, ! instead of ⚠
+	m := newTestCallTreeModel(subAgentTurns())
+	m = m.SetASCIIMode(true)
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	m = m.SetSubAgentError(0, 1, parser.NewFileReadError("subagents/abc.jsonl", fmt.Errorf("not found")))
+	view := m.View()
+	assert.Contains(t, view, "[A]")
+	assert.Contains(t, view, "!")
+	assert.NotContains(t, view, "📦")
+	assert.NotContains(t, view, "⚠")
+}
+
+func TestCallTree_SubAgentOverflow(t *testing.T) {
+	// >50 children: show "... +N more" overflow
+	children := make([]parser.TurnEntry, 55)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: time.Duration(i+1) * 100 * time.Millisecond,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	// Use a larger viewport to see all 50 children + overflow
+	m = m.SetSize(80, 60)
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	assert.Contains(t, view, "+5 more")
+	// Visible nodes: Turn(1) + SubAgent(1) + 50 children = 52
+	// Overflow is rendered inline in View(), not as a visibleNode
+	assert.Equal(t, 52, len(m.visibleNodes))
+}
+
+func TestCallTree_SubAgentChildrenOrder(t *testing.T) {
+	// Children sorted by JSONL appearance order
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+	// Children: Read, Edit, Bash — in order
+	assert.Equal(t, "Read", m.visibleNodes[3].entry.ToolName)
+	assert.Equal(t, "Edit", m.visibleNodes[4].entry.ToolName)
+	assert.Equal(t, "Bash", m.visibleNodes[5].entry.ToolName)
+}
+
+func TestCallTree_SubAgentTreeConnectors(t *testing.T) {
+	// Verify proper tree connectors at depth 2
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+	view := m.View()
+	// First two children use ├─, last child uses └─
+	assert.Contains(t, view, "│  ├─ Read")
+	assert.Contains(t, view, "│  ├─ Edit")
+	assert.Contains(t, view, "│  └─ Bash")
+}
+
+func TestCallTree_SubAgentNoChildren(t *testing.T) {
+	// SubAgent with empty children should just show count ×0
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  5 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: []parser.TurnEntry{},
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	view := m.View()
+	assert.Contains(t, view, "SubAgent ×0")
+}
+
+func TestCallTree_errorLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected string
+	}{
+		{"file read", parser.NewFileReadError("f.jsonl", fmt.Errorf("io")), "file not found"},
+		{"file empty", parser.NewFileEmptyError("f.jsonl"), "empty session"},
+		{"corrupt", parser.NewCorruptSessionError("f.jsonl", 100, nil), "corrupt data"},
+		{"not found", parser.NewSubAgentNotFoundError("abc", "/dir"), "no subagent data"},
+		{"generic", fmt.Errorf("something"), "load failed"},
+		{"nil", nil, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, errorLabel(tt.err))
+		})
+	}
+}
+
+func TestCallTree_SubAgentCollapsedThenExpandedThenCollapsed(t *testing.T) {
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+
+	// Initially collapsed: Turn + 3 tools = 4 nodes
+	assert.Equal(t, 4, len(m.visibleNodes))
+
+	// Expand SubAgent
+	m = m.SetSubAgentExpanded(0, 1, true)
+	assert.Equal(t, 7, len(m.visibleNodes))
+	assert.True(t, m.IsSubAgentExpanded(0, 1))
+
+	// Collapse SubAgent
+	m = m.SetSubAgentExpanded(0, 1, false)
+	assert.Equal(t, 4, len(m.visibleNodes))
+	assert.False(t, m.IsSubAgentExpanded(0, 1))
+}
+
+func TestCallTree_SubAgentSiblingAfterExpanded(t *testing.T) {
+	// When SubAgent is expanded, the sibling Write entry should still render correctly
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 1, true)
+	view := m.View()
+	// Write should appear after SubAgent children
+	assert.Contains(t, view, "Write")
+	// Write should use └─ as the last tool entry (since SubAgent's last child also uses └─)
+}
+
+func TestCallTree_SubAgentLastToolConnector(t *testing.T) {
+	// SubAgent is NOT the last tool — connector should be ├─
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m.rebuildVisibleNodes()
+	view := m.View()
+	// SubAgent is middle child (Read, SubAgent, Write), so it should have ├─
+	assert.Contains(t, view, "├─ SubAgent")
+}
+
+func TestCallTree_SubAgentExpandAfterError(t *testing.T) {
+	// Error set, then cleared, then expand should work
+	m := newTestCallTreeModel(subAgentTurns())
+	m.expanded[0] = true
+	m = m.SetSubAgentError(0, 1, parser.NewFileReadError("f.jsonl", fmt.Errorf("io")))
+	m = m.SetSubAgentExpanded(0, 1, true)
+	// Error should prevent children — check for SubAgent child Edit
+	view := m.View()
+	assert.NotContains(t, view, "│  ├─ Edit")
+
+	// Clear error by removing it
+	delete(m.subAgentErrors, "0-1")
+	m.rebuildVisibleNodes()
+	view = m.View()
+	// Now children should appear — SubAgent child Edit is unique at depth 2
+	assert.Contains(t, view, "│  ├─ Edit")
 }
