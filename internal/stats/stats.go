@@ -192,6 +192,15 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 		stats.PeakStep = *peakStep
 	}
 
+	// Extract file operations from all turn entries
+	var allEntries []parser.TurnEntry
+	for _, turn := range session.Turns {
+		allEntries = append(allEntries, turn.Entries...)
+	}
+	if len(allEntries) > 0 {
+		stats.FileOps = ExtractFilePaths(allEntries)
+	}
+
 	return stats
 }
 

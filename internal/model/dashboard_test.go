@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -50,6 +51,200 @@ func TestDashboard_CustomToolsBlock_Rendered_WhenHasData(t *testing.T) {
 }
 
 // --- End bug regression test ---
+
+// --- FileOps panel integration tests ---
+
+func TestDashboard_FileOpsPanel_Rendered_WhenHasData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.Contains(t, view, "File Operations", "Dashboard should contain File Operations panel when session has file ops")
+}
+
+func TestDashboard_FileOpsPanel_Hidden_WhenNoData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 1,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second, Input: `{"command":"ls"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.NotContains(t, view, "File Operations", "Dashboard should NOT contain File Operations panel when session has no file ops")
+}
+
+func TestDashboard_FileOpsPanel_PositionAfterCustomTools(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 5,
+		Duration:  2 * time.Minute,
+		Title:     "Test session",
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 60 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "mcp__test-server__testTool", Duration: 10 * time.Second},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	// File Operations panel should appear after Custom Tools (自定义工具)
+	// Verify both are present
+	assert.Contains(t, view, "自定义工具", "Custom tools block should be present")
+	assert.Contains(t, view, "File Operations", "File Operations panel should be present")
+
+	// Verify ordering: Custom Tools appears before File Operations
+	ctIdx := strings.Index(view, "自定义工具")
+	foIdx := strings.Index(view, "File Operations")
+	assert.Greater(t, foIdx, ctIdx, "File Operations should appear after Custom Tools block")
+}
+
+func TestDashboard_TabCyclesToFileOps(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Press Tab to cycle to next section
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	dm := updated.(DashboardModel)
+	assert.Equal(t, SectionFileOps, dm.focusSection, "Tab should skip CustomTools (no data) and land on FileOps")
+
+	// Tab again cycles back to Tools
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyTab})
+	dm = updated.(DashboardModel)
+	assert.Equal(t, SectionTools, dm.focusSection, "Second Tab should cycle back to Tools")
+}
+
+func TestDashboard_TabFocus_FileOpsHeaderCyan(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Cycle to FileOps section
+	m.focusSection = SectionFileOps
+	view := m.View()
+	assert.Contains(t, view, "File Operations")
+}
+
+func TestDashboard_JKScroll_InDashboard(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+	assert.Equal(t, 0, m.scrollPos)
+
+	// Press j (down)
+	updated, _ := m.Update(createRuneKeyMsg('j'))
+	dm := updated.(DashboardModel)
+	assert.Equal(t, 1, dm.scrollPos, "j should increment scroll position")
+
+	// Press k (up)
+	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	dm = updated.(DashboardModel)
+	assert.Equal(t, 0, dm.scrollPos, "k should decrement scroll position")
+
+	// Press k at top - should not go negative
+	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	dm = updated.(DashboardModel)
+	assert.Equal(t, 0, dm.scrollPos, "k at top should not go below 0")
+}
 
 // --- Test data helpers ---
 

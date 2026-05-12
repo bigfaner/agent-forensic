@@ -260,7 +260,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.4-integrate-fileops-dashboard.md",
       "record": "records/3.4-integrate-fileops-dashboard.md",
       "scope": "all"

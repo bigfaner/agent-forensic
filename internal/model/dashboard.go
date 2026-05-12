@@ -13,6 +13,15 @@ import (
 	"github.com/user/agent-forensic/internal/stats"
 )
 
+// DashboardSection identifies focusable sections within the dashboard.
+type DashboardSection int
+
+const (
+	SectionTools DashboardSection = iota
+	SectionCustomTools
+	SectionFileOps
+)
+
 // DashboardModel is a Bubble Tea model for the statistics dashboard overlay.
 // Toggled by pressing 's'. Displays tool call counts as bar charts,
 // time distribution as percentage bars, and peak step info.
@@ -28,6 +37,7 @@ type DashboardModel struct {
 	width        int
 	height       int
 	focused      bool
+	focusSection DashboardSection
 	errMsg       string
 }
 
@@ -132,8 +142,42 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 		m.pickerActive = true
 		m.pickerCursor = 0
 		return m, nil
+	case "tab":
+		m.focusSection = m.nextSection()
+		return m, nil
+	case "down", "j":
+		m.scrollPos++
+		return m, nil
+	case "up", "k":
+		if m.scrollPos > 0 {
+			m.scrollPos--
+		}
+		return m, nil
 	}
 	return m, nil
+}
+
+// nextSection cycles to the next available focusable section.
+func (m DashboardModel) nextSection() DashboardSection {
+	hasCustomTools := m.stats != nil && (len(m.stats.SkillCounts) > 0 || len(m.stats.MCPServers) > 0 || len(m.stats.HookCounts) > 0)
+	hasFileOps := m.stats != nil && m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0
+
+	for i := 1; i <= 3; i++ {
+		candidate := (m.focusSection + DashboardSection(i)) % 3
+		switch candidate {
+		case SectionTools:
+			return candidate
+		case SectionCustomTools:
+			if hasCustomTools {
+				return candidate
+			}
+		case SectionFileOps:
+			if hasFileOps {
+				return candidate
+			}
+		}
+	}
+	return m.focusSection
 }
 
 func (m DashboardModel) handlePickerKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
@@ -360,6 +404,21 @@ func (m DashboardModel) renderDashboard() string {
 	if customToolsBlock != "" {
 		b.WriteString("\n\n")
 		b.WriteString(customToolsBlock)
+	}
+
+	// File Operations panel
+	if m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0 {
+		panel := NewFileOpsPanel()
+		fileOpsBlock := panel.Render(m.stats.FileOps, contentWidth)
+		if fileOpsBlock != "" {
+			b.WriteString("\n\n")
+			// Highlight header when this section is focused
+			if m.focused && m.focusSection == SectionFileOps {
+				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
+				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations (top 20)", cyan.Render("File Operations (top 20)"), 1)
+			}
+			b.WriteString(fileOpsBlock)
+		}
 	}
 
 	return b.String()
