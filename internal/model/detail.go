@@ -181,12 +181,10 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 	case "esc":
 		return m, nil
 	case "down":
-		if m.expanded {
-			m.scroll++
-			m.clampScroll()
-		}
+		m.scroll++
+		m.clampScroll()
 	case "up":
-		if m.expanded && m.scroll > 0 {
+		if m.scroll > 0 {
 			m.scroll--
 		}
 	}
@@ -541,11 +539,8 @@ func (m DetailModel) renderWithScroll(content string) string {
 	return strings.Join(result, "\n")
 }
 
-// contentNeedsScroll returns true if expanded content exceeds the visible area.
+// contentNeedsScroll returns true if content exceeds the visible area.
 func (m DetailModel) contentNeedsScroll() bool {
-	if !m.expanded {
-		return false
-	}
 	content := m.buildContent(true)
 	lines := strings.Split(content, "\n")
 	contentWidth := m.width - 4
