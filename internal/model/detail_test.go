@@ -557,6 +557,71 @@ func TestDetail_ScrollHint_NotShownWhenContentFits(t *testing.T) {
 	assert.NotContains(t, view, "↑ ↓")
 }
 
+func TestDetail_TruncatedInput_ShowsCompleteJSONLines(t *testing.T) {
+	// Bug: pretty-printed JSON gets sliced at byte 200, cutting mid-line.
+	// The truncated view should show complete lines of the pretty-printed JSON.
+	// Use a large JSON with a very long first value so that after pretty-printing,
+	// the first 200 chars land in the middle of that value.
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  100,
+		ToolName: "Agent",
+		Input:    `{"description":"Fix the truncation bug in detail panel","prompt":"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Second paragraph with more content. Third paragraph.","model":"sonnet","run_in_background":true}`,
+		Output:   "ok",
+		Duration: 2 * time.Second,
+	}
+	m := newTestDetailModelWithEntry(entry)
+	content := m.buildContent(false)
+
+	// The truncated content must NOT cut mid-line.
+	// Every line in the truncated section should be a complete JSON line.
+	// The content should NOT end with a partial string after the last complete line.
+	lines := strings.Split(content, "\n")
+	// Find the truncation zone (between tool_use.input label and tool_result label)
+	inInput := false
+	for _, line := range lines {
+		plain := ansiEscape.ReplaceAllString(line, "")
+		plain = strings.TrimSpace(plain)
+		if strings.Contains(plain, "tool_use.input") {
+			inInput = true
+			continue
+		}
+		if strings.Contains(plain, "tool_result") {
+			break
+		}
+		if inInput && plain != "" && !strings.Contains(plain, "truncated") {
+			// Each visible JSON line should be complete:
+			// - Opening brace: {
+			// - Key-value ending with comma: "key": value,
+			// - Last key-value (no comma): "key": value
+			// - Closing brace: }
+			isComplete := plain == "{" || plain == "}" ||
+				strings.HasSuffix(plain, ",") ||
+				(strings.HasPrefix(plain, "\"") && strings.Contains(plain, ":"))
+			assert.True(t, isComplete,
+				"Truncated JSON line should be complete, got: %q", plain)
+		}
+	}
+}
+
+func TestDetail_TruncatedInput_ShowsMoreThanJustBrace(t *testing.T) {
+	// Even with large JSON input, truncated view should show meaningful content
+	longInput := `{"file_path":"/Users/someone/projects/very/deeply/nested/directory/structure/src/components/features/dashboard/CustomToolsBlock.tsx","offset":100,"limit":50}`
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  200,
+		ToolName: "Read",
+		Input:    longInput,
+		Output:   "content",
+		Duration: 1 * time.Second,
+	}
+	m := newTestDetailModelWithEntry(entry)
+	view := m.View()
+
+	// Must contain "file_path" key, not just opening brace
+	assert.Contains(t, view, "file_path")
+}
+
 func TestDetail_CompactBlankLines(t *testing.T) {
 	tests := []struct {
 		name     string
