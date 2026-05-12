@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -738,5 +739,60 @@ func TestParseSession_ToolEntryDuration(t *testing.T) {
 	}
 	if entries[3].Duration != 2*time.Second {
 		t.Errorf("Entry[3].Duration (tool_result) = %v, want 2s", entries[3].Duration)
+	}
+}
+
+func TestDebugAgentInput_Verify(t *testing.T) {
+	s, err := ParseSession("../../docs/forensics/task-loop-stop/evidence/9ecc0bbe-63fe-4d98-851e-67d571a59d07.jsonl", 0)
+	if err != nil {
+		t.Skip("evidence file not found:", err)
+	}
+	for _, turn := range s.Turns {
+		for _, entry := range turn.Entries {
+			if entry.Type == EntryToolUse && entry.ToolName == "Agent" {
+				t.Logf("Line %d: input_len=%d input=%s", entry.LineNum, len(entry.Input), entry.Input[:min(200, len(entry.Input))])
+				if !containsAll(entry.Input, `"description"`, `"prompt"`, `"subagent_type"`) {
+					t.Errorf("Line %d: Agent input missing fields, got: %s", entry.LineNum, entry.Input)
+				}
+			}
+		}
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func containsAll(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if !strings.Contains(s, sub) {
+			return false
+		}
+	}
+	return true
+}
+
+func TestDebugAgentInput_FullFlow(t *testing.T) {
+	s, err := ParseSession("../../docs/forensics/task-loop-stop/evidence/9ecc0bbe-63fe-4d98-851e-67d571a59d07.jsonl", 0)
+	if err != nil {
+		t.Skip("evidence file not found:", err)
+	}
+	for _, turn := range s.Turns {
+		for _, entry := range turn.Entries {
+			if entry.Type == EntryToolUse && entry.ToolName == "Agent" {
+				// Check that Input is valid JSON with all 3 keys
+				var parsed map[string]interface{}
+				if err := json.Unmarshal([]byte(entry.Input), &parsed); err != nil {
+					t.Fatalf("Line %d: Input is not valid JSON: %v\nInput: %s", entry.LineNum, err, entry.Input)
+				}
+				if len(parsed) < 2 {
+					t.Errorf("Line %d: Input only has %d keys, expected 3: %v", entry.LineNum, len(parsed), parsed)
+				}
+				return // just check first Agent entry
+			}
+		}
 	}
 }

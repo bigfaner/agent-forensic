@@ -298,7 +298,10 @@ func (m DetailModel) renderContent() string {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(errText)
 	case DetailTruncated, DetailExpanded, DetailMasked:
 		content := m.buildContent(m.expanded)
-		return m.renderWithScroll(content)
+		if m.scroll > 0 {
+			return m.renderWithScroll(content)
+		}
+		return content
 	}
 	return ""
 }
@@ -319,7 +322,7 @@ func (m DetailModel) buildContent(expanded bool) string {
 	inputLabel := labelStyle.Render("tool_use.input:")
 	b.WriteString(inputLabel)
 	b.WriteString("\n")
-		b.WriteString(contentStyle.Render(indentContent(input, 2)))
+	b.WriteString(contentStyle.Render(indentContent(input, 2)))
 	b.WriteString("\n")
 
 	// Output section

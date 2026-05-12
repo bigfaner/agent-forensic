@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -597,4 +598,55 @@ func TestDetail_CompactBlankLines(t *testing.T) {
 			assert.Equal(t, tt.expected, compactBlankLines(tt.input))
 		})
 	}
+}
+
+func TestDetail_AgentInput_FullContent(t *testing.T) {
+	// Simulate real Agent tool input with all fields
+	input := `{"description":"Execute task 1.1: extend SessionStats data model","subagent_type":"forge:task-executor","prompt":"TASK_KEY: 1.1-extend-session-stats\nTASK_ID: 1.1\nFull prompt content here that should be visible in the detail panel."}`
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  17,
+		ToolName: "Agent",
+		Input:    input,
+		Output:   "ok",
+		Duration: 157 * time.Second,
+	}
+	m := newTestDetailModelWithEntry(entry)
+	content := m.buildContent(false)
+
+	// All three keys must be in the rendered content
+	assert.Contains(t, content, `"description"`)
+	assert.Contains(t, content, `"subagent_type"`)
+	assert.Contains(t, content, `"prompt"`)
+	assert.Contains(t, content, "TASK_KEY")
+
+	// No truncation marker
+	assert.NotContains(t, content, "truncated")
+}
+
+func TestDetail_AgentInput_LongPromptVisibleInSmallPanel(t *testing.T) {
+	// Bug: real Agent tool has a long prompt that wraps to many visual rows.
+	// In a small detail panel, renderWithScroll clips to visibleHeight lines,
+	// hiding subagent_type and the closing brace.
+	longPrompt := strings.Repeat("Lorem ipsum dolor sit amet. ", 20) // ~650 chars
+	input := fmt.Sprintf(`{"description":"Execute task 1.1: extend SessionStats data model","subagent_type":"forge:task-executor","prompt":"%s"}`, longPrompt)
+	entry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		LineNum:  17,
+		ToolName: "Agent",
+		Input:    input,
+		Output:   "ok",
+		Duration: 157 * time.Second,
+	}
+	// Small panel: 80 chars wide, 8 lines tall → visibleHeight = 4
+	m := NewDetailModel()
+	m = m.SetSize(80, 8)
+	m = m.SetFocused(true)
+	m = m.SetEntry(entry)
+
+	view := m.View()
+	t.Logf("View output:\n%s", view)
+
+	// The initial view must show the subagent_type field
+	assert.Contains(t, view, `"subagent_type"`, "Agent input JSON should show subagent_type field in initial view")
 }
