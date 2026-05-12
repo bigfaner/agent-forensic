@@ -321,6 +321,8 @@ func (m AppModel) handleMainKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "3":
 		m.setFocus(PanelDetail)
 		return m, nil
+	case "d":
+		return m.handleGlobalDiagnosis()
 	case "s":
 		return m.handleDashboardToggle()
 	}
@@ -451,6 +453,15 @@ func (m AppModel) handleSessionSelect(msg SessionSelectMsg) (tea.Model, tea.Cmd)
 	}
 
 	return m, nil
+}
+
+// handleGlobalDiagnosis triggers diagnosis for the currently selected call tree entry.
+func (m AppModel) handleGlobalDiagnosis() (tea.Model, tea.Cmd) {
+	entry := m.callTree.SelectedEntry()
+	if entry == nil {
+		return m, nil
+	}
+	return m.handleDiagnosisRequest(DiagnosisRequestMsg{Entry: entry})
 }
 
 // handleDiagnosisRequest opens the diagnosis modal.

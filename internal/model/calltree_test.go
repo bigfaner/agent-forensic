@@ -339,17 +339,6 @@ func TestCallTree_NewNodeFlash(t *testing.T) {
 	assert.True(t, m.hasFlashForLine(8))
 }
 
-// --- Diagnosis key ---
-
-func TestCallTree_DiagnosisKey(t *testing.T) {
-	m := newTestCallTreeModel(testTurns())
-	// Press d on a turn with anomaly
-	m.cursor = 0 // First turn has anomaly in second entry
-	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
-	assert.NotNil(t, cmd) // should emit a DiagnosisMsg
-	_ = updated
-}
-
 // --- SelectedEntry tests ---
 
 func TestCallTree_SelectedEntry_TurnNode(t *testing.T) {

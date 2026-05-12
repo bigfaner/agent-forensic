@@ -66,9 +66,14 @@ func formatDurationCT(d time.Duration) string {
 	if d < time.Minute {
 		return fmt.Sprintf("%ds", int(d.Seconds()))
 	}
-	mins := int(d.Minutes())
-	secs := int(d.Seconds()) - mins*60
-	return fmt.Sprintf("%dm%02ds", mins, secs)
+	totalSecs := int(d.Seconds())
+	hours := totalSecs / 3600
+	mins := (totalSecs % 3600) / 60
+	secs := totalSecs % 60
+	if hours > 0 {
+		return fmt.Sprintf("%dh%dm%ds", hours, mins, secs)
+	}
+	return fmt.Sprintf("%dm%ds", mins, secs)
 }
 
 // NewCallTreeModel creates a new call tree panel model in loading state.
@@ -109,7 +114,7 @@ func (m CallTreeModel) SetSession(session *parser.Session) CallTreeModel {
 	}
 
 	m.sessionSummary = fmt.Sprintf("%s  %d tools  %s  %s",
-		session.Date.Format("01-02 15:04"),
+		session.Date.Local().Format("01-02 15:04"),
 		session.ToolCount,
 		formatDurationCT(session.Duration),
 		title,
@@ -298,8 +303,6 @@ func (m CallTreeModel) handleKey(msg tea.KeyMsg) (CallTreeModel, tea.Cmd) {
 		m.jumpToNextTurn()
 	case "p":
 		m.jumpToPrevTurn()
-	case "d":
-		return m.handleDiagnosis()
 	case "s":
 		return m, func() tea.Msg { return DashboardToggleMsg{} }
 	case "m":
@@ -372,16 +375,6 @@ func (m *CallTreeModel) jumpToPrevTurn() {
 			m.clampScroll()
 			return
 		}
-	}
-}
-
-func (m CallTreeModel) handleDiagnosis() (CallTreeModel, tea.Cmd) {
-	entry := m.SelectedEntry()
-	if entry == nil {
-		return m, nil
-	}
-	return m, func() tea.Msg {
-		return DiagnosisRequestMsg{Entry: entry}
 	}
 }
 
