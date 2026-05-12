@@ -735,6 +735,227 @@ func TestDetail_AllContentReachableByScrolling(t *testing.T) {
 	assert.True(t, foundOutput, "output section should be reachable by scrolling, seen: %+v", seen)
 }
 
+// --- renderFileList tests (UF-3: Turn File Operations) ---
+
+func TestRenderFileList_BasicFileOps(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"internal/parser/types.go": {ReadCount: 2, EditCount: 1, TotalCount: 3},
+			"internal/stats/stats.go":  {ReadCount: 1, EditCount: 0, TotalCount: 1},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	// Strip ANSI for content assertions
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "files:")
+	assert.Contains(t, clean, "internal/parser/types.go")
+	assert.Contains(t, clean, "R×2")
+	assert.Contains(t, clean, "E×1")
+	assert.Contains(t, clean, "internal/stats/stats.go")
+	assert.Contains(t, clean, "R×1")
+}
+
+func TestRenderFileList_SortedByTotalCount(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"a.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
+			"b.go": {ReadCount: 3, EditCount: 2, TotalCount: 5},
+			"c.go": {ReadCount: 2, EditCount: 0, TotalCount: 2},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// b.go (5) should come before c.go (2) which should come before a.go (1)
+	idxB := strings.Index(clean, "b.go")
+	idxC := strings.Index(clean, "c.go")
+	idxA := strings.Index(clean, "a.go")
+	assert.Less(t, idxB, idxC, "b.go (5 ops) should appear before c.go (2 ops)")
+	assert.Less(t, idxC, idxA, "c.go (2 ops) should appear before a.go (1 op)")
+}
+
+func TestRenderFileList_NilFileOps(t *testing.T) {
+	result := renderFileList(nil, 80)
+	assert.Empty(t, result, "should return empty string for nil FileOpStats")
+}
+
+func TestRenderFileList_EmptyFileOps(t *testing.T) {
+	fileOps := &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}}
+	result := renderFileList(fileOps, 80)
+	assert.Empty(t, result, "should return empty string for empty FileOpStats")
+}
+
+func TestRenderFileList_Max20Rows(t *testing.T) {
+	files := make(map[string]*parser.FileOpCount)
+	for i := 0; i < 25; i++ {
+		name := fmt.Sprintf("file_%02d.go", i)
+		files[name] = &parser.FileOpCount{ReadCount: 25 - i, EditCount: 0, TotalCount: 25 - i}
+	}
+	fileOps := &parser.FileOpStats{Files: files}
+
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Should contain "+5 more" for the 5 overflow files
+	assert.Contains(t, clean, "+5 more")
+
+	// Should NOT contain the 21st+ files (file_20.go through file_24.go)
+	// file_00.go has count 25 (highest), file_20.go has count 5 (21st)
+	assert.NotContains(t, clean, "file_20.go")
+	assert.NotContains(t, clean, "file_24.go")
+
+	// Should contain the first 20 files
+	assert.Contains(t, clean, "file_00.go")
+	assert.Contains(t, clean, "file_19.go")
+}
+
+func TestRenderFileList_PathTruncation(t *testing.T) {
+	// Long path that exceeds available width
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"/very/long/path/to/some/deeply/nested/directory/structure/that/exceeds/width/internal/model/app.go": {ReadCount: 1, EditCount: 1, TotalCount: 2},
+		},
+	}
+	// Use a narrow width to force truncation
+	result := renderFileList(fileOps, 40)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Should show truncated path with ... prefix and keep filename
+	assert.Contains(t, clean, "...")
+	assert.Contains(t, clean, "app.go")
+}
+
+func TestRenderFileList_OnlyReadNoEdit(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"read_only.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "R×3")
+	assert.NotContains(t, clean, "E×0") // E×0 should not be shown when edit count is 0
+}
+
+func TestRenderFileList_OnlyEditNoRead(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"edit_only.go": {ReadCount: 0, EditCount: 2, TotalCount: 2},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "E×2")
+	assert.NotContains(t, clean, "R×0") // R×0 should not be shown when read count is 0
+}
+
+func TestRenderFileList_FilesLabelInCyan(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"test.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	// The "files:" label should be present
+	assert.Contains(t, result, "files:")
+	// Verify label is on the first line
+	lines := strings.Split(result, "\n")
+	assert.True(t, strings.Contains(lines[0], "files:"), "files: should be the first line")
+}
+
+func TestRenderFileList_ReadCountGreen(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"test.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	// R×3 should be rendered in green (bright green = color 83 or similar)
+	clean := ansiEscape.ReplaceAllString(result, "")
+	assert.Contains(t, clean, "R×3")
+}
+
+func TestRenderFileList_EditCountRed(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"test.go": {ReadCount: 0, EditCount: 2, TotalCount: 2},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	clean := ansiEscape.ReplaceAllString(result, "")
+	assert.Contains(t, clean, "E×2")
+}
+
+func TestRenderFileList_BothReadAndEdit(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"mixed.go": {ReadCount: 3, EditCount: 2, TotalCount: 5},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "R×3")
+	assert.Contains(t, clean, "E×2")
+}
+
+func TestRenderFileList_Exactly20Files(t *testing.T) {
+	files := make(map[string]*parser.FileOpCount)
+	for i := 0; i < 20; i++ {
+		name := fmt.Sprintf("file_%02d.go", i)
+		files[name] = &parser.FileOpCount{ReadCount: 20 - i, EditCount: 0, TotalCount: 20 - i}
+	}
+	fileOps := &parser.FileOpStats{Files: files}
+
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Exactly 20 files should NOT show "+N more"
+	assert.NotContains(t, clean, "+")
+	assert.NotContains(t, clean, "more")
+
+	// All 20 files should be present
+	assert.Contains(t, clean, "file_00.go")
+	assert.Contains(t, clean, "file_19.go")
+}
+
+func TestRenderFileList_TruncatePathKeepsFilename(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"/Users/dev/projects/myapp/internal/model/dashboard_custom_tools.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
+		},
+	}
+	// Narrow width that forces path truncation
+	result := renderFileList(fileOps, 50)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Should keep filename
+	assert.Contains(t, clean, "dashboard_custom_tools.go")
+	// Should have ... prefix for truncation
+	assert.Contains(t, clean, "...")
+}
+
+func TestRenderFileList_OverflowMoreInSecondaryColor(t *testing.T) {
+	files := make(map[string]*parser.FileOpCount)
+	for i := 0; i < 22; i++ {
+		name := fmt.Sprintf("file_%02d.go", i)
+		files[name] = &parser.FileOpCount{ReadCount: 22 - i, EditCount: 0, TotalCount: 22 - i}
+	}
+	fileOps := &parser.FileOpStats{Files: files}
+
+	result := renderFileList(fileOps, 80)
+
+	// "+2 more" should be present (dim/secondary color — has ANSI codes)
+	assert.Contains(t, result, "+2 more")
+}
+
 func TestDetail_PanelHeight_FixedWithLongContent(t *testing.T) {
 	longContent := strings.Repeat("package main\n\nfunc main() {\n\t\"hello\"\n}\n\n", 50)
 	longJSON := fmt.Sprintf(`{"file_path":"/very/long/path/to/file.go","content":%q}`, longContent)

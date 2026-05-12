@@ -748,6 +748,146 @@ func indentContent(content string, spaces int) string {
 	return strings.Join(lines, "\n")
 }
 
+// renderFileList renders a "files:" section for the Turn Overview detail panel.
+// It displays file paths with read/edit counts, sorted by total operation count descending.
+// Returns empty string if fileOps is nil or has no files.
+func renderFileList(fileOps *parser.FileOpStats, width int) string {
+	if fileOps == nil || len(fileOps.Files) == 0 {
+		return ""
+	}
+
+	// Sort files by total count descending, then by path for stability
+	type fileEntry struct {
+		path string
+		fc   *parser.FileOpCount
+	}
+	var entries []fileEntry
+	for path, fc := range fileOps.Files {
+		entries = append(entries, fileEntry{path: path, fc: fc})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].fc.TotalCount != entries[j].fc.TotalCount {
+			return entries[i].fc.TotalCount > entries[j].fc.TotalCount
+		}
+		return entries[i].path < entries[j].path
+	})
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51")) // bright cyan
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("83")) // bright green
+	redStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))  // bright red
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("242"))  // dim gray
+
+	var b strings.Builder
+	b.WriteString(labelStyle.Render("files:"))
+	b.WriteString("\n")
+
+	maxRows := 20
+	overflow := len(entries) - maxRows
+	if overflow < 0 {
+		overflow = 0
+	}
+
+	displayCount := len(entries)
+	if displayCount > maxRows {
+		displayCount = maxRows
+	}
+
+	// Layout: "  {path}  R×N  E×N"
+	// Indent is 2, path takes most space, then R×N and E×N suffixes
+	// Calculate available path width
+	suffixRead := "" // pre-computed for width calc
+	suffixEdit := ""
+	for _, e := range entries[:displayCount] {
+		rPart := ""
+		if e.fc.ReadCount > 0 {
+			rPart = fmt.Sprintf("  R×%d", e.fc.ReadCount)
+		}
+		if len(rPart) > len(suffixRead) {
+			suffixRead = rPart
+		}
+		ePart := ""
+		if e.fc.EditCount > 0 {
+			ePart = fmt.Sprintf("  E×%d", e.fc.EditCount)
+		}
+		if len(ePart) > len(suffixEdit) {
+			suffixEdit = ePart
+		}
+	}
+
+	// 2 indent + path + suffixRead + suffixEdit
+	maxPathWidth := width - 2 - len(suffixRead) - len(suffixEdit)
+	if maxPathWidth < 10 {
+		maxPathWidth = 10
+	}
+
+	for _, e := range entries[:displayCount] {
+		path := truncateFilePath(e.path, maxPathWidth)
+
+		var row strings.Builder
+		row.WriteString("  ")
+		row.WriteString(path)
+
+		if e.fc.ReadCount > 0 {
+			rStr := fmt.Sprintf("  R×%d", e.fc.ReadCount)
+			// Pad to align suffixes
+			padLen := len(suffixRead) - len(rStr)
+			if padLen > 0 {
+				row.WriteString(strings.Repeat(" ", padLen))
+			}
+			row.WriteString(greenStyle.Render(rStr))
+		} else {
+			// Pad space where read would be
+			row.WriteString(strings.Repeat(" ", len(suffixRead)))
+		}
+
+		if e.fc.EditCount > 0 {
+			eStr := fmt.Sprintf("  E×%d", e.fc.EditCount)
+			padLen := len(suffixEdit) - len(eStr)
+			if padLen > 0 {
+				row.WriteString(strings.Repeat(" ", padLen))
+			}
+			row.WriteString(redStyle.Render(eStr))
+		}
+
+		b.WriteString(row.String())
+		b.WriteString("\n")
+	}
+
+	if overflow > 0 {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("  +%d more", overflow)))
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// truncateFilePath truncates a file path to fit within maxLen characters.
+// If the path exceeds maxLen, it keeps the filename and truncates from the left
+// with a "..." prefix: "...filename.go"
+func truncateFilePath(path string, maxLen int) string {
+	if runewidth.StringWidth(path) <= maxLen {
+		return path
+	}
+
+	// Get the filename (last component)
+	filename := path
+	if idx := strings.LastIndex(path, "/"); idx >= 0 {
+		filename = path[idx+1:]
+	}
+
+	// If even the filename with "..." prefix is too long, truncate filename
+	prefix := "..."
+	avail := maxLen - len(prefix)
+	if avail < 1 {
+		avail = 1
+	}
+	if len(filename) > avail {
+		// Keep last avail chars of filename
+		filename = filename[len(filename)-avail:]
+	}
+	return prefix + filename
+}
+
 // compactBlankLines reduces runs of 2+ blank lines to a single blank line.
 func compactBlankLines(s string) string {
 	var b strings.Builder
