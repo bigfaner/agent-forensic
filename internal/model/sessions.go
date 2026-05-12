@@ -66,8 +66,35 @@ func NewSessionsModel() SessionsModel {
 	}
 }
 
+// isImageTitle reports whether the title is an auto-generated image attachment message.
+func isImageTitle(title string) bool {
+	return strings.HasPrefix(title, "[Image: source:")
+}
+
+// dedupByFilePath removes sessions with duplicate FilePath, keeping the first occurrence.
+func dedupByFilePath(sessions []parser.Session) []parser.Session {
+	seen := make(map[string]bool, len(sessions))
+	result := make([]parser.Session, 0, len(sessions))
+	for _, s := range sessions {
+		if !seen[s.FilePath] {
+			seen[s.FilePath] = true
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 // SetSessions loads session data and transitions to populated or empty state.
 func (m SessionsModel) SetSessions(sessions []parser.Session) SessionsModel {
+	// Filter out sessions whose title is just an image attachment
+	filtered := make([]parser.Session, 0, len(sessions))
+	for _, s := range sessions {
+		if !isImageTitle(s.Title) {
+			filtered = append(filtered, s)
+		}
+	}
+	sessions = dedupByFilePath(filtered)
+
 	m.sessions = sessions
 	m.filtered = sessions
 	if len(sessions) == 0 {
@@ -86,6 +113,7 @@ func (m SessionsModel) SetSessions(sessions []parser.Session) SessionsModel {
 // AppendSessions replaces the session list without resetting cursor or scroll.
 // Used when loading more sessions so the current selection is preserved.
 func (m SessionsModel) AppendSessions(sessions []parser.Session) SessionsModel {
+	sessions = dedupByFilePath(sessions)
 	m.sessions = sessions
 	if m.search != SearchNone {
 		m.applyFilter()
@@ -173,12 +201,12 @@ func (m SessionsModel) update(msg tea.Msg) (SessionsModel, tea.Cmd) {
 
 func (m SessionsModel) handleNormalKey(msg tea.KeyMsg) (SessionsModel, tea.Cmd) {
 	switch msg.String() {
-	case "j", "down":
+	case "down":
 		if len(m.filtered) > 0 && m.cursor < len(m.filtered)-1 {
 			m.cursor++
 			m.clampScroll()
 		}
-	case "k", "up":
+	case "up":
 		if m.cursor > 0 {
 			m.cursor--
 			m.clampScroll()
@@ -297,9 +325,13 @@ func (m *SessionsModel) clampScroll() {
 }
 
 func (m SessionsModel) visibleHeight() int {
-	contentHeight := m.height - 3
+	// Panel borders (2) + title (1) + inner Height padding (2) = 5 overhead
+	contentHeight := m.height - 5
 	if m.search != SearchNone {
 		contentHeight -= 2
+	}
+	if m.hasMore {
+		contentHeight--
 	}
 	if contentHeight < 1 {
 		contentHeight = 1
@@ -390,14 +422,6 @@ func (m SessionsModel) renderList() string {
 	if m.search == SearchInvalid {
 		msg := i18n.T("picker.no_results")
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Render(msg)
-	}
-
-	// Reserve 1 line for "load more" footer if applicable
-	if m.hasMore {
-		visibleHeight--
-		if visibleHeight < 1 {
-			visibleHeight = 1
-		}
 	}
 
 	total := len(m.filtered)

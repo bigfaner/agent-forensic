@@ -7,7 +7,7 @@ import "regexp"
 // Group 2: the separator (whitespace, colon, or equals)
 // Group 3: optional opening quote
 // Group 4: the sensitive value to be masked
-var sensitivePattern = regexp.MustCompile(`(?i)(api_key|secret|token|password)([\s:=]+)(["']?)(\S+)`)
+var sensitivePattern = regexp.MustCompile(`(?i)(api_key|secret|token|password)([\s:=]+)(["']?)([^\s"']+)`)
 
 // Sanitize replaces sensitive values matching known patterns with ***.
 // Returns sanitized content and whether any masking occurred.

@@ -180,7 +180,7 @@ func TestDiagNavDown(t *testing.T) {
 
 func TestDiagNavDown_JKey(t *testing.T) {
 	m := newTestDiagnosisModal(testSessionWithAnomalies())
-	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyDown})
 	assert.Equal(t, 1, updated.scrollPos)
 }
 
@@ -201,7 +201,7 @@ func TestDiagNavUp(t *testing.T) {
 func TestDiagNavUp_KKey(t *testing.T) {
 	m := newTestDiagnosisModal(testSessionWithAnomalies())
 	m.scrollPos = 2
-	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	updated, _ := m.update(tea.KeyMsg{Type: tea.KeyUp})
 	assert.Equal(t, 1, updated.scrollPos)
 }
 
@@ -370,7 +370,7 @@ func TestDiagView_SelectedHighlight(t *testing.T) {
 func TestDiagView_Footer(t *testing.T) {
 	m := newTestDiagnosisModal(testSessionWithAnomalies())
 	view := m.View()
-	assert.Contains(t, view, "j/k:select")
+	assert.Contains(t, view, "↑↓:select")
 	assert.Contains(t, view, "Enter:jump")
 	assert.Contains(t, view, "Esc:close")
 }

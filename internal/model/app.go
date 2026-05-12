@@ -629,6 +629,12 @@ func (m *AppModel) setFocus(panel ActivePanel) {
 
 // updateDetailFromCallTree syncs the detail panel with the selected call tree node.
 func (m *AppModel) updateDetailFromCallTree() {
+	// Check if a turn header is selected — show turn overview
+	if turn, ok := m.callTree.SelectedTurn(); ok {
+		m.detail = m.detail.SetTurn(turn)
+		return
+	}
+	// Otherwise show tool entry detail
 	entry := m.callTree.SelectedEntry()
 	if entry != nil && entry.ToolName != "" {
 		m.detail = m.detail.SetEntry(*entry)

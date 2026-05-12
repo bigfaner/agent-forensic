@@ -256,7 +256,9 @@ func TestIntegrationJourney_EnableMonitor_ReceiveEvent_FlashExpire(t *testing.T)
 
 	// Step 6: Navigate to the new entry (move down past existing entries)
 	// The first turn's existing entries are visible; navigate down
-	m = sendKeys(m, "j", "j", "j", "j")
+	for range 4 {
+		m, _ = sendSpecialKey(m, tea.KeyDown)
+	}
 
 	// Step 7: Verify detail panel shows tool info
 	view = m.View()

@@ -106,7 +106,7 @@ func TestStatusBarView_NormalMode_ContainsNavHints(t *testing.T) {
 	m.SetSize(120, 24)
 	view := m.View()
 	// Normal mode at wide terminal should contain key hints
-	assert.Contains(t, view, "j/k")
+	assert.Contains(t, view, "↑↓")
 	assert.Contains(t, view, "Enter")
 }
 
@@ -178,7 +178,7 @@ func TestStatusBarView_DiagnosisMode(t *testing.T) {
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeDiagnosis)
 	view := m.View()
-	assert.Contains(t, view, "j/k")
+	assert.Contains(t, view, "↑↓")
 	assert.Contains(t, view, "Enter")
 	assert.Contains(t, view, "Esc")
 }
@@ -262,7 +262,7 @@ func TestStatusBarView_Narrow60_ShowsPriority1(t *testing.T) {
 	m.SetSize(60, 24)
 	view := m.View()
 	// At >=60 cols, priority-1 keys should be shown
-	assert.Contains(t, view, "j/k")
+	assert.Contains(t, view, "↑↓")
 	assert.Contains(t, view, "Enter")
 	assert.Contains(t, view, "q")
 }
@@ -286,7 +286,7 @@ func TestStatusBarView_Width80_ShowsPriority2(t *testing.T) {
 	m.SetSize(80, 24)
 	view := m.View()
 	// At >=80 cols, priority-2 keys should be shown
-	assert.Contains(t, view, "j/k")
+	assert.Contains(t, view, "↑↓")
 	assert.Contains(t, view, "Enter")
 }
 

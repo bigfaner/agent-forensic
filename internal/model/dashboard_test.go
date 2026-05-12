@@ -19,6 +19,7 @@ func testDashboardSession() *parser.Session {
 		ToolCount: 5,
 		Duration:  12*time.Minute + 30*time.Second,
 		Turns:     testTurns(),
+		Title:     "Fix the authentication bug",
 	}
 }
 
@@ -345,6 +346,39 @@ func TestDashboardView_BarChartDescending(t *testing.T) {
 	assert.Contains(t, view, "█")
 }
 
+func TestDashboardView_LongToolNames(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/home/user/.claude/session.jsonl",
+		Date:      time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+		ToolCount: 4,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index: 1, Duration: 60 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryToolUse, ToolName: "mcp__zai-mcp-server__analyze_data_visualization", Duration: 30 * time.Second},
+					{Type: parser.EntryToolUse, ToolName: "mcp__web-reader__webReader", Duration: 10 * time.Second},
+					{Type: parser.EntryToolUse, ToolName: "mcp__zai-mcp-server__analyze_data_visualization", Duration: 20 * time.Second},
+				},
+			},
+		},
+	}
+	m := newTestDashboardModel()
+	m.Show()
+	m.Refresh(session)
+	view := m.View()
+
+	// Short names should appear in full
+	assert.Contains(t, view, "Read")
+	// Long MCP names should be truncated with …
+	assert.Contains(t, view, "mcp__zai-mcp-server__analy…")
+	// Should not contain the full untruncated name
+	assert.NotContains(t, view, "mcp__zai-mcp-server__analyze_data_visualization")
+	// Bars should still render
+	assert.Contains(t, view, "█")
+}
+
 // Helper to find first index of substring
 func indexOf(s, substr string) int {
 	for i := 0; i <= len(s)-len(substr); i++ {
@@ -455,7 +489,7 @@ func TestDashboard_PickerJKey(t *testing.T) {
 	m.Refresh(testDashboardSession())
 	updated, _ := m.Update(createRuneKeyMsg('1'))
 	dm := updated.(DashboardModel)
-	updated, _ = dm.Update(createRuneKeyMsg('j'))
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyDown})
 	dm = updated.(DashboardModel)
 	assert.Equal(t, 1, dm.pickerCursor)
 }
@@ -477,7 +511,7 @@ func TestDashboard_PickerKKey(t *testing.T) {
 	updated, _ := m.Update(createRuneKeyMsg('1'))
 	dm := updated.(DashboardModel)
 	dm.pickerCursor = 1
-	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyUp})
 	dm = updated.(DashboardModel)
 	assert.Equal(t, 0, dm.pickerCursor)
 }

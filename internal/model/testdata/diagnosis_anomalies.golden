@@ -16,7 +16,7 @@
          ║   I need to update the production configuration to         ║         
          ║reflect the new deployment settings and ensure the service  ║         
          ║endpoints are correct for the staging environment.          ║         
-         ║j/k:select  Enter:jump  Esc:close                           ║         
+         ║↑↓:select  Enter:jump  Esc:close                            ║         
          ╚════════════════════════════════════════════════════════════╝         
                                                                                 
                                                                                 

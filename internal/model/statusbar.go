@@ -119,7 +119,7 @@ func hint(key, desc string) string {
 func (m StatusBarModel) buildNormalHints() string {
 	// Priority 1: always shown (>=60 cols)
 	p1 := []string{
-		hint("j/k", ":nav"),
+		hint("↑↓", ":nav"),
 		hint("Enter", ""),
 		hint("Tab", ""),
 		hint("/", ":search"),
@@ -169,7 +169,7 @@ func (m StatusBarModel) buildSearchHints() string {
 
 func (m StatusBarModel) buildDiagnosisHints() string {
 	parts := []string{
-		hint("j/k", ":select"),
+		hint("↑↓", ":select"),
 		hint("Enter", ":jump"),
 		hint("Esc", ":close"),
 	}
@@ -180,7 +180,7 @@ func (m StatusBarModel) buildDashboardHints() string {
 	p1 := []string{
 		hint("s", ":back"),
 		hint("1", ":session"),
-		hint("j/k", ":nav"),
+		hint("↑↓", ":nav"),
 		hint("Esc", ":back"),
 		hint("q", ":quit"),
 	}

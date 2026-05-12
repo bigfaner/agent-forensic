@@ -207,7 +207,7 @@ func TestCallTree_NavigateDown(t *testing.T) {
 
 func TestCallTree_NavigateDown_JKey(t *testing.T) {
 	m := newTestCallTreeModel(testTurns())
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	assert.Equal(t, 1, updated.(CallTreeModel).cursor)
 }
 
@@ -228,7 +228,7 @@ func TestCallTree_NavigateUp(t *testing.T) {
 func TestCallTree_NavigateUp_KKey(t *testing.T) {
 	m := newTestCallTreeModel(testTurns())
 	m.cursor = 2
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	assert.Equal(t, 1, updated.(CallTreeModel).cursor)
 }
 

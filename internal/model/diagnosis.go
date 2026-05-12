@@ -136,11 +136,11 @@ func (m DiagnosisModal) handleKey(msg tea.KeyMsg) (DiagnosisModal, tea.Cmd) {
 	case "esc", "q":
 		m.visible = false
 		return m, nil
-	case "j", "down":
+	case "down":
 		if m.state == DiagnosisHasAnomalies && m.scrollPos < len(m.anomalies)-1 {
 			m.scrollPos++
 		}
-	case "k", "up":
+	case "up":
 		if m.state == DiagnosisHasAnomalies && m.scrollPos > 0 {
 			m.scrollPos--
 		}
@@ -307,7 +307,7 @@ func (m DiagnosisModal) renderEvidenceBlock(idx int, anomaly parser.Anomaly) str
 }
 
 func (m DiagnosisModal) renderFooter() string {
-	hints := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("j/k:select  Enter:jump  Esc:close")
+	hints := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("↑↓:select  Enter:jump  Esc:close")
 	return hints
 }
 

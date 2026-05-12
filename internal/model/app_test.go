@@ -585,8 +585,8 @@ func TestDashboard_SessionPickerSelect(t *testing.T) {
 	m = updated.(AppModel)
 	assert.True(t, m.dashboard.pickerActive)
 
-	// Navigate picker (j)
-	updated, _ = m.Update(keyMsg("j"))
+	// Navigate picker (down)
+	updated, _ = m.Update(keyMsg("down"))
 	m = updated.(AppModel)
 	assert.Equal(t, 1, m.dashboard.pickerCursor)
 
