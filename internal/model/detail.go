@@ -33,9 +33,6 @@ const (
 // truncationThreshold is the character count above which content is truncated.
 const truncationThreshold = 200
 
-// truncationLines is the max lines of pretty-printed JSON shown before truncation.
-const truncationLines = 10
-
 // DetailModel is a Bubble Tea model for the detail panel (bottom panel, 75% width, lower 33%).
 // Displays full tool parameters, stdout/stderr, and thinking fragments for the selected call tree node.
 // When a turn header is selected, displays the full user prompt and tool statistics.
@@ -324,19 +321,7 @@ func (m DetailModel) buildContent(expanded bool) string {
 	inputLabel := labelStyle.Render("tool_use.input:")
 	b.WriteString(inputLabel)
 	b.WriteString("\n")
-	if !expanded {
-		inputLines := strings.Split(input, "\n")
-		if len(inputLines) > truncationLines {
-			truncated := strings.Join(inputLines[:truncationLines], "\n")
-			b.WriteString(contentStyle.Render(indentContent(truncated, 2)))
-			b.WriteString("\n")
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
-		} else {
-			b.WriteString(contentStyle.Render(indentContent(input, 2)))
-		}
-	} else {
 		b.WriteString(contentStyle.Render(indentContent(input, 2)))
-	}
 	b.WriteString("\n")
 
 	// Output section
