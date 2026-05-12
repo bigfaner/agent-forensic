@@ -21,7 +21,7 @@ func newTestAppModel(t *testing.T) (model.AppModel, func()) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 	cleanup := func() { os.RemoveAll(tmpDir) }
-	m := model.NewAppModel(tmpDir)
+	m := model.NewAppModel(tmpDir, "test")
 	return m, cleanup
 }
 

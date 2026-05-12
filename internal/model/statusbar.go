@@ -26,15 +26,17 @@ type StatusBarModel struct {
 	mode        StatusBarMode
 	watchStatus string // "watching" | "idle" | "error"
 	locale      string // "zh" | "en"
+	version     string
 	width       int
 }
 
 // NewStatusBarModel creates a status bar with defaults.
-func NewStatusBarModel() StatusBarModel {
+func NewStatusBarModel(version string) StatusBarModel {
 	return StatusBarModel{
 		mode:        StatusBarModeNormal,
 		watchStatus: "idle",
 		locale:      i18n.CurrentLocale(),
+		version:     version,
 		width:       80,
 	}
 }
@@ -205,10 +207,31 @@ func (m StatusBarModel) buildErrorHints() string {
 	return m.joinWithLanguage(parts)
 }
 
-// joinWithLanguage joins hint parts with spaces and appends language indicator.
+// joinWithLanguage places hints on the left and version+language on the far right.
 func (m StatusBarModel) joinWithLanguage(parts []string) string {
-	content := strings.Join(parts, " ")
-	return content + "  " + m.languageIndicator()
+	left := strings.Join(parts, " ")
+	right := m.versionIndicator() + " " + m.languageIndicator()
+
+	leftW := lipgloss.Width(left)
+	rightW := lipgloss.Width(right)
+	pad := m.width - leftW - rightW
+	if pad < 1 {
+		pad = 1
+	}
+
+	return left + strings.Repeat(" ", pad) + right
+}
+
+// versionIndicator returns the styled version string.
+func (m StatusBarModel) versionIndicator() string {
+	v := m.version
+	if v == "" {
+		v = "dev"
+	}
+	if v != "dev" && !strings.HasPrefix(v, "v") {
+		v = "v" + v
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(v)
 }
 
 // monitoringText returns the styled monitoring status indicator.

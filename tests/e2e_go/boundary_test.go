@@ -160,7 +160,7 @@ func TestBoundary_NoAnomalyDiagnosis(t *testing.T) {
 func TestBoundary_StatusBarBasicHintsAt60Cols(t *testing.T) {
 	resetLocale(t)
 	// Test StatusBarModel directly since AppModel blocks rendering at width < 80.
-	sb := model.NewStatusBarModel()
+	sb := model.NewStatusBarModel("dev")
 	sb.SetSize(60, 1)
 
 	view := sb.View()
@@ -172,7 +172,7 @@ func TestBoundary_StatusBarBasicHintsAt60Cols(t *testing.T) {
 
 func TestBoundary_StatusBarExtendedHintsAt80Cols(t *testing.T) {
 	resetLocale(t)
-	sb := model.NewStatusBarModel()
+	sb := model.NewStatusBarModel("dev")
 	sb.SetSize(80, 1)
 
 	view := sb.View()
@@ -184,7 +184,7 @@ func TestBoundary_StatusBarExtendedHintsAt80Cols(t *testing.T) {
 
 func TestBoundary_StatusBarFullHintsAt100Cols(t *testing.T) {
 	resetLocale(t)
-	sb := model.NewStatusBarModel()
+	sb := model.NewStatusBarModel("dev")
 	sb.SetSize(100, 1)
 
 	view := sb.View()

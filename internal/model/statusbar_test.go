@@ -11,7 +11,7 @@ import (
 // --- Constructor tests ---
 
 func TestStatusBarNew(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	assert.Equal(t, StatusBarModeNormal, m.mode)
 	assert.Equal(t, "idle", m.watchStatus)
 	assert.Equal(t, 80, m.width) // default
@@ -19,14 +19,14 @@ func TestStatusBarNew(t *testing.T) {
 }
 
 func TestStatusBarNew_DefaultLocale(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	assert.Equal(t, "zh", m.locale)
 }
 
 // --- Init test ---
 
 func TestStatusBarInit(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	cmd := m.Init()
 	assert.Nil(t, cmd)
 }
@@ -34,7 +34,7 @@ func TestStatusBarInit(t *testing.T) {
 // --- SetSize test ---
 
 func TestStatusBarSetSize(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 36)
 	assert.Equal(t, 120, m.width)
 }
@@ -42,26 +42,26 @@ func TestStatusBarSetSize(t *testing.T) {
 // --- Mode transition tests ---
 
 func TestStatusBarSetMode(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetMode(StatusBarModeSearch)
 	assert.Equal(t, StatusBarModeSearch, m.mode)
 }
 
 func TestStatusBarSetMode_Normal(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetMode(StatusBarModeDiagnosis)
 	m.SetMode(StatusBarModeNormal)
 	assert.Equal(t, StatusBarModeNormal, m.mode)
 }
 
 func TestStatusBarSetMode_Dashboard(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetMode(StatusBarModeDashboard)
 	assert.Equal(t, StatusBarModeDashboard, m.mode)
 }
 
 func TestStatusBarSetMode_Error(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetMode(StatusBarModeError)
 	assert.Equal(t, StatusBarModeError, m.mode)
 }
@@ -69,13 +69,13 @@ func TestStatusBarSetMode_Error(t *testing.T) {
 // --- Watch status tests ---
 
 func TestStatusBarSetWatchStatus(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetWatchStatus("watching")
 	assert.Equal(t, "watching", m.watchStatus)
 }
 
 func TestStatusBarSetWatchStatus_Idle(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetWatchStatus("watching")
 	m.SetWatchStatus("idle")
 	assert.Equal(t, "idle", m.watchStatus)
@@ -84,13 +84,13 @@ func TestStatusBarSetWatchStatus_Idle(t *testing.T) {
 // --- Locale tests ---
 
 func TestStatusBarSetLocale(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
 	assert.Equal(t, "en", m.locale)
 }
 
 func TestStatusBarSetLocale_Zh(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
 	m.SetLocale("zh")
 	assert.Equal(t, "zh", m.locale)
@@ -102,7 +102,7 @@ func TestStatusBarView_NormalMode_ContainsNavHints(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	view := m.View()
 	// Normal mode at wide terminal should contain key hints
@@ -114,7 +114,7 @@ func TestStatusBarView_NormalMode_ContainsQuit(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	view := m.View()
 	assert.Contains(t, view, "q")
@@ -124,7 +124,7 @@ func TestStatusBarView_NormalMode_LanguageIndicator(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	view := m.View()
 	// Language indicator at far right
@@ -135,7 +135,7 @@ func TestStatusBarView_NormalMode_EnglishLocale(t *testing.T) {
 	_ = i18n.SetLocale("en")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
 	m.SetSize(120, 24)
 	view := m.View()
@@ -148,7 +148,7 @@ func TestStatusBarView_SearchMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeSearch)
 	view := m.View()
@@ -159,7 +159,7 @@ func TestStatusBarView_SearchMode_English(t *testing.T) {
 	_ = i18n.SetLocale("en")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeSearch)
@@ -174,7 +174,7 @@ func TestStatusBarView_DiagnosisMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeDiagnosis)
 	view := m.View()
@@ -189,7 +189,7 @@ func TestStatusBarView_DashboardMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeDashboard)
 	view := m.View()
@@ -203,7 +203,7 @@ func TestStatusBarView_ErrorMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeError)
 	view := m.View()
@@ -217,7 +217,7 @@ func TestStatusBarView_MonitoringOn(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetWatchStatus("watching")
 	view := m.View()
@@ -230,7 +230,7 @@ func TestStatusBarView_MonitoringOff(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetWatchStatus("idle")
 	view := m.View()
@@ -243,7 +243,7 @@ func TestStatusBarView_MonitoringOn_English(t *testing.T) {
 	_ = i18n.SetLocale("en")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
 	m.SetSize(120, 24)
 	m.SetWatchStatus("watching")
@@ -258,7 +258,7 @@ func TestStatusBarView_Narrow60_ShowsPriority1(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(60, 24)
 	view := m.View()
 	// At >=60 cols, priority-1 keys should be shown
@@ -271,7 +271,7 @@ func TestStatusBarView_Narrow60_HidesPriority2(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(60, 24)
 	view := m.View()
 	// At 60 cols, priority-2 keys (d:diag, s:stats) should be omitted
@@ -282,7 +282,7 @@ func TestStatusBarView_Width80_ShowsPriority2(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(80, 24)
 	view := m.View()
 	// At >=80 cols, priority-2 keys should be shown
@@ -294,7 +294,7 @@ func TestStatusBarView_Width100_ShowsPriority3(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(100, 24)
 	view := m.View()
 	// At >=100 cols, priority-3 keys (monitoring indicator) should be shown
@@ -305,7 +305,7 @@ func TestStatusBarView_VeryNarrow_StillShowsEssential(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(40, 24)
 	view := m.View()
 	// Even at very narrow, should show something
@@ -315,7 +315,7 @@ func TestStatusBarView_VeryNarrow_StillShowsEssential(t *testing.T) {
 // --- View output is single line ---
 
 func TestStatusBarView_SingleLine(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	view := m.View()
 	assert.NotContains(t, view, "\n")
@@ -324,7 +324,7 @@ func TestStatusBarView_SingleLine(t *testing.T) {
 // --- Update: WindowSizeMsg ---
 
 func TestStatusBarUpdate_WindowSizeMsg(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	updated, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	assert.Nil(t, cmd)
 	sbModel, ok := updated.(StatusBarModel)
@@ -335,7 +335,7 @@ func TestStatusBarUpdate_WindowSizeMsg(t *testing.T) {
 // --- Update: ignore non-relevant messages ---
 
 func TestStatusBarUpdate_IgnoresKeyMsg(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	assert.Nil(t, cmd)
 	sbModel, ok := updated.(StatusBarModel)
@@ -347,21 +347,21 @@ func TestStatusBarUpdate_IgnoresKeyMsg(t *testing.T) {
 // --- Accessor tests ---
 
 func TestStatusBarMode_Accessor(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	assert.Equal(t, StatusBarModeNormal, m.Mode())
 	m.SetMode(StatusBarModeSearch)
 	assert.Equal(t, StatusBarModeSearch, m.Mode())
 }
 
 func TestStatusBarWatchStatus_Accessor(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	assert.Equal(t, "idle", m.WatchStatus())
 	m.SetWatchStatus("watching")
 	assert.Equal(t, "watching", m.WatchStatus())
 }
 
 func TestStatusBarLocale_Accessor(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	assert.Equal(t, "zh", m.Locale())
 	m.SetLocale("en")
 	assert.Equal(t, "en", m.Locale())
@@ -373,7 +373,7 @@ func TestStatusBarView_DashboardMode_MonitoringRetained(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetWatchStatus("watching")
 	m.SetMode(StatusBarModeDashboard)
@@ -389,7 +389,7 @@ func TestStatusBarView_EnglishNormalMode(t *testing.T) {
 	_ = i18n.SetLocale("en")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
 	m.SetSize(120, 24)
 	view := m.View()
@@ -403,7 +403,7 @@ func TestStatusBarView_DoesNotExceedWidth(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(60, 24)
 	view := m.View()
 	// Strip ANSI escape codes for length measurement
@@ -414,7 +414,7 @@ func TestStatusBarView_DoesNotExceedWidth(t *testing.T) {
 // --- Update returns correct model type ---
 
 func TestStatusBarUpdate_ReturnsModel(t *testing.T) {
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	_, ok := updated.(StatusBarModel)
 	assert.True(t, ok)
@@ -426,7 +426,7 @@ func TestStatusBarView_DashboardMode_ContainsBack(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeDashboard)
 	view := m.View()
@@ -440,7 +440,7 @@ func TestStatusBarView_ErrorMode_ContainsRetry(t *testing.T) {
 	_ = i18n.SetLocale("zh")
 	defer i18n.SetLocale("zh")
 
-	m := NewStatusBarModel()
+	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
 	m.SetMode(StatusBarModeError)
 	view := m.View()

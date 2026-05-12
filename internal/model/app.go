@@ -67,14 +67,14 @@ type AppModel struct {
 }
 
 // NewAppModel creates a new root AppModel with all sub-models initialized.
-func NewAppModel(dataDir string) AppModel {
+func NewAppModel(dataDir string, version string) AppModel {
 	m := AppModel{
 		sessions:    NewSessionsModel(),
 		callTree:    NewCallTreeModel(),
 		detail:      NewDetailModel(),
 		dashboard:   NewDashboardModel(),
 		diagnosis:   NewDiagnosisModal(),
-		statusBar:   NewStatusBarModel(),
+		statusBar:   NewStatusBarModel(version),
 		activePanel: PanelSessions,
 		activeView:  ViewMain,
 		dataDir:     dataDir,

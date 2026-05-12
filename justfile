@@ -15,13 +15,13 @@ compile:
     go vet ./...
 
 build:
-    go build ./...
+    @go build -ldflags "-X main.Version=$(cat version 2>/dev/null || echo dev)" .
 
 run:
-    go run .
+    @go run -ldflags "-X main.Version=$(cat version 2>/dev/null || echo dev)" .
 
 dev:
-    go run .
+    @go run -ldflags "-X main.Version=$(cat version 2>/dev/null || echo dev)" .
 
 test:
     go test ./...

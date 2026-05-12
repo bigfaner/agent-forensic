@@ -83,7 +83,7 @@ func makeTestSessions() []parser.Session {
 // --- NewAppModel tests ---
 
 func TestNewAppModel_Defaults(t *testing.T) {
-	m := NewAppModel("/test/dir")
+	m := NewAppModel("/test/dir", "dev")
 
 	assert.Equal(t, ViewMain, m.activeView)
 	assert.Equal(t, PanelSessions, m.activePanel)
@@ -94,7 +94,7 @@ func TestNewAppModel_Defaults(t *testing.T) {
 // --- Focus cycling tests ---
 
 func TestFocusCycle_TabFromSessions(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activePanel = PanelSessions
 	m.width = 120
 	m.height = 36
@@ -105,7 +105,7 @@ func TestFocusCycle_TabFromSessions(t *testing.T) {
 }
 
 func TestFocusCycle_TabFromCallTree(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activePanel = PanelCallTree
 	m.width = 120
 	m.height = 36
@@ -116,7 +116,7 @@ func TestFocusCycle_TabFromCallTree(t *testing.T) {
 }
 
 func TestFocusCycle_TabFromDetail(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activePanel = PanelDetail
 	m.width = 120
 	m.height = 36
@@ -129,7 +129,7 @@ func TestFocusCycle_TabFromDetail(t *testing.T) {
 // --- Direct access keys ---
 
 func TestDirectAccess_1FocusesSessions(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activePanel = PanelCallTree
 	m.width = 120
 	m.height = 36
@@ -140,7 +140,7 @@ func TestDirectAccess_1FocusesSessions(t *testing.T) {
 }
 
 func TestDirectAccess_2FocusesCallTree(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activePanel = PanelSessions
 	m.width = 120
 	m.height = 36
@@ -153,7 +153,7 @@ func TestDirectAccess_2FocusesCallTree(t *testing.T) {
 // --- View switching ---
 
 func TestViewSwitch_sOpensDashboard(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewMain
 	m.width = 120
 	m.height = 36
@@ -164,7 +164,7 @@ func TestViewSwitch_sOpensDashboard(t *testing.T) {
 }
 
 func TestViewSwitch_sClosesDashboard(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewDashboard
 	m.width = 120
 	m.height = 36
@@ -175,7 +175,7 @@ func TestViewSwitch_sClosesDashboard(t *testing.T) {
 }
 
 func TestViewSwitch_dOpensDiagnosis(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewMain
 	m.activePanel = PanelCallTree
 	m.width = 120
@@ -191,7 +191,7 @@ func TestViewSwitch_dOpensDiagnosis(t *testing.T) {
 }
 
 func TestViewSwitch_EscClosesDashboard(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewDashboard
 	m.width = 120
 	m.height = 36
@@ -202,7 +202,7 @@ func TestViewSwitch_EscClosesDashboard(t *testing.T) {
 }
 
 func TestViewSwitch_EscClosesDiagnosis(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewDiagnosis
 	m.diagnosis.Show(makeTestSession())
 	m.width = 120
@@ -217,7 +217,7 @@ func TestViewSwitch_EscClosesDiagnosis(t *testing.T) {
 // --- Quit key ---
 
 func TestQuitKey_qQuitsFromMain(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewMain
 	m.width = 120
 	m.height = 36
@@ -227,7 +227,7 @@ func TestQuitKey_qQuitsFromMain(t *testing.T) {
 }
 
 func TestQuitKey_qDoesNotQuitFromDashboard(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activeView = ViewDashboard
 	m.width = 120
 	m.height = 36
@@ -239,7 +239,7 @@ func TestQuitKey_qDoesNotQuitFromDashboard(t *testing.T) {
 // --- Session selection flow ---
 
 func TestSessionSelect_LoadsCallTree(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -258,7 +258,7 @@ func TestSessionSelect_LoadsCallTree(t *testing.T) {
 // --- Call tree node selection ---
 
 func TestNodeSelection_UpdatesDetail(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -289,7 +289,7 @@ func TestNodeSelection_UpdatesDetail(t *testing.T) {
 // --- Terminal resize ---
 
 func TestTerminalResize_RecalculatesSizes(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	app := updated.(AppModel)
@@ -308,7 +308,7 @@ func TestTerminalResize_RecalculatesSizes(t *testing.T) {
 }
 
 func TestTerminalResize_SmallTerminalShowsWarning(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 60
 	m.height = 20
 
@@ -319,7 +319,7 @@ func TestTerminalResize_SmallTerminalShowsWarning(t *testing.T) {
 // --- Language switching ---
 
 func TestLanguageSwitch_LKey(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -341,7 +341,7 @@ func TestLanguageSwitch_LKey(t *testing.T) {
 // --- Monitoring toggle ---
 
 func TestMonitoringToggle_mKey(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.activePanel = PanelCallTree
 	m.width = 120
 	m.height = 36
@@ -361,7 +361,7 @@ func TestMonitoringToggle_mKey(t *testing.T) {
 // --- Jump back from diagnosis ---
 
 func TestDiagnosis_JumpBack(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -390,7 +390,7 @@ func TestDiagnosis_JumpBack(t *testing.T) {
 // --- View rendering ---
 
 func TestView_MainLayoutContainsAllPanels(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 
 	// Trigger resize to set panel dimensions
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
@@ -408,7 +408,7 @@ func TestView_MainLayoutContainsAllPanels(t *testing.T) {
 }
 
 func TestView_DashboardOverlay(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 	m.activeView = ViewDashboard
@@ -423,7 +423,7 @@ func TestView_DashboardOverlay(t *testing.T) {
 }
 
 func TestView_DiagnosisOverlay(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 	m.activeView = ViewDiagnosis
@@ -437,7 +437,7 @@ func TestView_DiagnosisOverlay(t *testing.T) {
 // --- Status bar mode transitions ---
 
 func TestStatusBar_ModeChanges(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -458,7 +458,7 @@ func TestStatusBar_ModeChanges(t *testing.T) {
 // --- SessionSelectMsg propagates to dashboard ---
 
 func TestSessionSelect_UpdatesDashboard(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 	m.dashboard.Show()
@@ -482,7 +482,7 @@ func keyMsg(key string) tea.KeyMsg {
 // --- Integration: full session flow ---
 
 func TestIntegration_FullSessionFlow(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 
 	// Step 1: Resize
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
@@ -533,7 +533,7 @@ func TestIntegration_FullSessionFlow(t *testing.T) {
 // --- Focus propagation tests ---
 
 func TestFocusState_PropagatesToAllPanels(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -567,7 +567,7 @@ func TestFocusState_PropagatesToAllPanels(t *testing.T) {
 // --- Dashboard with session picker ---
 
 func TestDashboard_SessionPickerSelect(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	m = updated.(AppModel)
 
@@ -599,7 +599,7 @@ func TestDashboard_SessionPickerSelect(t *testing.T) {
 // --- Resize with active data ---
 
 func TestResize_WithActiveSession(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 
 	session := makeTestSession()
 	m.currentSession = session
@@ -619,7 +619,7 @@ func TestResize_WithActiveSession(t *testing.T) {
 // --- Diagnosis from call tree d key ---
 
 func TestDiagnosis_FromCallTreeWithAnomalies(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	m = updated.(AppModel)
 
@@ -642,7 +642,7 @@ func TestDiagnosis_FromCallTreeWithAnomalies(t *testing.T) {
 // --- Language switch updates status bar ---
 
 func TestLanguageSwitch_UpdatesStatusBar(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -663,7 +663,7 @@ func TestLanguageSwitch_UpdatesStatusBar(t *testing.T) {
 // --- Monitoring status updates ---
 
 func TestMonitoring_StatusBarUpdates(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	m.width = 120
 	m.height = 36
 
@@ -687,7 +687,7 @@ func TestMonitoring_StatusBarUpdates(t *testing.T) {
 // --- Real-time monitoring: watcher events ---
 
 func TestWatcherEvent_AddsNodesToCallTree(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 36})
 	m = updated.(AppModel)
 
@@ -721,7 +721,7 @@ func TestWatcherEvent_AddsNodesToCallTree(t *testing.T) {
 }
 
 func TestWatcherEvent_IgnoredWhenMonitoringOff(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	session := makeTestSession()
 	m.currentSession = session
 	m.callTree = m.callTree.SetSession(session)
@@ -739,7 +739,7 @@ func TestWatcherEvent_IgnoredWhenMonitoringOff(t *testing.T) {
 }
 
 func TestWatcherEvent_IgnoredForDifferentFile(t *testing.T) {
-	m := NewAppModel("/test")
+	m := NewAppModel("/test", "dev")
 	session := makeTestSession()
 	m.currentSession = session
 	m.callTree = m.callTree.SetSession(session)
@@ -774,7 +774,7 @@ func TestResizeWarning_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := NewAppModel("/test")
+			m := NewAppModel("/test", "dev")
 			m.width = tt.width
 			m.height = tt.height
 			view := m.View()

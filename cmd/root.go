@@ -13,11 +13,20 @@ import (
 
 var lang string
 
+// version is set by main via SetVersion before Execute.
+var version = "dev"
+
+// SetVersion sets the application version for CLI and TUI display.
+func SetVersion(v string) {
+	version = v
+}
+
 // NewRootCmd creates the root CLI command with flag parsing.
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "agent-forensic",
-		Short: "AI coding agent forensic analysis tool",
+		Use:     "agent-forensic",
+		Version: version,
+		Short:   "AI coding agent forensic analysis tool",
 		Long: `Agent Forensic — a lazygit-style TUI for inspecting Claude Code session transcripts.
 
 Keyboard shortcuts:
@@ -35,6 +44,7 @@ Keyboard shortcuts:
 
 	cmd.Flags().StringVarP(&lang, "lang", "l", "zh", "language (zh or en)")
 
+	cmd.SetVersionTemplate("{{ .Version }}\n")
 	return cmd
 }
 
@@ -46,7 +56,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create and start Bubble Tea program
-	appModel := model.NewAppModel(claudeDir)
+	appModel := model.NewAppModel(claudeDir, version)
 	p := tea.NewProgram(appModel, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {
