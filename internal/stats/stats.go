@@ -13,13 +13,8 @@ import (
 // Only matches the "for <tool-name>" pattern; "result:" text is not a meaningful target.
 var hookTargetRegex = regexp.MustCompile(`(?i)(PreToolUse|PostToolUse)\s+hook\s+for\s+(\w+)`)
 
-// HookDetail holds detailed information about a single hook invocation.
-type HookDetail struct {
-	HookType  string // PreToolUse, PostToolUse, Stop, user-prompt-submit-hook
-	Target    string // target tool name or command (may be empty)
-	TurnIndex int    // 1-based turn number when the hook fired
-	FullID    string // "HookType::Target" or "HookType" (Target empty)
-}
+// HookDetail is an alias for parser.HookDetail for backward compatibility.
+type HookDetail = parser.HookDetail
 
 // knownHookTypes maps lowercase hook type names to their canonical form.
 var knownHookTypes = map[string]string{
@@ -53,17 +48,11 @@ func ParseHookWithTarget(text string) string {
 	return text
 }
 
-// FileOpStats holds aggregated file operation statistics.
-type FileOpStats struct {
-	Files map[string]*FileOpCount // file path → operation counts
-}
+// FileOpStats is an alias for parser.FileOpStats for backward compatibility.
+type FileOpStats = parser.FileOpStats
 
-// FileOpCount holds per-file operation counts.
-type FileOpCount struct {
-	ReadCount  int // Read tool call count
-	EditCount  int // Write/Edit tool call count
-	TotalCount int // ReadCount + EditCount
-}
+// FileOpCount is an alias for parser.FileOpCount for backward compatibility.
+type FileOpCount = parser.FileOpCount
 
 // ExtractFilePaths extracts file paths from tool call entries and aggregates
 // them into FileOpStats. Read tool calls increment ReadCount; Write/Edit tool

@@ -220,8 +220,6 @@ func (m DetailModel) visibleHeight() int {
 	return contentHeight
 }
 
-
-
 // View implements tea.Model.
 func (m DetailModel) View() string {
 	if m.width < 25 {
