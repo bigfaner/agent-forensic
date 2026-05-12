@@ -27,7 +27,7 @@
       "dependencies": [
         "1.x"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "1-summary.md",
       "record": "records/1-summary.md",
       "scope": "all",
@@ -73,7 +73,7 @@
         "1.2",
         "1.3"
       ],
-      "status": "in_progress",
+      "status": "completed",
       "file": "1.4-extended-data-models.md",
       "record": "records/1.4-extended-data-models.md",
       "breaking": true,
