@@ -68,7 +68,7 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 				maxEWidth = w
 			}
 		}
-		tv := len(fmt.Sprintf("%d", e.readCount+e.editCount))
+		tv := utf8.RuneCountInString(fmt.Sprintf("%d", e.readCount+e.editCount))
 		if tv > maxTotalVis {
 			maxTotalVis = tv
 		}
@@ -138,7 +138,7 @@ func (p *FileOpsPanel) renderRow(path string, readCount, editCount, pathWidth, m
 	// Total, right-aligned to maxTotalVis
 	total := readCount + editCount
 	totalStr := fmt.Sprintf("%d", total)
-	tv := len(totalStr)
+	tv := utf8.RuneCountInString(totalStr)
 	if tv < maxTotalVis {
 		totalStr = strings.Repeat(" ", maxTotalVis-tv) + totalStr
 	}

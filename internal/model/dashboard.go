@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 	"github.com/user/agent-forensic/internal/stats"
@@ -415,8 +416,8 @@ func (m DashboardModel) renderDashboard() string {
 	peak := m.stats.PeakStep
 	if peak.ToolName != "" {
 		peakName := peak.ToolName
-		if len(peakName) > 40 {
-			peakName = peakName[:39] + "…"
+		if runewidth.StringWidth(peakName) > 40 {
+			peakName = truncRunes(peakName, 39) + "…"
 		}
 		peakStr := fmt.Sprintf("%s (%s)", peakName, formatDuration(peak.Duration))
 		if peak.Duration >= 30*time.Second {
@@ -453,8 +454,8 @@ func (m DashboardModel) renderDashboard() string {
 	const maxLabelWidth = 40
 	labelWidth := 5
 	for _, e := range entries {
-		if len(e.Name) > labelWidth {
-			labelWidth = len(e.Name)
+		if w := runewidth.StringWidth(e.Name); w > labelWidth {
+			labelWidth = w
 		}
 	}
 	if labelWidth > maxLabelWidth {
@@ -474,10 +475,10 @@ func (m DashboardModel) renderDashboard() string {
 
 	// truncateName shortens tool names that exceed labelWidth.
 	truncateName := func(name string) string {
-		if len(name) <= labelWidth {
+		if runewidth.StringWidth(name) <= labelWidth {
 			return name
 		}
-		return name[:labelWidth-1] + "…"
+		return truncRunes(name, labelWidth-1) + "…"
 	}
 
 	// Find max count for scaling
