@@ -83,16 +83,11 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 	}
 
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	var b strings.Builder
 
 	// Section header
 	b.WriteString(primary.Render("File Operations"))
-	b.WriteString("\n")
-
-	// Divider
-	b.WriteString(dimStyle.Render(strings.Repeat("─", width)))
 	b.WriteString("\n")
 
 	// File rows

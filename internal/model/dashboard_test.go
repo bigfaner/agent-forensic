@@ -410,7 +410,7 @@ func TestDashboard_HookPanel_ReplacesOldHookColumn(t *testing.T) {
 	assert.Contains(t, view, "Hook Statistics")
 }
 
-func TestDashboard_HookPanel_PositionAfterFileOps(t *testing.T) {
+func TestDashboard_HookPanel_PositionBeforeFileOps(t *testing.T) {
 	session := &parser.Session{
 		FilePath:  "/test/session.jsonl",
 		Date:      time.Now(),
@@ -437,10 +437,10 @@ func TestDashboard_HookPanel_PositionAfterFileOps(t *testing.T) {
 	assert.Contains(t, view, "File Operations")
 	assert.Contains(t, view, "Hook Statistics")
 
-	// Hook Analysis should appear after File Operations
+	// Hook Analysis should appear before File Operations
 	foIdx := strings.Index(view, "File Operations")
 	haIdx := strings.Index(view, "Hook Statistics")
-	assert.Greater(t, haIdx, foIdx, "Hook Analysis should appear after File Operations panel")
+	assert.Less(t, haIdx, foIdx, "Hook Analysis should appear before File Operations panel")
 }
 
 func TestDashboard_TabCyclesToHookAnalysis(t *testing.T) {

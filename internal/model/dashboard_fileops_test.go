@@ -179,18 +179,6 @@ func TestFileOpsPanel_Render_PathTruncation(t *testing.T) {
 	assert.NotContains(t, got, longPath)
 }
 
-func TestFileOpsPanel_Render_Divider(t *testing.T) {
-	panel := NewFileOpsPanel()
-	stats := &parser.FileOpStats{
-		Files: map[string]*parser.FileOpCount{
-			"main.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
-		},
-	}
-
-	got := panel.Render(stats, 80)
-	// Should contain a divider line
-	assert.Contains(t, got, "────")
-}
 
 // bug: counts columns misalign when mixing single and double digit values
 func TestFileOpsPanel_Render_CountsColumnAlignment(t *testing.T) {
@@ -198,8 +186,8 @@ func TestFileOpsPanel_Render_CountsColumnAlignment(t *testing.T) {
 	stats := &parser.FileOpStats{
 		Files: map[string]*parser.FileOpCount{
 			"aaa.go": {ReadCount: 15, EditCount: 3, TotalCount: 18}, // double-digit R
-			"bbb.go": {ReadCount: 2, EditCount: 7, TotalCount: 9},  // single-digit R
-			"ccc.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},  // R only, single-digit
+			"bbb.go": {ReadCount: 2, EditCount: 7, TotalCount: 9},   // single-digit R
+			"ccc.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},   // R only, single-digit
 		},
 	}
 

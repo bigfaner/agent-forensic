@@ -526,27 +526,20 @@ func (m DashboardModel) renderDashboard() string {
 	rightCol := lipgloss.NewStyle().Width(colWidth).Render(rightBuf.String())
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, strings.Repeat(" ", colGap), rightCol))
 
-	// Custom tools block (Skill/MCP/Hook)
-	customToolsBlock := m.renderCustomToolsBlock(contentWidth)
-	if customToolsBlock != "" {
-		b.WriteString("\n\n")
-		b.WriteString(customToolsBlock)
+	// Section helper: separator + content
+	separator := lipgloss.NewStyle().Foreground(lipgloss.Color("239")).Render(strings.Repeat("─", contentWidth))
+	writeSection := func(block string) {
+		if block == "" {
+			return
+		}
+		b.WriteString("\n")
+		b.WriteString(separator)
+		b.WriteString("\n")
+		b.WriteString(block)
 	}
 
-	// File Operations panel
-	if m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0 {
-		panel := NewFileOpsPanel()
-		fileOpsBlock := panel.Render(m.stats.FileOps, contentWidth)
-		if fileOpsBlock != "" {
-			b.WriteString("\n\n")
-			// Highlight header when this section is focused
-			if m.focused && m.focusSection == SectionFileOps {
-				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
-				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations", cyan.Render("File Operations"), 1)
-			}
-			b.WriteString(fileOpsBlock)
-		}
-	}
+	// Custom tools block (Skill/MCP/Hook)
+	writeSection(m.renderCustomToolsBlock(contentWidth))
 
 	// Hook Analysis panel (Statistics + Timeline)
 	if len(m.stats.HookDetails) > 0 {
@@ -554,21 +547,33 @@ func (m DashboardModel) renderDashboard() string {
 		timelinePanel := NewHookTimelinePanel()
 		hookStatsBlock := statsPanel.Render(m.stats.HookDetails, contentWidth)
 		hookTimelineBlock := timelinePanel.Render(m.stats.HookDetails, contentWidth, m.hookCursor, m.focused && m.focusSection == SectionHookAnalysis)
-
 		if hookStatsBlock != "" || hookTimelineBlock != "" {
-			b.WriteString("\n\n")
-			// Highlight "Hook Statistics" header when this section is focused
 			if m.focused && m.focusSection == SectionHookAnalysis {
 				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
 				hookStatsBlock = strings.Replace(hookStatsBlock, "Hook Statistics", cyan.Render("Hook Statistics"), 1)
 			}
+			var hookBlock strings.Builder
 			if hookStatsBlock != "" {
-				b.WriteString(hookStatsBlock)
+				hookBlock.WriteString(hookStatsBlock)
 			}
 			if hookTimelineBlock != "" {
-				b.WriteString("\n")
-				b.WriteString(hookTimelineBlock)
+				hookBlock.WriteString("\n")
+				hookBlock.WriteString(hookTimelineBlock)
 			}
+			writeSection(hookBlock.String())
+		}
+	}
+
+	// File Operations panel
+	if m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0 {
+		panel := NewFileOpsPanel()
+		fileOpsBlock := panel.Render(m.stats.FileOps, contentWidth)
+		if fileOpsBlock != "" {
+			if m.focused && m.focusSection == SectionFileOps {
+				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
+				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations", cyan.Render("File Operations"), 1)
+			}
+			writeSection(fileOpsBlock)
 		}
 	}
 
