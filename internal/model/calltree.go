@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -31,17 +32,18 @@ type MonitoringToggleMsg struct {
 type flashTickMsg struct{}
 
 // maxSubAgentChildren is the maximum number of SubAgent children to display inline.
-// Beyond this, an overflow message is shown.
+// Beyond this, a summary line is shown instead of individual children.
 const maxSubAgentChildren = 50
 
 // visibleNode represents a single renderable line in the call tree.
 type visibleNode struct {
-	turnIdx  int               // index into m.turns (-1 if not applicable)
-	entryIdx int               // index into turn.Entries (-1 for turn header)
-	depth    int               // 0 for turn, 1 for tool call, 2 for subagent child
-	subIdx   int               // subagent entry index within SubAgent children (-1 if not subagent child)
-	isTurn   bool              // true for turn header, false for tool call
-	entry    *parser.TurnEntry // pointer to entry for tool calls
+	turnIdx   int               // index into m.turns (-1 if not applicable)
+	entryIdx  int               // index into turn.Entries (-1 for turn header)
+	depth     int               // 0 for turn, 1 for tool call, 2 for subagent child
+	subIdx    int               // subagent entry index within SubAgent children (-1 if not subagent child)
+	isTurn    bool              // true for turn header, false for tool call
+	isSummary bool              // true for SubAgent summary line (>50 children)
+	entry     *parser.TurnEntry // pointer to entry for tool calls
 }
 
 // CallTreeModel is a Bubble Tea model for the call tree panel.
@@ -280,19 +282,28 @@ func (m *CallTreeModel) rebuildVisibleNodes() {
 						key := fmt.Sprintf("%d-%d", i, j)
 						if m.subAgentExpanded[key] && m.subAgentErrors[key] == nil {
 							children := entry.Children
-							limit := len(children)
-							if limit > maxSubAgentChildren {
-								limit = maxSubAgentChildren
-							}
-							for k := 0; k < limit; k++ {
+							if len(children) > maxSubAgentChildren {
+								// Summary mode: single summary line instead of individual children
 								m.visibleNodes = append(m.visibleNodes, visibleNode{
-									turnIdx:  i,
-									entryIdx: j,
-									depth:    2,
-									subIdx:   k,
-									isTurn:   false,
-									entry:    &children[k],
+									turnIdx:   i,
+									entryIdx:  j,
+									depth:     2,
+									subIdx:    -1,
+									isTurn:    false,
+									isSummary: true,
+									entry:     entry,
 								})
+							} else {
+								for k := 0; k < len(children); k++ {
+									m.visibleNodes = append(m.visibleNodes, visibleNode{
+										turnIdx:  i,
+										entryIdx: j,
+										depth:    2,
+										subIdx:   k,
+										isTurn:   false,
+										entry:    &children[k],
+									})
+								}
 							}
 						}
 					}
@@ -580,21 +591,10 @@ func (m CallTreeModel) renderTree() string {
 		node := m.visibleNodes[i]
 		if node.isTurn {
 			m.renderTurnNode(&b, i, node, contentWidth)
+		} else if node.isSummary {
+			m.renderSubAgentSummary(&b, i, node, contentWidth)
 		} else {
 			m.renderToolNode(&b, i, node, contentWidth)
-		}
-		// Check if next line should be an overflow message for SubAgent children
-		if m.needsOverflowAfter(i) {
-			b.WriteString("\n")
-			// Get overflow count from parent SubAgent entry
-			parentEntry := m.turns[node.turnIdx].Entries[node.entryIdx]
-			overflow := len(parentEntry.Children) - maxSubAgentChildren
-			m.renderSubAgentOverflow(&b, overflow)
-			// Skip if this is the last line
-			if i < end-1 {
-				b.WriteString("\n")
-			}
-			continue
 		}
 		if i < end-1 {
 			b.WriteString("\n")
@@ -703,7 +703,7 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 	// SubAgent nodes may have depth-2 children following them; check if this is
 	// the "last" visual entry considering possible SubAgent children.
 	if node.entryIdx == lastToolIdx {
-		// Only use └─ if the SubAgent is NOT expanded with children
+		// Only use └─ if the SubAgent is NOT expanded with children/summary
 		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
 		if parser.IsAgentTool(entry.ToolName) && m.subAgentExpanded[key] && m.subAgentErrors[key] == nil && len(entry.Children) > 0 {
 			connector = "├─ "
@@ -808,6 +808,41 @@ func (m CallTreeModel) renderSubAgentNode(b *strings.Builder, cursorIdx int, nod
 	m.renderStyledLine(b, cursorIdx, line, entry)
 }
 
+// renderSubAgentSummary renders the summary line for >50 SubAgent children.
+// Format: "N sub-sessions (avg X.Xs, Y.Y tools/session)"
+func (m CallTreeModel) renderSubAgentSummary(b *strings.Builder, cursorIdx int, node visibleNode, contentWidth int) {
+	parentEntry := m.turns[node.turnIdx].Entries[node.entryIdx]
+	children := parentEntry.Children
+	count := len(children)
+
+	totalDur := 0.0
+	totalTools := 0
+	for _, child := range children {
+		totalDur += child.Duration.Seconds()
+		if child.Type == parser.EntryToolUse {
+			totalTools++
+		}
+	}
+	avgDur := totalDur / float64(count)
+	avgTools := float64(totalTools) / float64(count)
+
+	line := fmt.Sprintf("    │  └─ %d sub-sessions (avg %.1fs, %.1f tools/session)", count, avgDur, avgTools)
+
+	cw := m.width - 4
+	if runewidth.StringWidth(line) > cw {
+		line = truncateLineToWidth(line, cw)
+	}
+
+	style := lipgloss.NewStyle().Foreground(lipgloss.Color("242")) // text-secondary
+	if cursorIdx == m.cursor {
+		style = lipgloss.NewStyle().
+			Inline(true).
+			Foreground(lipgloss.Color("15")).
+			Background(lipgloss.Color("55"))
+	}
+	b.WriteString(style.Render(line))
+}
+
 // renderSubAgentChild renders a single SubAgent child entry at depth 2.
 func (m CallTreeModel) renderSubAgentChild(b *strings.Builder, cursorIdx int, node visibleNode, contentWidth int) {
 	entry := node.entry
@@ -817,20 +852,8 @@ func (m CallTreeModel) renderSubAgentChild(b *strings.Builder, cursorIdx int, no
 	// Determine connector for depth-2 child
 	connector := "├─ "
 	isLast := node.subIdx == len(children)-1
-	// Also check for overflow — if we're showing max+overflow, the last real child uses ├─
-	overflow := len(children) - maxSubAgentChildren
-	if overflow <= 0 {
-		// No overflow
-		if isLast {
-			connector = "└─ "
-		}
-	} else {
-		// Has overflow: last shown child uses ├─ (overflow message follows as └─)
-		if node.subIdx == maxSubAgentChildren-1 {
-			connector = "├─ "
-		} else if isLast && node.subIdx < maxSubAgentChildren {
-			connector = "└─ "
-		}
+	if isLast {
+		connector = "└─ "
 	}
 
 	toolName := entry.ToolName
@@ -851,13 +874,6 @@ func (m CallTreeModel) renderSubAgentChild(b *strings.Builder, cursorIdx int, no
 	} else {
 		b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("252")).Render(line))
 	}
-}
-
-// renderSubAgentOverflow renders the "+N more" overflow message after the last visible SubAgent child.
-func (m CallTreeModel) renderSubAgentOverflow(b *strings.Builder, overflow int) {
-	line := fmt.Sprintf("    │  └─ ... +%d more", overflow)
-	style := lipgloss.NewStyle().Foreground(lipgloss.Color("242")) // text-secondary
-	b.WriteString(style.Render(line))
 }
 
 // errorLabel maps an error type to a short display label.
@@ -996,25 +1012,4 @@ func (m CallTreeModel) IsSubAgentExpanded(turnIdx, entryIdx int) bool {
 func (m CallTreeModel) SubAgentError(turnIdx, entryIdx int) error {
 	key := fmt.Sprintf("%d-%d", turnIdx, entryIdx)
 	return m.subAgentErrors[key]
-}
-
-// needsOverflowAfter checks if the node at index i is the last shown SubAgent child
-// and there are more children beyond the maxSubAgentChildren limit.
-func (m CallTreeModel) needsOverflowAfter(i int) bool {
-	if i >= len(m.visibleNodes) {
-		return false
-	}
-	node := m.visibleNodes[i]
-	if node.depth != 2 || node.subIdx < 0 || node.entry == nil {
-		return false
-	}
-	// Find parent entry
-	parentEntry := m.turns[node.turnIdx].Entries[node.entryIdx]
-	children := parentEntry.Children
-	overflow := len(children) - maxSubAgentChildren
-	if overflow <= 0 {
-		return false
-	}
-	// This is the last shown child
-	return node.subIdx == maxSubAgentChildren-1
 }

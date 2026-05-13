@@ -215,7 +215,7 @@
       "dependencies": [
         "2.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3.1-summary-mode.md",
       "record": "records/3.1-summary-mode.md",
       "scope": "all",

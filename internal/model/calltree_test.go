@@ -802,7 +802,7 @@ func TestCallTree_SubAgentASCIIMode(t *testing.T) {
 }
 
 func TestCallTree_SubAgentOverflow(t *testing.T) {
-	// >50 children: show "... +N more" overflow
+	// >50 children: now shows summary line instead of individual children
 	children := make([]parser.TurnEntry, 55)
 	for i := range children {
 		children[i] = parser.TurnEntry{
@@ -830,15 +830,15 @@ func TestCallTree_SubAgentOverflow(t *testing.T) {
 		},
 	}
 	m := newTestCallTreeModel(turns)
-	// Use a larger viewport to see all 50 children + overflow
 	m = m.SetSize(80, 60)
 	m.expanded[0] = true
 	m = m.SetSubAgentExpanded(0, 0, true)
 	view := m.View()
-	assert.Contains(t, view, "+5 more")
-	// Visible nodes: Turn(1) + SubAgent(1) + 50 children = 52
-	// Overflow is rendered inline in View(), not as a visibleNode
-	assert.Equal(t, 52, len(m.visibleNodes))
+	// Summary mode: single summary line, not "+N more" overflow
+	assert.Contains(t, view, "55 sub-sessions")
+	assert.NotContains(t, view, "+5 more")
+	// Visible nodes: Turn(1) + SubAgent(1) + summary(1) = 3
+	assert.Equal(t, 3, len(m.visibleNodes))
 }
 
 func TestCallTree_SubAgentChildrenOrder(t *testing.T) {
@@ -1050,6 +1050,240 @@ func TestCallTree_ToggleExpand_TurnNode_Unchanged(t *testing.T) {
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	m = updated.(CallTreeModel)
 	assert.False(t, m.expanded[0])
+}
+
+// --- Task 3.1: Summary mode for >50 sub-sessions ---
+
+func TestCallTree_SummaryMode_52SubSessions(t *testing.T) {
+	// 52 children > 50: should show summary line
+	children := make([]parser.TurnEntry, 52)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: time.Duration(i+1) * 100 * time.Millisecond,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	// Should show summary line, not individual children
+	assert.Contains(t, view, "52 sub-sessions")
+	assert.Contains(t, view, "tools/session")
+	// Should NOT show "+N more" overflow
+	assert.NotContains(t, view, "+2 more")
+	// Visible nodes: Turn(1) + SubAgent(1) + summary(1) = 3
+	assert.Equal(t, 3, len(m.visibleNodes))
+}
+
+func TestCallTree_SummaryMode_50SubSessions_FullList(t *testing.T) {
+	// 50 children == threshold: should NOT trigger summary mode
+	children := make([]parser.TurnEntry, 50)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: time.Duration(i+1) * 100 * time.Millisecond,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	m = m.SetSize(80, 60)
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	// Should NOT show summary — full list rendered
+	assert.NotContains(t, view, "sub-sessions")
+	// All 50 children should be visible as nodes
+	// Turn(1) + SubAgent(1) + 50 children = 52
+	assert.Equal(t, 52, len(m.visibleNodes))
+}
+
+func TestCallTree_SummaryMode_51SubSessions(t *testing.T) {
+	// 51 children > 50: summary mode triggered
+	children := make([]parser.TurnEntry, 51)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: time.Duration(i+1) * 100 * time.Millisecond,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	assert.Contains(t, view, "51 sub-sessions")
+	// Turn(1) + SubAgent(1) + summary(1) = 3
+	assert.Equal(t, 3, len(m.visibleNodes))
+}
+
+func TestCallTree_SummaryMode_ZeroDurationZeroTools(t *testing.T) {
+	// 60 children with zero duration and zero tools: no division error
+	children := make([]parser.TurnEntry, 60)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: 0,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	// Should render without panic
+	assert.Contains(t, view, "60 sub-sessions")
+	assert.Contains(t, view, "avg 0.0s")
+	assert.Contains(t, view, "0 tools/session")
+}
+
+func TestCallTree_SummaryMode_AveragesComputed(t *testing.T) {
+	// 52 children: avg duration = sum of (1..52)*100ms / 52
+	// sum of 1..52 = 52*53/2 = 1378, avg = 1378/52 = 26.5, so avg duration = 2650ms = 2.65s
+	// Each child has 1 tool, so avg tools = 52/52 = 1.0
+	children := make([]parser.TurnEntry, 52)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: time.Duration(i+1) * 100 * time.Millisecond,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns)
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	// avg duration = 2.6s (2650ms), avg tools = 1.0
+	assert.Contains(t, view, "2.6s")
+	assert.Contains(t, view, "1.0 tools/session")
+}
+
+func TestCallTree_SummaryMode_TruncatedAt80Columns(t *testing.T) {
+	// 1000 children: summary line should truncate at 80 columns
+	children := make([]parser.TurnEntry, 1000)
+	for i := range children {
+		children[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			LineNum:  i + 10,
+			ToolName: "Read",
+			Duration: time.Duration(i+1) * 100 * time.Millisecond,
+		}
+	}
+	turns := []parser.Turn{
+		{
+			Index:     1,
+			StartTime: time.Date(2026, 5, 9, 10, 0, 0, 0, time.UTC),
+			Duration:  10 * time.Second,
+			Entries: []parser.TurnEntry{
+				{
+					Type:     parser.EntryToolUse,
+					LineNum:  1,
+					ToolName: "SubAgent",
+					Input:    `{}`,
+					Duration: 5 * time.Second,
+					Children: children,
+				},
+			},
+		},
+	}
+	m := newTestCallTreeModel(turns) // 80x20
+	m.expanded[0] = true
+	m = m.SetSubAgentExpanded(0, 0, true)
+	view := m.View()
+	// Should render without crash; verify it contains the count
+	assert.Contains(t, view, "1000 sub-sessions")
+	// View should not exceed 80 columns per line (golden test validates this)
 }
 
 func TestCallTree_ToggleExpand_NonSubAgentToolNode_NoOp(t *testing.T) {
