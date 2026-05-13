@@ -7,7 +7,6 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -130,6 +129,12 @@ func (m CallTreeModel) SetSession(session *parser.Session) CallTreeModel {
 	if title == "" {
 		title = projectNameFromCwd(session.Cwd)
 	}
+
+	// Sanitize title
+	title = strings.ReplaceAll(title, "\n", " ")
+	title = strings.ReplaceAll(title, "\r", "")
+	title = ansiEscape.ReplaceAllString(title, "")
+	title = sanitizeControlChars(title)
 
 	m.sessionSummary = fmt.Sprintf("%s  %d tools  %s  %s",
 		session.Date.Local().Format("01-02 15:04"),
@@ -514,6 +519,7 @@ func (m CallTreeModel) View() string {
 	if m.sessionSummary != "" {
 		title = fmt.Sprintf("%s — %s", title, m.sessionSummary)
 	}
+	title = truncateLineToWidth(title, m.width-4)
 
 	content := m.renderContent()
 
@@ -637,7 +643,12 @@ func (m CallTreeModel) renderScrollbar(height, total int) string {
 func turnSummary(turn parser.Turn) string {
 	for _, e := range turn.Entries {
 		if e.Type == parser.EntryMessage && e.Output != "" {
-			return strings.ReplaceAll(e.Output, "\n", " ")
+			s := e.Output
+			s = strings.ReplaceAll(s, "\n", " ")
+			s = strings.ReplaceAll(s, "\r", "")
+			s = ansiEscape.ReplaceAllString(s, "")
+			s = sanitizeControlChars(s)
+			return s
 		}
 	}
 	return ""
@@ -658,17 +669,18 @@ func (m CallTreeModel) renderTurnNode(b *strings.Builder, cursorIdx int, node vi
 	}
 	line := fmt.Sprintf("%s %s", icon, label)
 
-	if runewidth.StringWidth(line) > contentWidth {
+	if lipgloss.Width(line) > contentWidth {
 		line = truncateLineToWidth(line, contentWidth)
 	}
 
 	if cursorIdx == m.cursor {
 		style := lipgloss.NewStyle().
+			Inline(true).
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("55"))
 		b.WriteString(style.Render(line))
 	} else {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Render(line))
+		b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("15")).Render(line))
 	}
 }
 
@@ -734,12 +746,13 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 	}
 
 	contentWidth = m.width - 4
-	if runewidth.StringWidth(line) > contentWidth {
+	if lipgloss.Width(line) > contentWidth {
 		line = truncateLineToWidth(line, contentWidth)
 	}
 
 	if cursorIdx == m.cursor {
 		style := lipgloss.NewStyle().
+			Inline(true).
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("55"))
 		b.WriteString(style.Render(line))
@@ -748,19 +761,19 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 		if entry.Anomaly != nil {
 			switch entry.Anomaly.Type {
 			case parser.AnomalySlow:
-				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Render(line))
+				b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("226")).Render(line))
 				return
 			case parser.AnomalyUnauthorized:
-				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(line))
+				b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("196")).Render(line))
 				return
 			}
 		}
 		// Flash style
 		if m.hasFlashForLine(entry.LineNum) {
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(line))
+			b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("51")).Render(line))
 			return
 		}
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render(line))
+		b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("252")).Render(line))
 	}
 }
 
@@ -794,7 +807,7 @@ func (m CallTreeModel) renderSubAgentNode(b *strings.Builder, cursorIdx int, nod
 	}
 
 	cw := m.width - 4
-	if runewidth.StringWidth(line) > cw {
+	if lipgloss.Width(line) > cw {
 		line = truncateLineToWidth(line, cw)
 	}
 
@@ -831,17 +844,18 @@ func (m CallTreeModel) renderSubAgentChild(b *strings.Builder, cursorIdx int, no
 	line := fmt.Sprintf("    │  %s%s (%s)", connector, toolName, duration)
 
 	cw := m.width - 4
-	if runewidth.StringWidth(line) > cw {
+	if lipgloss.Width(line) > cw {
 		line = truncateLineToWidth(line, cw)
 	}
 
 	if cursorIdx == m.cursor {
 		style := lipgloss.NewStyle().
+			Inline(true).
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("55"))
 		b.WriteString(style.Render(line))
 	} else {
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render(line))
+		b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("252")).Render(line))
 	}
 }
 
@@ -875,16 +889,17 @@ func errorLabel(err error) string {
 func (m CallTreeModel) renderStyledLine(b *strings.Builder, cursorIdx int, line string, entry *parser.TurnEntry) {
 	if cursorIdx == m.cursor {
 		style := lipgloss.NewStyle().
+			Inline(true).
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("55"))
 		b.WriteString(style.Render(line))
 	} else {
 		// Flash style
 		if entry != nil && m.hasFlashForLine(entry.LineNum) {
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render(line))
+			b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("51")).Render(line))
 			return
 		}
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Render(line))
+		b.WriteString(lipgloss.NewStyle().Inline(true).Foreground(lipgloss.Color("252")).Render(line))
 	}
 }
 
@@ -1013,17 +1028,17 @@ func (m CallTreeModel) needsOverflowAfter(i int) bool {
 // truncateLineToWidth truncates s to fit within maxWidth terminal columns,
 // appending "…" if truncated. Handles CJK double-width characters.
 func truncateLineToWidth(s string, maxWidth int) string {
-	if runewidth.StringWidth(s) <= maxWidth {
+	if lipgloss.Width(s) <= maxWidth {
 		return s
 	}
-	budget := maxWidth - runewidth.StringWidth("…")
+	budget := maxWidth - lipgloss.Width("…")
 	if budget <= 0 {
 		return "…"
 	}
 	var out []rune
 	used := 0
 	for _, r := range s {
-		w := runewidth.RuneWidth(r)
+		w := lipgloss.Width(string(r))
 		if used+w > budget {
 			break
 		}

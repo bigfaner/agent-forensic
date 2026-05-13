@@ -232,7 +232,11 @@ func (m StatusBarModel) joinWithLanguage(parts []string) string {
 		pad = 1
 	}
 
-	return left + strings.Repeat(" ", pad) + right
+	raw := left + strings.Repeat(" ", pad) + right
+	if lipgloss.Width(raw) > m.width {
+		return lipgloss.NewStyle().MaxWidth(m.width).Render(raw)
+	}
+	return raw
 }
 
 // versionIndicator returns the styled version string with label.

@@ -385,8 +385,8 @@ func (m DetailModel) buildContent(expanded bool) string {
 	b.WriteString(outputLabel)
 	b.WriteString("\n")
 
-	if len(output) > truncationThreshold && !expanded {
-		b.WriteString(renderLines(contentStyle, indentContent(output[:truncationThreshold], 2)))
+	if len([]rune(output)) > truncationThreshold && !expanded {
+		b.WriteString(renderLines(contentStyle, indentContent(string([]rune(output)[:truncationThreshold]), 2)))
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
 	} else {
@@ -401,8 +401,8 @@ func (m DetailModel) buildContent(expanded bool) string {
 		b.WriteString("\n")
 
 		thinking := m.sanitizedThinking
-		if len(thinking) > truncationThreshold && !expanded {
-			b.WriteString(renderLines(contentStyle, indentContent(thinking[:truncationThreshold], 2)))
+		if len([]rune(thinking)) > truncationThreshold && !expanded {
+			b.WriteString(renderLines(contentStyle, indentContent(string([]rune(thinking)[:truncationThreshold]), 2)))
 			b.WriteString("\n")
 			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
 		} else {
@@ -436,8 +436,8 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 		sanitized, _ := sanitizer.Sanitize(promptText)
 		// Compact consecutive blank lines to save vertical space in the viewport
 		compacted := compactBlankLines(sanitized)
-		if len(compacted) > truncationThreshold && !expanded {
-			b.WriteString(renderLines(contentStyle, indentContent(compacted[:truncationThreshold], 2)))
+		if len([]rune(compacted)) > truncationThreshold && !expanded {
+			b.WriteString(renderLines(contentStyle, indentContent(string([]rune(compacted)[:truncationThreshold]), 2)))
 			b.WriteString("\n")
 			b.WriteString(dimStyle.Render("  ...truncated (Enter to expand)"))
 		} else {
@@ -493,7 +493,12 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 func (m DetailModel) turnPromptText() string {
 	for _, e := range m.turn.Entries {
 		if e.Type == parser.EntryMessage && e.Output != "" {
-			return e.Output
+			s := e.Output
+			s = strings.ReplaceAll(s, "\n", " ")
+			s = strings.ReplaceAll(s, "\r", "")
+			s = ansiEscape.ReplaceAllString(s, "")
+			s = sanitizeControlChars(s)
+			return s
 		}
 	}
 	return ""
@@ -758,6 +763,25 @@ func (m DetailModel) contentNeedsScroll() bool {
 
 // ansiEscape matches ANSI color/style escape sequences.
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// sanitizeControlChars replaces tabs with spaces and strips other control
+// characters (except newline) from a string, keeping only printable runes.
+func sanitizeControlChars(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r == '\t':
+			b.WriteString("  ")
+		case r == '\n':
+			b.WriteRune(r)
+		case r < 32 || r == 0x7f:
+			// skip other control characters
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 // visualLineCount returns how many terminal rows a line occupies at the given width.
 func visualLineCount(line string, width int) int {
