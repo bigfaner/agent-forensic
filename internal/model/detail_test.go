@@ -10,6 +10,8 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -954,6 +956,65 @@ func TestRenderFileList_OverflowMoreInSecondaryColor(t *testing.T) {
 
 	// "+2 more" should be present (dim/secondary color — has ANSI codes)
 	assert.Contains(t, result, "+2 more")
+}
+
+// bug: Rx/Ex suffix alignment uses byte length instead of visible width.
+// The × character (U+00D7) is 2 bytes in UTF-8 but 1 cell wide, so using
+// len() for padding causes misalignment when one row has Rx=0.
+func TestRenderFileList_SuffixAlignmentAcrossMixedRows(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"aaa.go": {ReadCount: 5, EditCount: 3, TotalCount: 8}, // has both Rx and Ex
+			"bbb.go": {ReadCount: 0, EditCount: 2, TotalCount: 2}, // only Ex, no Rx
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	lines := strings.Split(clean, "\n")
+	var dataLines []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "files:") {
+			dataLines = append(dataLines, l)
+		}
+	}
+	require.Len(t, dataLines, 2)
+
+	// Use visible column position within each line, not byte index
+	colEx0 := runewidth.StringWidth(dataLines[0][:strings.Index(dataLines[0], "E×")])
+	colEx1 := runewidth.StringWidth(dataLines[1][:strings.Index(dataLines[1], "E×")])
+	assert.Equal(t, colEx0, colEx1, "E× visible column should align across all rows.\nRow 0: %q\nRow 1: %q", dataLines[0], dataLines[1])
+}
+
+func TestRenderFileList_SuffixWidthUsesVisibleWidth(t *testing.T) {
+	// When a row has Rx>0 and another has Rx=0, the padding for Rx=0
+	// should use visible width, not byte length. Otherwise the E× column
+	// shifts right by (byteLen - visibleWidth) characters.
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"both.go":    {ReadCount: 1, EditCount: 1, TotalCount: 2},
+			"edit_lt.go": {ReadCount: 0, EditCount: 1, TotalCount: 1},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	lines := strings.Split(clean, "\n")
+	var dataLines []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "files:") {
+			dataLines = append(dataLines, l)
+		}
+	}
+	require.Len(t, dataLines, 2)
+
+	// E× should be at the same visible column in both rows,
+	// even when row 1 has Rx=0 and skips the read suffix.
+	colEx0 := runewidth.StringWidth(dataLines[0][:strings.Index(dataLines[0], "E×")])
+	colEx1 := runewidth.StringWidth(dataLines[1][:strings.Index(dataLines[1], "E×")])
+	assert.Equal(t, colEx0, colEx1, "E× visible column should align even when Rx is missing.\nRow 0: %q\nRow 1: %q", dataLines[0], dataLines[1])
 }
 
 // --- SubAgent Statistics View tests (UF-4) ---

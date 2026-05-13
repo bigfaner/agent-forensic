@@ -889,26 +889,30 @@ func renderFileList(fileOps *parser.FileOpStats, width int) string {
 		if e.fc.ReadCount > 0 {
 			rPart = fmt.Sprintf("  R×%d", e.fc.ReadCount)
 		}
-		if len(rPart) > len(suffixRead) {
+		if runewidth.StringWidth(rPart) > runewidth.StringWidth(suffixRead) {
 			suffixRead = rPart
 		}
 		ePart := ""
 		if e.fc.EditCount > 0 {
 			ePart = fmt.Sprintf("  E×%d", e.fc.EditCount)
 		}
-		if len(ePart) > len(suffixEdit) {
+		if runewidth.StringWidth(ePart) > runewidth.StringWidth(suffixEdit) {
 			suffixEdit = ePart
 		}
 	}
 
-	// 2 indent + path + suffixRead + suffixEdit
-	maxPathWidth := width - 2 - len(suffixRead) - len(suffixEdit)
+	// 2 indent + path + suffixRead + suffixEdit (visible width)
+	maxPathWidth := width - 2 - runewidth.StringWidth(suffixRead) - runewidth.StringWidth(suffixEdit)
 	if maxPathWidth < 10 {
 		maxPathWidth = 10
 	}
 
 	for _, e := range entries[:displayCount] {
 		path := truncateFilePath(e.path, maxPathWidth)
+		// Right-pad path so statistics columns align across all rows
+		if pw := runewidth.StringWidth(path); pw < maxPathWidth {
+			path += strings.Repeat(" ", maxPathWidth-pw)
+		}
 
 		var row strings.Builder
 		row.WriteString("  ")
@@ -916,20 +920,20 @@ func renderFileList(fileOps *parser.FileOpStats, width int) string {
 
 		if e.fc.ReadCount > 0 {
 			rStr := fmt.Sprintf("  R×%d", e.fc.ReadCount)
-			// Pad to align suffixes
-			padLen := len(suffixRead) - len(rStr)
+			// Pad to align suffixes (use visible width, not byte length)
+			padLen := runewidth.StringWidth(suffixRead) - runewidth.StringWidth(rStr)
 			if padLen > 0 {
 				row.WriteString(strings.Repeat(" ", padLen))
 			}
 			row.WriteString(greenStyle.Render(rStr))
 		} else {
 			// Pad space where read would be
-			row.WriteString(strings.Repeat(" ", len(suffixRead)))
+			row.WriteString(strings.Repeat(" ", runewidth.StringWidth(suffixRead)))
 		}
 
 		if e.fc.EditCount > 0 {
 			eStr := fmt.Sprintf("  E×%d", e.fc.EditCount)
-			padLen := len(suffixEdit) - len(eStr)
+			padLen := runewidth.StringWidth(suffixEdit) - runewidth.StringWidth(eStr)
 			if padLen > 0 {
 				row.WriteString(strings.Repeat(" ", padLen))
 			}
