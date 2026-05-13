@@ -25,7 +25,7 @@ This feature remediates interaction quality across 7 existing UI surfaces from t
 
 ### Description
 
-Replace byte-based width calculation (`len()`) with Unicode display-width calculation for all file path rendering. Paths with CJK characters must render without corruption, misalignment, or mid-character truncation. Path truncation switches from character-level cutting to segment-based dropping (preserve whole path segments from the right).
+Replace byte-based width calculation (`len()`) with Unicode display-width calculation for all file path rendering. Paths with CJK characters must render without corruption, misalignment, or mid-character truncation. All panels use the shared `truncatePathBySegment` utility (defined in `internal/model/truncate.go`) which drops whole path segments from the left, using `runewidth.StringWidth()` for display-width calculation.
 
 ### User Interaction Flow
 
@@ -51,6 +51,7 @@ Replace byte-based width calculation (`len()`) with Unicode display-width calcul
 
 ### Validation Rules
 
+- All panels use shared `truncatePathBySegment` from `internal/model/truncate.go` — no per-panel truncation logic (grep-verified)
 - Zero `len()` calls for visible width calculation (grep-verified)
 - Zero corrupted UTF-8 sequences in golden test output (`utf8.ValidString()` check)
 - Golden tests must pass at 80x24 and 140x40 with CJK test data

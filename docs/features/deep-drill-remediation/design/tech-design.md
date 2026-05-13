@@ -52,6 +52,8 @@ No new layers, no external services, no database.
 | `github.com/mattn/go-runewidth` | indirect (v0.0.16) | Promote to direct |
 | `github.com/rivo/uniseg` | indirect (v0.4.7) | No change (transitive) |
 
+Minimum terminal size: 80 columns x 24 rows. All panels are designed and tested for this minimum; golden tests verify rendering at 80x24 and 140x40.
+
 ## Interfaces
 
 ### Interface 1: Shared Truncation Utilities
