@@ -626,6 +626,44 @@ func TestFindCommandForHook_NoMatchingTool(t *testing.T) {
 	assert.Equal(t, "", findCommandForHook(hd, entries, nil))
 }
 
+// bug: hooks in different turn from tool_use show no command
+func TestFindCommandForHook_WithTargetInPrevTurn(t *testing.T) {
+	hd := parser.HookDetail{HookType: "PreToolUse", Target: "Bash", FullID: "PreToolUse::Bash"}
+	// Hook is in turn N+1, tool_use is in turn N
+	entries := []parser.TurnEntry{}
+	prevEntries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"npm test"}`},
+	}
+	assert.Equal(t, "npm test", findCommandForHook(hd, entries, prevEntries))
+}
+
+// bug: hook timeline shows type+matcher but no command when ToolUseID is empty
+func TestCalculateStats_HookDetails_HookInDifferentTurnShowsCommand(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"git status"}`},
+					{Type: parser.EntryToolResult, ToolName: "Bash", Output: "ok"},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					// No ToolUseID — simulates attachment hook without ID correlation
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	require.Len(t, s.HookDetails, 1)
+	assert.Equal(t, "PreToolUse::Bash", s.HookDetails[0].FullID)
+	assert.Equal(t, "git status", s.HookDetails[0].Command, "should find command from previous turn")
+}
+
 // bug: Stop hooks show no command even when a tool_use exists in the previous turn
 func TestCalculateStats_HookDetails_StopHookGetsCommandFromPrevTurn(t *testing.T) {
 	session := &parser.Session{

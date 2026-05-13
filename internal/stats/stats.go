@@ -163,6 +163,13 @@ func findCommandForHook(hd parser.HookDetail, entries []parser.TurnEntry, prevEn
 				return extractToolCommand(entries[i].ToolName, entries[i].Input)
 			}
 		}
+		// Hook may be in a different turn from the tool_use (attachment/progress hooks
+		// are EntryMessage entries which act as turn delimiters).
+		for i := len(prevEntries) - 1; i >= 0; i-- {
+			if prevEntries[i].Type == parser.EntryToolUse && prevEntries[i].ToolName == hd.Target {
+				return extractToolCommand(prevEntries[i].ToolName, prevEntries[i].Input)
+			}
+		}
 		return ""
 	}
 	// No Target: look for last tool_use in previous turn
