@@ -9,7 +9,7 @@
 │                                                                              │
 │Write ████████████ 1                   Write █░░░░░░░░░░░░░░░░░░░░░░░░   6%   │
 │                                                                              │
-│File Operations (top 20)                                                      │
+│File Operations                                                               │
 │────────────────────────────────────────────────────────────────────────────  │
 │/project/config/production.yml                                 R×1       1    │
 │/project/src/fix.ts                                                 E×1  1    │

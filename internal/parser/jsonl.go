@@ -29,6 +29,10 @@ type claudeEnvelope struct {
 	ExitCode *int            `json:"exit_code,omitempty"`
 	Content  string          `json:"content,omitempty"`
 	Thinking string          `json:"thinking,omitempty"`
+	// Hook entry fields (real Claude Code JSONL)
+	Attachment json.RawMessage `json:"attachment,omitempty"`
+	Data       json.RawMessage `json:"data,omitempty"`
+	ToolUseID  string          `json:"toolUseID,omitempty"`
 }
 
 // claudeMessage represents the nested `message` field in Claude Code JSONL.
@@ -141,21 +145,30 @@ func ScanDir(dirPath string) ([]string, error) {
 
 // ScanSubagentsDir discovers SubAgent JSONL files associated with a main session.
 // sessionPath is the main session JSONL file path (e.g. ~/.claude/projects/{encoded-path}/{session}.jsonl).
-// Looks in filepath.Join(filepath.Dir(sessionPath), "subagents")/*.jsonl.
+// Claude Code stores subagents at {sessionPath-without-.jsonl}/subagents/*.jsonl.
+// Also checks legacy layout at {dir}/subagents/ for backward compatibility.
 // Returns sorted list of absolute file paths.
 // Returns empty slice (no error) when the subagents/ directory does not exist.
 func ScanSubagentsDir(sessionPath string) ([]string, error) {
-	subDir := filepath.Join(filepath.Dir(sessionPath), "subagents")
+	// Try Claude Code layout: {dir}/{sessionId}/subagents/
+	ext := filepath.Ext(sessionPath)
+	sessionDir := strings.TrimSuffix(sessionPath, ext)
+	subDir := filepath.Join(sessionDir, "subagents")
 
 	info, err := os.Stat(subDir)
-	if err != nil {
-		if os.IsNotExist(err) {
+	if err != nil || !info.IsDir() {
+		// Fallback: legacy layout {dir}/subagents/
+		subDir = filepath.Join(filepath.Dir(sessionPath), "subagents")
+		info, err = os.Stat(subDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return []string{}, nil
+			}
+			return nil, NewDirPermissionError(subDir, err)
+		}
+		if !info.IsDir() {
 			return []string{}, nil
 		}
-		return nil, NewDirPermissionError(subDir, err)
-	}
-	if !info.IsDir() {
-		return []string{}, nil
 	}
 
 	entries, err := os.ReadDir(subDir)
@@ -388,6 +401,16 @@ func parseLineEntriesWithEnvelope(line string, filePath string, lineNum int) ([]
 		return entries, env, err
 	}
 
+	// Hook entries from real Claude Code JSONL (main session: attachment, subagent: progress)
+	if env.Type == "attachment" && len(env.Attachment) > 0 {
+		entries := parseAttachmentHook(env, ts, hasTS, lineNum)
+		return entries, env, nil
+	}
+	if env.Type == "progress" && len(env.Data) > 0 {
+		entries := parseProgressHook(env, ts, hasTS, lineNum)
+		return entries, env, nil
+	}
+
 	// Flat format (test backward compat)
 	entries, err := parseFlatEntry(env, ts, hasTS, filePath, lineNum)
 	return entries, env, err
@@ -487,6 +510,121 @@ func parseFlatEntry(env claudeEnvelope, ts time.Time, hasTS bool, filePath strin
 	}
 
 	return []parsedEntry{{Entry: entry, Timestamp: ts, HasTS: hasTS}}, nil
+}
+
+// --- Hook entry types for real Claude Code JSONL ---
+
+// hookAttachment represents the `attachment` field in main session hook entries.
+type hookAttachment struct {
+	Type      string `json:"type"`       // hook_success, hook_blocking_error, etc.
+	HookName  string `json:"hookName"`   // "Stop", "SessionStart"
+	HookEvent string `json:"hookEvent"`  // "Stop", "SessionStart"
+	Command   string `json:"command"`    // hook script command (e.g., "task all-completed")
+	ToolUseID string `json:"toolUseID"`  // linked tool call ID
+	Content   string `json:"content"`    // hook output
+	Stdout    string `json:"stdout"`     // hook stdout
+	Stderr    string `json:"stderr"`     // hook stderr
+	Message   string `json:"message"`    // for hook_stopped_continuation
+}
+
+// hookProgressData represents the `data` field in subagent hook entries.
+type hookProgressData struct {
+	Type      string `json:"type"`      // "hook_progress"
+	HookEvent string `json:"hookEvent"` // "PreToolUse", "PostToolUse"
+	HookName  string `json:"hookName"`  // "PostToolUse:Read", "PreToolUse:Bash"
+	Command   string `json:"command"`   // hook script command
+}
+
+// parseAttachmentHook handles type:"attachment" entries (main session hooks).
+// Emits EntryMessage with hook marker text for stats detection.
+// Handles Stop, PreToolUse, and PostToolUse hooks. Ignores SessionStart.
+func parseAttachmentHook(env claudeEnvelope, ts time.Time, hasTS bool, lineNum int) []parsedEntry {
+	var att hookAttachment
+	if err := json.Unmarshal(env.Attachment, &att); err != nil {
+		return nil
+	}
+
+	// Ignore SessionStart hooks (not useful for timeline)
+	switch att.HookEvent {
+	case "Stop", "PreToolUse", "PostToolUse":
+		// proceed
+	default:
+		return nil
+	}
+
+	// Build output text
+	output := att.HookEvent
+	if att.HookEvent == "PreToolUse" || att.HookEvent == "PostToolUse" {
+		// Extract tool name from hookName (e.g., "PostToolUse:Write" → "Write")
+		if idx := strings.LastIndex(att.HookName, ":"); idx >= 0 {
+			toolName := att.HookName[idx+1:]
+			output = att.HookEvent + " hook for " + toolName
+		}
+	}
+	if text := hookAttachmentText(att); text != "" {
+		output += "\n" + text
+	}
+
+	return []parsedEntry{{
+		Entry: TurnEntry{
+			Type:      EntryMessage,
+			LineNum:   lineNum,
+			Output:    output,
+			ToolUseID: att.ToolUseID,
+		},
+		Timestamp: ts, HasTS: hasTS,
+	}}
+}
+
+// parseProgressHook handles type:"progress" entries (subagent hook_progress).
+// Emits EntryMessage with marker text matching existing detection patterns.
+func parseProgressHook(env claudeEnvelope, ts time.Time, hasTS bool, lineNum int) []parsedEntry {
+	var data hookProgressData
+	if err := json.Unmarshal(env.Data, &data); err != nil {
+		return nil
+	}
+	if data.Type != "hook_progress" {
+		return nil
+	}
+
+	// Extract tool name from hookName (e.g., "PostToolUse:Read" → "Read")
+	toolName := ""
+	if idx := strings.LastIndex(data.HookName, ":"); idx >= 0 {
+		toolName = data.HookName[idx+1:]
+	}
+
+	// Format output to match existing detection patterns
+	output := data.HookEvent
+	if toolName != "" {
+		output = data.HookEvent + " hook for " + toolName
+	}
+
+	return []parsedEntry{{
+		Entry: TurnEntry{
+			Type:      EntryMessage,
+			LineNum:   lineNum,
+			Output:    output,
+			ToolUseID: env.ToolUseID,
+		},
+		Timestamp: ts, HasTS: hasTS,
+	}}
+}
+
+// hookAttachmentText extracts the most relevant display text from a hook attachment.
+func hookAttachmentText(att hookAttachment) string {
+	if att.Content != "" {
+		return att.Content
+	}
+	if att.Stderr != "" {
+		return att.Stderr
+	}
+	if att.Stdout != "" {
+		return att.Stdout
+	}
+	if att.Message != "" {
+		return att.Message
+	}
+	return ""
 }
 
 // parseTimestamp parses an RFC3339 timestamp string, with or without sub-seconds.

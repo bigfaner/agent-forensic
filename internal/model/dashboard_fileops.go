@@ -10,8 +10,6 @@ import (
 	"github.com/user/agent-forensic/internal/parser"
 )
 
-const foMaxFiles = 20
-
 // FileOpsPanel renders file operation statistics as a table.
 // Not a bubbletea.Model — stateless rendering function called from dashboard View().
 type FileOpsPanel struct{}
@@ -52,11 +50,11 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 		return entries[i].path < entries[j].path
 	})
 
-	// Determine overflow
+	// Cap at 20 files
 	overflow := 0
-	if len(entries) > foMaxFiles {
-		overflow = len(entries) - foMaxFiles
-		entries = entries[:foMaxFiles]
+	if len(entries) > 20 {
+		overflow = len(entries) - 20
+		entries = entries[:20]
 	}
 
 	// Calculate per-column max widths (in visible chars)
@@ -97,7 +95,7 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 	var b strings.Builder
 
 	// Section header
-	b.WriteString(primary.Render("File Operations (top 20)"))
+	b.WriteString(primary.Render("File Operations"))
 	b.WriteString("\n")
 
 	// Divider

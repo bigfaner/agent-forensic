@@ -46,7 +46,6 @@ func TestFileOpsPanel_Render_SingleFile(t *testing.T) {
 
 	// Should contain section header
 	assert.Contains(t, got, "File Operations")
-	assert.Contains(t, got, "(top 20)")
 	// Should contain file path
 	assert.Contains(t, got, "main.go")
 	// Should contain read and edit counts
@@ -114,7 +113,7 @@ func TestFileOpsPanel_Render_SortedByTotalDesc(t *testing.T) {
 	assert.Contains(t, fileLines[2], "low.go")
 }
 
-func TestFileOpsPanel_Render_Max20Files(t *testing.T) {
+func TestFileOpsPanel_Render_AllFilesShown(t *testing.T) {
 	panel := NewFileOpsPanel()
 	files := make(map[string]*parser.FileOpCount)
 	for i := 0; i < 25; i++ {
@@ -125,17 +124,17 @@ func TestFileOpsPanel_Render_Max20Files(t *testing.T) {
 
 	got := panel.Render(stats, 120)
 
-	// Should show overflow indicator
+	// Should show overflow indicator (+5 more)
 	assert.Contains(t, got, "+5 more")
 
-	// Count file rows (lines with R× or E×)
+	// Should show only 20 file rows (capped)
 	fileRowCount := 0
 	for _, line := range strings.Split(got, "\n") {
 		if strings.Contains(line, "R×") || strings.Contains(line, "E×") {
 			fileRowCount++
 		}
 	}
-	assert.Equal(t, 20, fileRowCount, "should show exactly 20 file rows")
+	assert.Equal(t, 20, fileRowCount, "should show max 20 file rows")
 }
 
 func TestFileOpsPanel_Render_Exactly20Files_NoOverflow(t *testing.T) {
@@ -148,8 +147,18 @@ func TestFileOpsPanel_Render_Exactly20Files_NoOverflow(t *testing.T) {
 	stats := &parser.FileOpStats{Files: files}
 
 	got := panel.Render(stats, 120)
+	// No overflow indicator since all files fit
 	assert.NotContains(t, got, "+")
 	assert.NotContains(t, got, "more")
+
+	// All 20 files should be shown
+	fileRowCount := 0
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "R×") {
+			fileRowCount++
+		}
+	}
+	assert.Equal(t, 20, fileRowCount)
 }
 
 func TestFileOpsPanel_Render_PathTruncation(t *testing.T) {

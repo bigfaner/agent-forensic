@@ -845,6 +845,33 @@ func TestScanSubagentsDir_MissingDir(t *testing.T) {
 	}
 }
 
+func TestScanSubagentsDir_ClaudeCodeLayout(t *testing.T) {
+	// bug: ScanSubagentsDir looked in filepath.Dir(sessionPath)/subagents/ but
+	// Claude Code stores subagents at {sessionPath-without-.jsonl}/subagents/
+	// e.g. ~/.claude/projects/{encoded}/{id}.jsonl → subagents at {encoded}/{id}/subagents/
+	dir := t.TempDir()
+	sessionFile := filepath.Join(dir, "abc123.jsonl")
+	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+
+	// Real Claude Code layout: {dir}/{sessionId}/subagents/*.jsonl
+	sessionDir := filepath.Join(dir, "abc123")
+	subagentsDir := filepath.Join(sessionDir, "subagents")
+	os.MkdirAll(subagentsDir, 0755)
+	os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+
+	files, err := ScanSubagentsDir(sessionFile)
+	if err != nil {
+		t.Fatalf("ScanSubagentsDir() error: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("files count = %d, want 1 (Claude Code layout: {id}/subagents/)", len(files))
+	}
+	expected := filepath.Join(subagentsDir, "agent-001.jsonl")
+	if files[0] != expected {
+		t.Errorf("files[0] = %s, want %s", files[0], expected)
+	}
+}
+
 func TestScanSubagentsDir_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	sessionFile := filepath.Join(dir, "session.jsonl")
@@ -948,5 +975,225 @@ func TestParseSubAgent_MaxLines(t *testing.T) {
 	}
 	if totalEntries > 10 {
 		t.Errorf("total entries = %d, want <= 10 (maxLines limit)", totalEntries)
+	}
+}
+
+// --- Attachment/Progress hook parsing tests ---
+
+func TestParseSession_AttachmentStopHook(t *testing.T) {
+	att := map[string]interface{}{
+		"type":      "hook_success",
+		"hookName":  "Stop",
+		"hookEvent": "Stop",
+		"command":   "task all-completed",
+		"content":   "hook ran ok",
+		"toolUseID": "tu_stop_001",
+	}
+	attJSON, _ := json.Marshal(att)
+	line := map[string]interface{}{
+		"type":       "attachment",
+		"attachment": json.RawMessage(attJSON),
+		"timestamp":  "2025-01-01T10:00:05Z",
+	}
+	lineJSON, _ := json.Marshal(line)
+
+	path := createTestJSONL(t, []string{string(lineJSON)})
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	// Should have one turn with one EntryMessage entry
+	found := false
+	for _, turn := range session.Turns {
+		for _, e := range turn.Entries {
+			if e.Type == EntryMessage && strings.Contains(e.Output, "Stop") {
+				found = true
+				if !strings.Contains(e.Output, "hook ran ok") {
+					t.Errorf("expected output to contain hook content, got: %q", e.Output)
+				}
+				if e.ToolUseID != "tu_stop_001" {
+					t.Errorf("expected ToolUseID tu_stop_001, got: %q", e.ToolUseID)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("expected Stop hook entry from attachment")
+	}
+}
+
+func TestParseSession_AttachmentSessionStartIgnored(t *testing.T) {
+	att := map[string]interface{}{
+		"type":      "hook_success",
+		"hookName":  "SessionStart",
+		"hookEvent": "SessionStart",
+		"command":   "echo start",
+	}
+	attJSON, _ := json.Marshal(att)
+	line := map[string]interface{}{
+		"type":       "attachment",
+		"attachment": json.RawMessage(attJSON),
+		"timestamp":  "2025-01-01T10:00:05Z",
+	}
+	lineJSON, _ := json.Marshal(line)
+
+	path := createTestJSONL(t, []string{string(lineJSON)})
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	for _, turn := range session.Turns {
+		for _, e := range turn.Entries {
+			if strings.Contains(e.Output, "SessionStart") {
+				t.Error("SessionStart hooks should be ignored")
+			}
+		}
+	}
+}
+
+func TestParseSession_ProgressHook(t *testing.T) {
+	data := map[string]interface{}{
+		"type":      "hook_progress",
+		"hookEvent": "PostToolUse",
+		"hookName":  "PostToolUse:Read",
+		"command":   "task check",
+	}
+	dataJSON, _ := json.Marshal(data)
+	line := map[string]interface{}{
+		"type":      "progress",
+		"data":      json.RawMessage(dataJSON),
+		"toolUseID": "tu_abc123",
+		"timestamp": "2025-01-01T10:00:03Z",
+	}
+	lineJSON, _ := json.Marshal(line)
+
+	path := createTestJSONL(t, []string{string(lineJSON)})
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	found := false
+	for _, turn := range session.Turns {
+		for _, e := range turn.Entries {
+			if e.Type == EntryMessage && strings.Contains(e.Output, "PostToolUse hook for Read") {
+				found = true
+				if e.ToolUseID != "tu_abc123" {
+					t.Errorf("expected ToolUseID tu_abc123, got: %q", e.ToolUseID)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("expected PostToolUse hook entry from progress")
+	}
+}
+
+func TestParseSession_ProgressNonHookIgnored(t *testing.T) {
+	data := map[string]interface{}{
+		"type": "thinking_delta",
+	}
+	dataJSON, _ := json.Marshal(data)
+	line := map[string]interface{}{
+		"type": "progress",
+		"data": json.RawMessage(dataJSON),
+	}
+	lineJSON, _ := json.Marshal(line)
+
+	path := createTestJSONL(t, []string{string(lineJSON)})
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	totalEntries := 0
+	for _, turn := range session.Turns {
+		totalEntries += len(turn.Entries)
+	}
+	if totalEntries != 0 {
+		t.Errorf("non-hook_progress entries should be ignored, got %d entries", totalEntries)
+	}
+}
+
+func TestParseSession_AttachmentPostToolUseHook(t *testing.T) {
+	att := map[string]interface{}{
+		"type":      "hook_success",
+		"hookName":  "PostToolUse:Write",
+		"hookEvent": "PostToolUse",
+		"toolUseID": "tooluse_abc123",
+		"command":   "bash validate.sh",
+		"content":   "validation passed",
+	}
+	attJSON, _ := json.Marshal(att)
+	line := map[string]interface{}{
+		"type":       "attachment",
+		"attachment": json.RawMessage(attJSON),
+		"timestamp":  "2025-01-01T10:00:05Z",
+	}
+	lineJSON, _ := json.Marshal(line)
+
+	path := createTestJSONL(t, []string{string(lineJSON)})
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	found := false
+	for _, turn := range session.Turns {
+		for _, e := range turn.Entries {
+			if e.Type == EntryMessage && strings.Contains(e.Output, "PostToolUse hook for Write") {
+				found = true
+				if !strings.Contains(e.Output, "validation passed") {
+					t.Errorf("expected output to contain hook content, got: %q", e.Output)
+				}
+				if e.ToolUseID != "tooluse_abc123" {
+					t.Errorf("expected ToolUseID tooluse_abc123, got: %q", e.ToolUseID)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("expected PostToolUse hook entry from attachment")
+	}
+}
+
+func TestParseSession_AttachmentPreToolUseHook(t *testing.T) {
+	att := map[string]interface{}{
+		"type":      "hook_success",
+		"hookName":  "PreToolUse:Bash",
+		"hookEvent": "PreToolUse",
+		"toolUseID": "tooluse_xyz789",
+		"command":   "bash check.sh",
+		"content":   "",
+	}
+	attJSON, _ := json.Marshal(att)
+	line := map[string]interface{}{
+		"type":       "attachment",
+		"attachment": json.RawMessage(attJSON),
+		"timestamp":  "2025-01-01T10:00:05Z",
+	}
+	lineJSON, _ := json.Marshal(line)
+
+	path := createTestJSONL(t, []string{string(lineJSON)})
+	session, err := ParseSession(path, 0)
+	if err != nil {
+		t.Fatalf("ParseSession() error: %v", err)
+	}
+
+	found := false
+	for _, turn := range session.Turns {
+		for _, e := range turn.Entries {
+			if e.Type == EntryMessage && strings.Contains(e.Output, "PreToolUse hook for Bash") {
+				found = true
+				if e.ToolUseID != "tooluse_xyz789" {
+					t.Errorf("expected ToolUseID tooluse_xyz789, got: %q", e.ToolUseID)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("expected PreToolUse hook entry from attachment")
 	}
 }
