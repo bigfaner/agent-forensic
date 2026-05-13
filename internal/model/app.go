@@ -367,7 +367,7 @@ func (m AppModel) handleCallTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Intercept 'a' key for SubAgent overlay
 	if msg.String() == "a" {
 		entry := m.callTree.SelectedEntry()
-		if entry != nil && entry.ToolName == "SubAgent" {
+		if entry != nil && isAgentTool(entry.ToolName) {
 			return m.handleSubAgentOverlayOpen()
 		}
 		// 'a' on non-SubAgent node is a no-op
@@ -464,7 +464,7 @@ func (m AppModel) handleDiagnosisKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSubAgentOverlayOpen opens the SubAgent full-screen overlay.
 func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
 	entry := m.callTree.SelectedEntry()
-	if entry == nil || entry.ToolName != "SubAgent" {
+	if entry == nil || !isAgentTool(entry.ToolName) {
 		return m, nil
 	}
 

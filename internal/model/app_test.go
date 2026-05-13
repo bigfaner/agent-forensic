@@ -1268,3 +1268,39 @@ func TestApp_UpdateDetailFromCallTree_TurnHeaderShowsTurnOverview(t *testing.T) 
 	assert.NotNil(t, m.detail.turn, "turn header should show turn overview")
 	assert.Nil(t, m.detail.subAgentStats)
 }
+
+func TestApp_AKey_OpensOverlay_ForAgentToolName(t *testing.T) {
+	// bug: pressing 'a' on an Agent node (actual JSONL tool name) had no response
+	// because code checked for "SubAgent" instead of "Agent"
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Duration: time.Second, Input: `{"file_path":"/a/b.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 2 * time.Second, Input: `{"command":"go test"}`},
+	}
+	agentEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Agent",
+		Input:    `{"description":"test agent"}`,
+		Children: children,
+	}
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{agentEntry},
+	}
+
+	m := NewAppModel("/test/dir", "dev")
+	m.callTree = m.callTree.SetTurns([]parser.Turn{turn})
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.callTree = m.callTree.SetFocused(true)
+	m.activePanel = PanelCallTree
+	m.activeView = ViewMain
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+
+	// Cursor on the Agent tool entry (index 1, after turn header)
+	m.callTree.cursor = 1
+
+	// Press 'a' key
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	app := updated.(AppModel)
+	assert.Equal(t, ViewSubAgent, app.activeView, "pressing 'a' on Agent node should open SubAgent overlay")
+}
