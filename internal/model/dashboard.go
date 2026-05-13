@@ -513,7 +513,7 @@ func (m DashboardModel) renderDashboard() string {
 		if filled > barWidth {
 			filled = barWidth
 		}
-		pctBar := strings.Repeat("▄", filled) + strings.Repeat("─", barWidth-filled)
+		pctBar := strings.Repeat("▄", filled) + strings.Repeat("_", barWidth-filled)
 		rightBuf.WriteString(fmt.Sprintf("%-*s %s %3.0f%%", labelWidth, displayName, pctBar, entry.Pct))
 
 		if i < len(entries)-1 {

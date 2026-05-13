@@ -895,7 +895,7 @@ func TestDashboardView_PercentageBars(t *testing.T) {
 	m.Refresh(testDashboardSession())
 	view := m.View()
 	// Should contain percentage bar characters
-	assert.Contains(t, view, "─")
+	assert.Contains(t, view, "_")
 }
 
 func TestDashboardView_EnglishLocale(t *testing.T) {
