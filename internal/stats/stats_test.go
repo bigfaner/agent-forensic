@@ -351,7 +351,7 @@ func TestParseMCPToolName_ToolWithUnderscores(t *testing.T) {
 // --- parseHookMarker tests ---
 
 func TestParseHookMarker_PreToolUse(t *testing.T) {
-	assert.Equal(t, "PreToolUse", parseHookMarker("hook triggered: PreToolUse"))
+	assert.Equal(t, "PreToolUse", parseHookMarker("PreToolUse hook ran"))
 }
 
 func TestParseHookMarker_PostToolUse(t *testing.T) {
@@ -650,6 +650,50 @@ func TestCalculateStats_HookDetails_StopHookGetsCommandFromPrevTurn(t *testing.T
 	assert.Equal(t, "Stop", s.HookDetails[0].HookType)
 	assert.Equal(t, "npm test", s.HookDetails[0].Command, "Stop hook should extract command from previous turn's tool_use")
 	assert.Contains(t, s.HookDetails[0].Output, "Stop hook triggered")
+}
+
+func TestFindCommandByToolUseID_Found(t *testing.T) {
+	lookup := map[string]*parser.TurnEntry{
+		"abc123": {Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"git status"}`},
+	}
+	assert.Equal(t, "git status", findCommandByToolUseID("abc123", lookup))
+}
+
+func TestFindCommandByToolUseID_EmptyID(t *testing.T) {
+	lookup := map[string]*parser.TurnEntry{
+		"abc123": {Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"git status"}`},
+	}
+	assert.Equal(t, "", findCommandByToolUseID("", lookup))
+}
+
+func TestFindCommandByToolUseID_NotFound(t *testing.T) {
+	lookup := map[string]*parser.TurnEntry{}
+	assert.Equal(t, "", findCommandByToolUseID("missing", lookup))
+}
+
+func TestCalculateStats_HookDetails_ToolUseIDCorrelatesCommand(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", ToolUseID: "tu_001", Input: `{"command":"echo hello"}`},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, ToolUseID: "tu_001", Output: "PostToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	require.Len(t, s.HookDetails, 1)
+	assert.Equal(t, "PostToolUse", s.HookDetails[0].HookType)
+	assert.Equal(t, "Bash", s.HookDetails[0].Target)
+	assert.Equal(t, "echo hello", s.HookDetails[0].Command, "should correlate command via ToolUseID")
 }
 
 // --- ExtractFilePaths tests ---

@@ -13,7 +13,6 @@ const (
 	hpMaxMarkersPerLine  = 30
 	hpTurnLabelWidth     = 3 // "T1", "T2", etc. right-aligned in 3 chars
 	hpContinuationIndent = 4 // spaces for wrapped lines
-	hpMaxCmdLen          = 40
 	hpMaxOutputLines     = 5
 )
 
@@ -218,7 +217,7 @@ func renderHookMarker(h parser.HookDetail) string {
 	markerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(color))
 	label := "●" + h.FullID
 	if h.Command != "" {
-		label += " " + dimBracket(truncateStr(h.Command, hpMaxCmdLen))
+		label += " " + dimBracket(h.Command)
 	}
 	return markerStyle.Render(label)
 }
@@ -231,7 +230,7 @@ func renderHookMarkerSelected(h parser.HookDetail, _ int) string {
 	}
 	baseLabel := "●" + h.FullID
 	if h.Command != "" {
-		baseLabel += " " + dimBracket(truncateStr(h.Command, hpMaxCmdLen))
+		baseLabel += " " + dimBracket(h.Command)
 	}
 	// Render base label in its hook color, then apply reverse highlight
 	colored := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(baseLabel)

@@ -190,9 +190,9 @@ func (m SubAgentOverlayModel) View() string {
 		return ""
 	}
 
-	// Overlay dimensions: 80% x 90%
-	overlayW := m.width * 80 / 100
-	overlayH := m.height * 90 / 100
+	// Overlay uses full screen dimensions
+	overlayW := m.width
+	overlayH := m.height
 	if overlayW < 40 {
 		overlayW = 40
 	}
@@ -213,17 +213,14 @@ func (m SubAgentOverlayModel) View() string {
 		content = m.renderPopulated(overlayW, overlayH)
 	}
 
-	// Bordered overlay
+	// Full-screen bordered overlay
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("15")).
 		Width(overlayW - 2).
 		Height(overlayH - 2)
 
-	boxed := borderStyle.Render(content)
-
-	// Center on screen
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, boxed)
+	return borderStyle.Render(content)
 }
 
 func (m SubAgentOverlayModel) renderLoading(w, h int) string {
@@ -311,7 +308,7 @@ func (m SubAgentOverlayModel) renderTitle() string {
 }
 
 func (m SubAgentOverlayModel) renderFooter() string {
-	hints := "Esc:close  j/k:scroll  Tab:sections"
+	hints := "Esc:close  ↑/↓:scroll  Tab:sections"
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(hints)
 }
 
@@ -589,10 +586,9 @@ func (m SubAgentOverlayModel) sectionHeightsFixed(contentH int) (toolStats, file
 	return
 }
 
-// sectionHeights returns section heights using the model's overlay dimensions.
+// sectionHeights returns section heights using the model's full-screen dimensions.
 func (m SubAgentOverlayModel) sectionHeights() (toolStats, fileOps, durDist int) {
-	overlayH := m.height * 90 / 100
-	innerH := overlayH - 4
+	innerH := m.height - 4
 	contentH := innerH - 2
 	if contentH < 6 {
 		contentH = 6
@@ -620,8 +616,7 @@ func (m SubAgentOverlayModel) maxScrollForSection(section int) int {
 		totalItems = len(m.stats.ToolDurs)
 	}
 
-	overlayH := m.height * 90 / 100
-	innerH := overlayH - 4
+	innerH := m.height - 4
 	contentH := innerH - 2
 	if contentH < 6 {
 		contentH = 6

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -247,6 +248,83 @@ func TestDashboard_JKScroll_InDashboard(t *testing.T) {
 }
 
 // --- Hook Analysis Panel integration tests ---
+
+// --- Bug: scrollPos is updated but never applied to the view ---
+
+func TestDashboard_ScrollContent_VisibleWhenScrolled(t *testing.T) {
+	_ = i18n.SetLocale("zh")
+	t.Cleanup(func() { _ = i18n.SetLocale("zh") })
+
+	entries := make([]parser.TurnEntry, 30)
+	for i := range entries {
+		entries[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			ToolName: fmt.Sprintf("Tool_%02d", i),
+			Duration: time.Duration(i+1) * time.Second,
+		}
+	}
+	session := &parser.Session{
+		FilePath:  "/test/scroll.jsonl",
+		Date:      time.Now(),
+		ToolCount: 30,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{Index: 1, Duration: 5 * time.Minute, Entries: entries},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(80, 10)
+	m.Refresh(session)
+
+	view0 := m.View()
+	assert.Contains(t, view0, "总耗时", "header should be visible at scroll=0")
+
+	// Scroll down by pressing j multiple times
+	cur := m
+	for i := 0; i < 5; i++ {
+		updated, _ := cur.Update(createRuneKeyMsg('j'))
+		cur = updated.(DashboardModel)
+	}
+	assert.Greater(t, cur.scrollPos, 0, "scrollPos should be > 0 after pressing j 5 times")
+
+	viewScrolled := cur.View()
+	assert.NotContains(t, viewScrolled, "总耗时",
+		"header should be scrolled out of view after scrolling down")
+}
+
+func TestDashboard_Scrollbar_VisibleWhenContentOverflows(t *testing.T) {
+	entries := make([]parser.TurnEntry, 30)
+	for i := range entries {
+		entries[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			ToolName: fmt.Sprintf("Tool_%02d", i),
+			Duration: time.Duration(i+1) * time.Second,
+		}
+	}
+	session := &parser.Session{
+		FilePath:  "/test/scrollbar.jsonl",
+		Date:      time.Now(),
+		ToolCount: 30,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{Index: 1, Duration: 5 * time.Minute, Entries: entries},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(80, 10)
+	m.Refresh(session)
+
+	view := m.View()
+	// The scrollbar uses │ and ┃ characters. The border uses │ as well,
+	// so we check for ┃ (thumb) which is unique to the scrollbar.
+	// After fix: scrollbar should appear when content overflows.
+	// Count occurrences of ┃ — border does not use it.
+	thumbCount := strings.Count(view, "┃")
+	assert.Greater(t, thumbCount, 0,
+		"scrollbar thumb (┃) should appear when content overflows viewport")
+}
 
 func TestDashboard_HookPanel_Rendered_WhenHasHookData(t *testing.T) {
 	session := &parser.Session{

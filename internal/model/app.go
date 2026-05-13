@@ -355,9 +355,26 @@ func (m AppModel) handleMainKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleSessionsKey delegates to sessions model.
+// Auto-loads session into call tree when cursor moves to a different conversation.
 func (m AppModel) handleSessionsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	prevPath := ""
+	if m.currentSession != nil {
+		prevPath = m.currentSession.FilePath
+	}
+
 	updated, cmd := m.sessions.Update(msg)
 	m.sessions = updated.(SessionsModel)
+
+	// Auto-select: if cursor moved to a different session, load it
+	if sel := m.sessions.SelectedSession(); sel != nil && sel.FilePath != prevPath {
+		m.currentSession = sel
+		m.callTree = m.callTree.SetSession(sel)
+		m.detail = m.detail.SetEntry(parser.TurnEntry{})
+		if m.dashboard.IsVisible() {
+			m.dashboard.Refresh(sel)
+		}
+	}
+
 	return m, cmd
 }
 
@@ -965,17 +982,13 @@ func (m AppModel) renderDiagnosisView() string {
 	return diagView
 }
 
-// renderSubAgentOverlayView renders the main view with SubAgent overlay on top.
+// renderSubAgentOverlayView renders the SubAgent full-screen overlay with status bar.
 func (m AppModel) renderSubAgentOverlayView() string {
-	// Render main view as background (dimmed by overlay)
-	mainView := m.renderMainView()
-
 	overlayView := m.subagentOverlay.View()
 	if overlayView == "" {
-		return mainView
+		return m.renderMainView()
 	}
 
-	// Overlay renders above existing content
-	_ = mainView // main view is the background; overlay covers it
-	return overlayView
+	statusBar := m.statusBar.View()
+	return lipgloss.JoinVertical(lipgloss.Left, overlayView, statusBar)
 }

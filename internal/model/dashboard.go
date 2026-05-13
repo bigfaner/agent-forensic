@@ -334,6 +334,7 @@ func (m DashboardModel) renderContent() string {
 	return ""
 }
 
+
 // renderScrollableContent splits content into lines, applies scrollPos,
 // and adds a scrollbar when content overflows the viewport.
 func (m DashboardModel) renderScrollableContent(content string) string {
@@ -360,14 +361,34 @@ func (m DashboardModel) renderScrollableContent(content string) string {
 	if end > totalLines {
 		end = totalLines
 	}
-	visible := strings.Join(lines[start:end], "\n")
 
 	contentWidth := m.width - 5 // 4 for panel padding + 1 for scrollbar
 	if contentWidth < 1 {
 		contentWidth = 1
 	}
 
-	fixed := lipgloss.NewStyle().Width(contentWidth).Height(vh).Render(visible)
+	// Render each line with Width constraint, then flatten any wrapped lines.
+	// Take first vh visual lines to preserve the top (lipgloss Height clips
+	// from the top when wrapping inflates the line count).
+	style := lipgloss.NewStyle().Width(contentWidth)
+	var visualLines []string
+	for i := start; i < end; i++ {
+		rendered := style.Render(lines[i])
+		for _, rl := range strings.Split(rendered, "\n") {
+			visualLines = append(visualLines, rl)
+			if len(visualLines) == vh {
+				break
+			}
+		}
+		if len(visualLines) == vh {
+			break
+		}
+	}
+	for len(visualLines) < vh {
+		visualLines = append(visualLines, strings.Repeat(" ", contentWidth))
+	}
+
+	fixed := strings.Join(visualLines, "\n")
 	scrollbar := m.renderScrollbar(vh, totalLines)
 	return lipgloss.JoinHorizontal(lipgloss.Top, fixed, scrollbar)
 }
@@ -520,7 +541,7 @@ func (m DashboardModel) renderDashboard() string {
 			// Highlight header when this section is focused
 			if m.focused && m.focusSection == SectionFileOps {
 				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
-				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations (top 20)", cyan.Render("File Operations (top 20)"), 1)
+				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations", cyan.Render("File Operations"), 1)
 			}
 			b.WriteString(fileOpsBlock)
 		}

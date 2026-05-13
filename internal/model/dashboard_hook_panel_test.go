@@ -209,15 +209,15 @@ func TestHookTimelinePanel_Render_NoCommandNoBracket(t *testing.T) {
 	assert.NotContains(t, got, "[")
 }
 
-func TestHookTimelinePanel_Render_CommandTruncated(t *testing.T) {
+func TestHookTimelinePanel_Render_LongCommandShown(t *testing.T) {
 	panel := NewHookTimelinePanel()
 	longCmd := strings.Repeat("x", 50)
 	details := []parser.HookDetail{
 		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Command: longCmd},
 	}
 	got := panel.Render(details, 80, -1, false)
-	// Should contain truncated command with ellipsis
-	assert.Contains(t, got, "…")
+	// Full command should be visible (not truncated)
+	assert.Contains(t, got, longCmd)
 }
 
 // --- Selection and output display ---

@@ -124,17 +124,17 @@ func TestFileOpsPanel_Render_AllFilesShown(t *testing.T) {
 
 	got := panel.Render(stats, 120)
 
-	// Should show overflow indicator (+5 more)
-	assert.Contains(t, got, "+5 more")
+	// Should NOT show overflow indicator
+	assert.NotContains(t, got, "+5 more")
 
-	// Should show only 20 file rows (capped)
+	// All 25 files should be shown
 	fileRowCount := 0
 	for _, line := range strings.Split(got, "\n") {
 		if strings.Contains(line, "R×") || strings.Contains(line, "E×") {
 			fileRowCount++
 		}
 	}
-	assert.Equal(t, 20, fileRowCount, "should show max 20 file rows")
+	assert.Equal(t, 25, fileRowCount, "should show all 25 file rows")
 }
 
 func TestFileOpsPanel_Render_Exactly20Files_NoOverflow(t *testing.T) {

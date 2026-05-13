@@ -10,8 +10,9 @@ import (
 )
 
 // hookTargetRegex extracts the target tool name from PreToolUse/PostToolUse hook output.
-// Only matches the "for <tool-name>" pattern; "result:" text is not a meaningful target.
-var hookTargetRegex = regexp.MustCompile(`(?i)(PreToolUse|PostToolUse)\s+hook\s+for\s+(\w+)`)
+// Only matches when the pattern appears at the start of the text (attachment-parsed hooks
+// always start with the hook type). Avoids false positives from long message text.
+var hookTargetRegex = regexp.MustCompile(`(?i)^(PreToolUse|PostToolUse)\s+hook\s+for\s+(\w+)`)
 
 // HookDetail is an alias for parser.HookDetail for backward compatibility.
 type HookDetail = parser.HookDetail
@@ -37,10 +38,13 @@ func ParseHookWithTarget(text string) string {
 		return rawType + "::" + target
 	}
 
-	// Fallback to existing marker detection (Stop, user-prompt-submit-hook, and
-	// PreToolUse/PostToolUse without a matching target pattern)
+	// Fallback: match text that starts with a known hook marker (e.g., "Stop\n...")
+	// or contains angle-bracket form (e.g., "<user-prompt-submit-hook>").
 	for _, marker := range []string{"PreToolUse", "PostToolUse", "Stop", "user-prompt-submit-hook"} {
-		if strings.Contains(text, marker) {
+		if strings.HasPrefix(text, marker) {
+			return marker
+		}
+		if strings.Contains(text, "<"+marker+">") {
 			return marker
 		}
 	}
@@ -134,6 +138,19 @@ func extractToolCommand(toolName, rawInput string) string {
 	return ""
 }
 
+// findCommandByToolUseID looks up a tool_use entry by its ToolUseID and returns
+// the extracted command. Returns "" if toolUseID is empty or not found.
+func findCommandByToolUseID(toolUseID string, lookup map[string]*parser.TurnEntry) string {
+	if toolUseID == "" {
+		return ""
+	}
+	te, ok := lookup[toolUseID]
+	if !ok {
+		return ""
+	}
+	return extractToolCommand(te.ToolName, te.Input)
+}
+
 // findCommandForHook searches turn entries for a tool_use matching the hook's
 // Target tool name and returns its extracted command.
 // For hooks without a Target (e.g., Stop), falls back to the last tool_use
@@ -175,6 +192,17 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 
 	stats.TotalDuration = session.Duration
 
+	// Build toolUseID → TurnEntry lookup for hook command correlation
+	toolUseByID := make(map[string]*parser.TurnEntry)
+	for ti := range session.Turns {
+		for ei := range session.Turns[ti].Entries {
+			e := &session.Turns[ti].Entries[ei]
+			if e.Type == parser.EntryToolUse && e.ToolUseID != "" {
+				toolUseByID[e.ToolUseID] = e
+			}
+		}
+	}
+
 	// Collect durations per tool and find peak step
 	toolDurations := make(map[string]time.Duration)
 	var peakStep *parser.ToolCallSummary
@@ -215,6 +243,10 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 				}
 
 			case parser.EntryMessage:
+				// Skip synthetic hook feedback messages (the real hook is from the attachment entry)
+				if strings.HasPrefix(entry.Output, "Stop hook feedback:") {
+					continue
+				}
 				// Hook aggregation: scan Output field for known hook markers
 				if marker := parseHookMarker(entry.Output); marker != "" {
 					stats.HookCounts[marker]++
@@ -223,7 +255,10 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 				if fullID := ParseHookWithTarget(entry.Output); fullID != "" && fullID != entry.Output {
 					hd := buildHookDetail(fullID, turn.Index)
 					hd.Output = entry.Output
-					hd.Command = findCommandForHook(hd, turn.Entries, prevEntries)
+					hd.Command = findCommandByToolUseID(entry.ToolUseID, toolUseByID)
+					if hd.Command == "" {
+						hd.Command = findCommandForHook(hd, turn.Entries, prevEntries)
+					}
 					stats.HookDetails = append(stats.HookDetails, hd)
 				} else if marker := parseHookMarker(entry.Output); marker != "" {
 					hd := parser.HookDetail{
@@ -232,6 +267,10 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 						TurnIndex: turn.Index,
 						FullID:    marker,
 						Output:    entry.Output,
+					}
+					hd.Command = findCommandByToolUseID(entry.ToolUseID, toolUseByID)
+					if hd.Command == "" {
+						hd.Command = findCommandForHook(hd, turn.Entries, prevEntries)
 					}
 					stats.HookDetails = append(stats.HookDetails, hd)
 				}
@@ -314,13 +353,16 @@ func buildHookDetail(fullID string, turnIndex int) parser.HookDetail {
 	}
 }
 
-// parseHookMarker returns the hook type name if the text contains a known hook marker,
-// or "" if no known marker is found.
-// Known markers: "PreToolUse", "PostToolUse", "Stop", "user-prompt-submit-hook".
-// Angle brackets are stripped: "<user-prompt-submit-hook>" → "user-prompt-submit-hook".
+// parseHookMarker returns the hook type name if the text starts with a known
+// hook marker, or "" if no known marker is found.
+// Matches text that begins with the marker (e.g., "Stop\n..." or "PostToolUse hook for ...").
+// Also matches angle-bracket form: "<user-prompt-submit-hook>".
 func parseHookMarker(text string) string {
 	for _, marker := range []string{"PreToolUse", "PostToolUse", "Stop", "user-prompt-submit-hook"} {
-		if strings.Contains(text, marker) {
+		if strings.HasPrefix(text, marker) {
+			return marker
+		}
+		if strings.Contains(text, "<"+marker+">") {
 			return marker
 		}
 	}

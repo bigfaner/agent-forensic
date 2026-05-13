@@ -50,13 +50,6 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 		return entries[i].path < entries[j].path
 	})
 
-	// Cap at 20 files
-	overflow := 0
-	if len(entries) > 20 {
-		overflow = len(entries) - 20
-		entries = entries[:20]
-	}
-
 	// Calculate per-column max widths (in visible chars)
 	maxRWidth := 0
 	maxEWidth := 0
@@ -90,7 +83,7 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 	}
 
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
-	secondary := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	var b strings.Builder
 
@@ -99,18 +92,12 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 	b.WriteString("\n")
 
 	// Divider
-	b.WriteString(secondary.Render(strings.Repeat("─", width)))
+	b.WriteString(dimStyle.Render(strings.Repeat("─", width)))
 	b.WriteString("\n")
 
 	// File rows
 	for _, e := range entries {
 		b.WriteString(p.renderRow(e.path, e.readCount, e.editCount, pathWidth, maxRWidth, maxEWidth, maxTotalVis))
-		b.WriteString("\n")
-	}
-
-	// Overflow indicator
-	if overflow > 0 {
-		b.WriteString(secondary.Render(fmt.Sprintf("+%d more", overflow)))
 		b.WriteString("\n")
 	}
 
