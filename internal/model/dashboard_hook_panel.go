@@ -75,7 +75,6 @@ func (p *HookTimelinePanel) Render(details []parser.HookDetail, width int, curso
 func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
 	secondary := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	// Group by FullID and count
 	counts := make(map[string]int)
@@ -100,7 +99,6 @@ func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
 
 	var lines []string
 	lines = append(lines, primary.Render("Hook Statistics"))
-	lines = append(lines, dim.Render("────────────────"))
 	for _, e := range entries {
 		lines = append(lines, secondary.Render(fmt.Sprintf("%s  ×%d", e.fullID, e.count)))
 	}
@@ -113,12 +111,10 @@ func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
 // that marker is highlighted and its Output text is shown below it.
 func renderHookTimelineSection(details []parser.HookDetail, width int, cursor int, cursorActive bool) []string {
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	turnLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	var lines []string
 	lines = append(lines, primary.Render("Hook Timeline (by Turn)"))
-	lines = append(lines, dim.Render("────────────────"))
 
 	// Legend row
 	lines = append(lines, renderHookLegend())

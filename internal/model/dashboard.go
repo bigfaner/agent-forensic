@@ -557,6 +557,7 @@ func (m DashboardModel) renderDashboard() string {
 				hookBlock.WriteString(hookStatsBlock)
 			}
 			if hookTimelineBlock != "" {
+				hookBlock.WriteString(separator)
 				hookBlock.WriteString("\n")
 				hookBlock.WriteString(hookTimelineBlock)
 			}
