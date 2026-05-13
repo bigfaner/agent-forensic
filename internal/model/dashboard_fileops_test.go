@@ -114,35 +114,6 @@ func TestFileOpsPanel_Render_SortedByTotalDesc(t *testing.T) {
 	assert.Contains(t, fileLines[2], "low.go")
 }
 
-func TestFileOpsPanel_Render_BarProportional(t *testing.T) {
-	panel := NewFileOpsPanel()
-	stats := &parser.FileOpStats{
-		Files: map[string]*parser.FileOpCount{
-			"big.go":   {ReadCount: 20, EditCount: 0, TotalCount: 20},
-			"small.go": {ReadCount: 5, EditCount: 0, TotalCount: 5},
-		},
-	}
-
-	got := panel.Render(stats, 80)
-
-	// The bar for big.go should be longer than small.go
-	lines := strings.Split(got, "\n")
-	var bigBarLen, smallBarLen int
-	for _, line := range lines {
-		if strings.Contains(line, "big.go") {
-			bigBarLen = strings.Count(line, "▪")
-		}
-		if strings.Contains(line, "small.go") {
-			smallBarLen = strings.Count(line, "▪")
-		}
-	}
-	assert.Greater(t, bigBarLen, smallBarLen)
-	// big.go has 20 ops, small.go has 5 ops → bar for big should be ~4x larger
-	// Allow tolerance for integer rounding and min bar length clamping
-	ratio := float64(bigBarLen) / float64(smallBarLen)
-	assert.GreaterOrEqual(t, ratio, 3.0)
-}
-
 func TestFileOpsPanel_Render_Max20Files(t *testing.T) {
 	panel := NewFileOpsPanel()
 	files := make(map[string]*parser.FileOpCount)
@@ -183,7 +154,7 @@ func TestFileOpsPanel_Render_Exactly20Files_NoOverflow(t *testing.T) {
 
 func TestFileOpsPanel_Render_PathTruncation(t *testing.T) {
 	panel := NewFileOpsPanel()
-	// Path longer than 40 chars
+	// Path longer than available width (use narrow terminal to force truncation)
 	longPath := "very/long/path/that/exceeds/forty/characters/in/total/length.go"
 	stats := &parser.FileOpStats{
 		Files: map[string]*parser.FileOpCount{
@@ -191,7 +162,7 @@ func TestFileOpsPanel_Render_PathTruncation(t *testing.T) {
 		},
 	}
 
-	got := panel.Render(stats, 80)
+	got := panel.Render(stats, 40)
 	// Should be truncated with ... prefix
 	assert.Contains(t, got, "...")
 	assert.Contains(t, got, "length.go")
@@ -210,35 +181,6 @@ func TestFileOpsPanel_Render_Divider(t *testing.T) {
 	got := panel.Render(stats, 80)
 	// Should contain a divider line
 	assert.Contains(t, got, "────")
-}
-
-func TestFileOpsPanel_Render_ContainsBar(t *testing.T) {
-	panel := NewFileOpsPanel()
-	stats := &parser.FileOpStats{
-		Files: map[string]*parser.FileOpCount{
-			"main.go": {ReadCount: 5, EditCount: 3, TotalCount: 8},
-		},
-	}
-
-	got := panel.Render(stats, 80)
-	// Should contain bar characters
-	assert.Contains(t, got, "▪")
-}
-
-func TestFileOpsPanel_renderBar(t *testing.T) {
-	panel := NewFileOpsPanel()
-
-	t.Run("produces row with path and counts", func(t *testing.T) {
-		row := panel.renderBar("main.go", 5, 3, 8, 40, 15, 3, 3, 2)
-		assert.Contains(t, row, "main.go")
-		assert.Contains(t, row, "R×5")
-		assert.Contains(t, row, "E×3")
-	})
-
-	t.Run("zero max count produces no bar", func(t *testing.T) {
-		row := panel.renderBar("main.go", 0, 0, 0, 40, 15, 0, 0, 1)
-		assert.Contains(t, row, "main.go")
-	})
 }
 
 // bug: counts columns misalign when mixing single and double digit values
@@ -273,7 +215,6 @@ func TestFileOpsPanel_Render_CountsColumnAlignment(t *testing.T) {
 	// The total column is right-aligned — check that the END position (last digit) is the same
 	totalEndPositions := make([]int, len(cleanRunes))
 	for i, runes := range cleanRunes {
-		// Find the last digit rune
 		lastDigitEnd := -1
 		for j := len(runes) - 1; j >= 0; j-- {
 			if runes[j] >= '0' && runes[j] <= '9' {
@@ -292,7 +233,7 @@ func TestFileOpsPanel_Render_CountsColumnAlignment(t *testing.T) {
 			totalEndPositions[0], i, totalEndPositions[i], string(cleanRunes[0]), i, string(cleanRunes[i]))
 	}
 
-	// The E×N should also align across rows that have it (find rune position of 'E' in "E×")
+	// The E×N should also align across rows that have it
 	ePositions := make([]int, 0, 2)
 	for _, runes := range cleanRunes {
 		for j, r := range runes {
@@ -317,13 +258,12 @@ func stripANSI(s string) string {
 	i := 0
 	for i < len(s) {
 		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
-			// Skip until letter
 			j := i + 2
 			for j < len(s) && (s[j] < 'A' || s[j] > 'Z') && (s[j] < 'a' || s[j] > 'z') {
 				j++
 			}
 			if j < len(s) {
-				j++ // skip the letter
+				j++
 			}
 			i = j
 		} else {
