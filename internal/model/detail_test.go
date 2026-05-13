@@ -942,6 +942,28 @@ func TestRenderFileList_TruncatePathKeepsFilename(t *testing.T) {
 	assert.Contains(t, clean, "dashboard_custom_tools.go")
 	// Should have ... prefix for truncation
 	assert.Contains(t, clean, "...")
+	// Should preserve parent directory segments, not just filename
+	assert.Contains(t, clean, "/model/dashboard_custom_tools.go")
+}
+
+func TestTruncateFilePath(t *testing.T) {
+	tests := []struct {
+		path    string
+		maxLen  int
+		want    string
+	}{
+		{"short.go", 20, "short.go"},
+		{"/a/b/c.go", 8, ".../c.go"},
+		{"/a/b/c.go", 7, "...c.go"},
+		{"/a/b/c.go", 5, "...go"},
+		{"/Users/dev/projects/myapp/internal/model/dashboard.go", 30, ".../model/dashboard.go"},
+		{"/Users/dev/projects/myapp/internal/model/dashboard.go", 20, ".../dashboard.go"},
+	}
+	for _, tt := range tests {
+		got := truncateFilePath(tt.path, tt.maxLen)
+		assert.Equal(t, tt.want, got, "truncateFilePath(%q, %d)", tt.path, tt.maxLen)
+		assert.LessOrEqual(t, runewidth.StringWidth(got), tt.maxLen, "result width for %q", tt.path)
+	}
 }
 
 func TestRenderFileList_OverflowMoreInSecondaryColor(t *testing.T) {

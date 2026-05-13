@@ -952,31 +952,51 @@ func renderFileList(fileOps *parser.FileOpStats, width int) string {
 	return b.String()
 }
 
-// truncateFilePath truncates a file path to fit within maxLen characters.
-// If the path exceeds maxLen, it keeps the filename and truncates from the left
-// with a "..." prefix: "...filename.go"
+// truncateFilePath truncates a file path to fit within maxLen visible width.
+// It preserves as many rightmost path components as possible, removing from
+// the left with a "..." prefix: ".../parent/filename.go"
 func truncateFilePath(path string, maxLen int) string {
 	if runewidth.StringWidth(path) <= maxLen {
 		return path
 	}
 
-	// Get the filename (last component)
-	filename := path
-	if idx := strings.LastIndex(path, "/"); idx >= 0 {
-		filename = path[idx+1:]
-	}
-
-	// If even the filename with "..." prefix is too long, truncate filename
+	// Split into components, keep rightmost segments that fit under "..."
 	prefix := "..."
-	avail := maxLen - len(prefix)
+	prefixW := runewidth.StringWidth(prefix)
+	avail := maxLen - prefixW
 	if avail < 1 {
 		avail = 1
 	}
-	if len(filename) > avail {
-		// Keep last avail chars of filename
-		filename = filename[len(filename)-avail:]
+
+	// Collect path segments from right to left
+	var segs []string
+	rest := path
+	for {
+		idx := strings.LastIndex(rest, "/")
+		if idx < 0 {
+			segs = append([]string{rest}, segs...)
+			break
+		}
+		segs = append([]string{rest[idx:]}, segs...)
+		rest = rest[:idx]
 	}
-	return prefix + filename
+
+	// Drop segments from the left until the remaining fit
+	for len(segs) > 1 {
+		candidate := strings.Join(segs, "")
+		if runewidth.StringWidth(candidate) <= avail {
+			break
+		}
+		segs = segs[1:]
+	}
+
+	joined := strings.Join(segs, "")
+	// If the remaining segments still exceed avail, truncate from left
+	if runewidth.StringWidth(joined) > avail {
+		runes := []rune(joined)
+		joined = string(runes[len(runes)-avail:])
+	}
+	return prefix + joined
 }
 
 // compactBlankLines reduces runs of 2+ blank lines to a single blank line.
