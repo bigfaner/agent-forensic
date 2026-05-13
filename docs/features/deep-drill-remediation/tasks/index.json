@@ -174,7 +174,7 @@
       "dependencies": [
         "1.gate"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "2.6-hook-scroll-overlay-title.md",
       "record": "records/2.6-hook-scroll-overlay-title.md",
       "scope": "all",

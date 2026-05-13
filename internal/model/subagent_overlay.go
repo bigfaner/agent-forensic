@@ -39,6 +39,7 @@ type SubAgentOverlayModel struct {
 	focusedSection int // 0=ToolStats, 1=Hooks, 2=FileOps
 	errMsg         string
 	hookCursor     int
+	hookScrollOff  int
 }
 
 // SubAgentLoadDoneMsg carries the async parse result.
@@ -63,6 +64,7 @@ func (m SubAgentOverlayModel) Show(agentID string, stats *parser.SubAgentStats) 
 	m.scrollOff = 0
 	m.focusedSection = 0
 	m.hookCursor = 0
+	m.hookScrollOff = 0
 
 	if stats == nil || stats.ToolCount == 0 {
 		m.state = overlayStateEmpty
@@ -90,6 +92,7 @@ func (m SubAgentOverlayModel) ShowLoading(agentID string) SubAgentOverlayModel {
 func (m SubAgentOverlayModel) Hide() SubAgentOverlayModel {
 	m.active = false
 	m.scrollOff = 0
+	m.hookScrollOff = 0
 	m.stats = nil
 	m.errMsg = ""
 	m.state = overlayStatePopulated
@@ -141,6 +144,7 @@ func (m SubAgentOverlayModel) update(msg tea.Msg) (SubAgentOverlayModel, tea.Cmd
 			m.state = overlayStateEmpty
 		}
 		m.scrollOff = 0
+		m.hookScrollOff = 0
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -165,11 +169,13 @@ func (m SubAgentOverlayModel) handleKey(msg tea.KeyMsg) (SubAgentOverlayModel, t
 		m.scrollOff = 0
 		if m.focusedSection == 1 {
 			m.hookCursor = 0
+			m.hookScrollOff = 0
 		}
 	case "down":
-		if m.focusedSection == 1 && m.stats != nil && len(m.stats.HookDetails) > 0 {
-			if m.hookCursor < len(m.stats.HookDetails)-1 {
-				m.hookCursor++
+		if m.focusedSection == 1 {
+			maxScroll := m.hookMaxScroll()
+			if m.hookScrollOff < maxScroll {
+				m.hookScrollOff++
 			}
 		} else {
 			maxScroll := m.maxScrollForSection(m.focusedSection)
@@ -178,9 +184,9 @@ func (m SubAgentOverlayModel) handleKey(msg tea.KeyMsg) (SubAgentOverlayModel, t
 			}
 		}
 	case "up":
-		if m.focusedSection == 1 && m.stats != nil && len(m.stats.HookDetails) > 0 {
-			if m.hookCursor > 0 {
-				m.hookCursor--
+		if m.focusedSection == 1 {
+			if m.hookScrollOff > 0 {
+				m.hookScrollOff--
 			}
 		} else {
 			if m.scrollOff > 0 {
@@ -330,19 +336,25 @@ func (m SubAgentOverlayModel) renderTitle(w int) string {
 		toolCount = m.stats.ToolCount
 	}
 	right := fmt.Sprintf("%d tools, %s", toolCount, durStr)
+
+	// Build left side: "SubAgent" or "SubAgent: {Command}"
+	left := "SubAgent"
+	if m.stats != nil && m.stats.Command != "" {
+		left = "SubAgent: " + m.stats.Command
+	}
+
 	const gap = 6
-	agentID := m.agentID
 	rightW := runewidth.StringWidth(right)
 	maxLeftW := w - rightW - gap
 	if maxLeftW < 10 {
 		maxLeftW = 10
 	}
-	if runewidth.StringWidth(agentID) > maxLeftW {
-		agentID = truncRunes(agentID, maxLeftW-1) + "…"
+	if runewidth.StringWidth(left) > maxLeftW {
+		left = truncRunes(left, maxLeftW-1) + "…"
 	}
-	leftW := runewidth.StringWidth(agentID)
+	leftW := runewidth.StringWidth(left)
 	pad := w - leftW - rightW
-	title := agentID + strings.Repeat(" ", pad) + right
+	title := left + strings.Repeat(" ", pad) + right
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
 }
 
@@ -511,7 +523,16 @@ func (m SubAgentOverlayModel) renderHookSection(maxLines, width int) string {
 
 	header := m.renderSectionHeader("Hook Analysis", m.focusedSection == 1)
 
-	statsLines := renderHookStatsSection(m.stats.HookDetails, width)
+	// Calculate max lines for stats portion (reserve room for timeline header + at least 1 row)
+	statsMaxLines := maxLines - 2
+	if statsMaxLines < 2 {
+		statsMaxLines = 2
+	}
+	scrollOff := m.hookScrollOff
+	if m.focusedSection != 1 {
+		scrollOff = 0
+	}
+	statsLines := renderHookStatsSection(m.stats.HookDetails, width, scrollOff, statsMaxLines)
 	timelineLines := renderHookTimelineSection(m.stats.HookDetails, width, m.hookCursor, m.focusedSection == 1)
 
 	var b strings.Builder
@@ -695,7 +716,7 @@ func (m SubAgentOverlayModel) maxScrollForSection(section int) int {
 	switch section {
 	case 0:
 		totalItems = len(m.stats.ToolCounts)
-	case 1: // Hooks — handled by hookCursor
+	case 1: // Hooks — handled by hookMaxScroll
 		return 0
 	case 2:
 		if m.stats.FileOps != nil {
@@ -727,4 +748,36 @@ func (m SubAgentOverlayModel) maxScrollForSection(section int) int {
 		maxScroll = 0
 	}
 	return maxScroll
+}
+
+// hookMaxScroll returns the maximum scroll offset for the hook stats section.
+// The stats section shows unique hooks (grouped by FullID), so we count unique entries.
+func (m SubAgentOverlayModel) hookMaxScroll() int {
+	if m.stats == nil || len(m.stats.HookDetails) == 0 {
+		return 0
+	}
+
+	// Count unique hook entries (same grouping as renderHookStatsSection)
+	counts := make(map[string]int)
+	for _, d := range m.stats.HookDetails {
+		counts[d.FullID]++
+	}
+	totalItems := len(counts)
+
+	// Calculate maxLines for stats section
+	innerH := m.height - 4
+	contentH := innerH - 2
+	if contentH < 6 {
+		contentH = 6
+	}
+	_, hookH, _ := m.sectionHeightsFixed(contentH)
+	statsMaxLines := hookH - 2
+	if statsMaxLines < 2 {
+		statsMaxLines = 2
+	}
+
+	if totalItems <= statsMaxLines {
+		return 0
+	}
+	return totalItems - statsMaxLines
 }

@@ -40,7 +40,7 @@ func (p *HookStatsPanel) Render(details []parser.HookDetail, width int) string {
 	if len(details) == 0 {
 		return ""
 	}
-	lines := renderHookStatsSection(details, width)
+	lines := renderHookStatsSection(details, width, 0, len(details))
 	if len(lines) == 0 {
 		return ""
 	}
@@ -73,7 +73,10 @@ func (p *HookTimelinePanel) Render(details []parser.HookDetail, width int, curso
 
 // renderHookStatsSection renders the Hook Statistics block.
 // Returns lines: header, divider, then HookType::Target ×N rows sorted by count desc.
-func renderHookStatsSection(details []parser.HookDetail, width int) []string {
+// scrollOff: starting index for scrolling (0 = no scroll).
+// maxLines: maximum number of content lines to render (excluding header).
+// When total entries > maxLines, a scrollbar is rendered.
+func renderHookStatsSection(details []parser.HookDetail, width int, scrollOff, maxLines int) []string {
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
 	secondary := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 
@@ -100,10 +103,40 @@ func renderHookStatsSection(details []parser.HookDetail, width int) []string {
 
 	var lines []string
 	lines = append(lines, primary.Render("Hook Statistics"))
-	for _, e := range entries {
+
+	totalEntries := len(entries)
+	needsScrollbar := totalEntries > maxLines && maxLines > 0
+
+	// Content width: reserve 1 col for scrollbar if needed
+	contentWidth := width
+	if needsScrollbar {
+		contentWidth = width - 1
+	}
+
+	// Clamp scroll offset
+	maxScroll := 0
+	if needsScrollbar {
+		maxScroll = totalEntries - maxLines
+	}
+	if scrollOff > maxScroll {
+		scrollOff = maxScroll
+	}
+	if scrollOff < 0 {
+		scrollOff = 0
+	}
+
+	// Calculate visible range
+	start := scrollOff
+	end := start + maxLines
+	if end > totalEntries {
+		end = totalEntries
+	}
+
+	for i := start; i < end; i++ {
+		e := entries[i]
 		suffix := fmt.Sprintf("  ×%d", e.count)
 		suffixW := runewidth.StringWidth(suffix)
-		labelBudget := width - suffixW
+		labelBudget := contentWidth - suffixW
 		if labelBudget < 4 {
 			labelBudget = 4
 		}
@@ -111,8 +144,29 @@ func renderHookStatsSection(details []parser.HookDetail, width int) []string {
 		if runewidth.StringWidth(label) > labelBudget {
 			label = truncRunes(label, labelBudget)
 		}
-		lines = append(lines, secondary.Render(label+suffix))
+		row := secondary.Render(label + suffix)
+
+		if needsScrollbar {
+			// Calculate scrollbar position for this row
+			rowIdx := i - start
+			thumbPos := 0
+			if maxLines > 1 && maxScroll > 0 {
+				thumbPos = scrollOff * (maxLines - 1) / maxScroll
+			}
+			trackChar := "│"
+			thumbChar := "┃"
+			var sbChar string
+			if rowIdx == thumbPos {
+				sbChar = lipgloss.NewStyle().Foreground(lipgloss.Color("248")).Render(thumbChar)
+			} else {
+				sbChar = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Render(trackChar)
+			}
+			row = row + sbChar
+		}
+
+		lines = append(lines, row)
 	}
+
 	return lines
 }
 

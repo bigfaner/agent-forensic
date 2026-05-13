@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -240,6 +241,8 @@ func TestSubAgentOverlayModel_ScrollWithinFocusedSection(t *testing.T) {
 }
 
 func TestSubAgentOverlayModel_HookCursorNavigation(t *testing.T) {
+	// With only 3 hooks (all unique), the section fits without scroll.
+	// ↑/↓ in hook section now controls hookScrollOff, not hookCursor.
 	m := NewSubAgentOverlayModel()
 	m.width = 120
 	m.height = 40
@@ -261,23 +264,17 @@ func TestSubAgentOverlayModel_HookCursorNavigation(t *testing.T) {
 	m = m.Show("agent-123", stats)
 	m.focusedSection = 1 // Hooks section
 
-	assert.Equal(t, 0, m.hookCursor)
+	assert.Equal(t, 0, m.hookScrollOff)
 
+	// With only 3 unique hooks, maxScroll = 0, so down is no-op
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 1, m.hookCursor)
+	assert.Equal(t, 0, m.hookScrollOff, "no scroll with only 3 items")
 
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 2, m.hookCursor)
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
-	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 2, m.hookCursor)
-
+	// Up should also be no-op
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 1, m.hookCursor)
+	assert.Equal(t, 0, m.hookScrollOff)
 }
 
 func TestSubAgentOverlayModel_EscCloses(t *testing.T) {
@@ -639,6 +636,409 @@ func assertValidUTF8(t *testing.T, s string) {
 			}
 		}
 	}
+}
+
+// --- Task 2.6: Hook section scroll + meaningful overlay title ---
+
+func TestSubAgentOverlayModel_HookScrollOffField(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	hooks := make([]parser.HookDetail, 25)
+	for i := 0; i < 25; i++ {
+		hooks[i] = parser.HookDetail{
+			HookType:  "PreToolUse",
+			Target:    fmt.Sprintf("Tool%d", i),
+			TurnIndex: i + 1,
+			FullID:    fmt.Sprintf("PreToolUse::Tool%d", i),
+		}
+	}
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 1},
+		ToolDurs:    map[string]time.Duration{"Bash": time.Second},
+		ToolCount:   1,
+		Duration:    time.Second,
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: hooks,
+	}
+
+	m = m.Show("agent-123", stats)
+	m.focusedSection = 1
+
+	// Initially hookScrollOff should be 0
+	assert.Equal(t, 0, m.hookScrollOff)
+
+	// Press down — should increment hookScrollOff
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 1, m.hookScrollOff, "first down should move hookScrollOff")
+
+	// Press up — hookScrollOff goes back to 0
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 0, m.hookScrollOff)
+
+	// Press up again — should be no-op
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 0, m.hookScrollOff)
+}
+
+func TestSubAgentOverlayModel_HookScrollResetOnTab(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	hooks := make([]parser.HookDetail, 25)
+	for i := 0; i < 25; i++ {
+		hooks[i] = parser.HookDetail{
+			HookType:  "PreToolUse",
+			Target:    fmt.Sprintf("Tool%d", i),
+			TurnIndex: i + 1,
+			FullID:    fmt.Sprintf("PreToolUse::Tool%d", i),
+		}
+	}
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 1},
+		ToolDurs:    map[string]time.Duration{"Bash": time.Second},
+		ToolCount:   1,
+		Duration:    time.Second,
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: hooks,
+	}
+
+	m = m.Show("agent-123", stats)
+	m.focusedSection = 1
+	m.hookScrollOff = 5
+
+	// Tab away (from section 1, nextSection skips empty FileOps → goes to 0)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 0, m.focusedSection)
+
+	// Tab back to hooks (from section 0, nextSection goes to 1)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 1, m.focusedSection)
+	assert.Equal(t, 0, m.hookScrollOff, "hookScrollOff should reset when tabbing back to hooks")
+}
+
+func TestSubAgentOverlayModel_HookScrollResetOnShow(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	hooks := make([]parser.HookDetail, 5)
+	for i := 0; i < 5; i++ {
+		hooks[i] = parser.HookDetail{
+			HookType:  "PreToolUse",
+			Target:    fmt.Sprintf("Tool%d", i),
+			TurnIndex: i + 1,
+			FullID:    fmt.Sprintf("PreToolUse::Tool%d", i),
+		}
+	}
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 1},
+		ToolDurs:    map[string]time.Duration{"Bash": time.Second},
+		ToolCount:   1,
+		Duration:    time.Second,
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: hooks,
+	}
+
+	m = m.Show("agent-123", stats)
+	m.hookScrollOff = 3
+
+	// Re-show resets
+	m = m.Show("agent-456", stats)
+	assert.Equal(t, 0, m.hookScrollOff)
+}
+
+func TestSubAgentOverlayModel_TitleWithCommand(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 12, "Edit": 5},
+		ToolDurs:   map[string]time.Duration{"Read": 2 * time.Second, "Edit": 1 * time.Second},
+		ToolCount:  17,
+		Duration:   3 * time.Second,
+		Command:    "Edit: internal/model/app.go",
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-123", stats)
+	view := m.View()
+	clean := stripOverlayANSI(view)
+
+	assert.Contains(t, clean, "SubAgent: Edit: internal/model/app.go", "title should show command")
+	assert.Contains(t, clean, "17 tools", "title should show tool count")
+	assert.Contains(t, clean, "3s", "title should show duration")
+}
+
+func TestSubAgentOverlayModel_TitleWithoutCommand(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5},
+		ToolDurs:   map[string]time.Duration{"Read": time.Second},
+		ToolCount:  5,
+		Duration:   time.Second,
+		Command:    "",
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-123", stats)
+	view := m.View()
+	clean := stripOverlayANSI(view)
+
+	assert.Contains(t, clean, "SubAgent")
+	assert.Contains(t, clean, "5 tools")
+	assert.NotContains(t, clean, "SubAgent: ", "no colon after SubAgent when Command is empty")
+}
+
+func TestSubAgentOverlayModel_TitleTruncationAt80Cols(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 80
+	m.height = 24
+
+	longCommand := "Edit: this/is/a/very/long/path/that/should/be/truncated/in/the/title/area/app.go"
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5},
+		ToolDurs:   map[string]time.Duration{"Read": time.Second},
+		ToolCount:  5,
+		Duration:   time.Second,
+		Command:    longCommand,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-123", stats)
+	view := m.View()
+
+	// Should not panic, and should still render
+	assert.NotEmpty(t, view)
+	assertValidUTF8(t, view)
+
+	// Verify the title line doesn't exceed overlay width
+	clean := stripOverlayANSI(view)
+	lines := strings.Split(clean, "\n")
+	assert.NotEmpty(t, lines)
+	titleLine := lines[0]
+	// The border adds 2 chars total (left + right), so content = width - 2
+	// The rendered output with border should fit within width
+	assert.LessOrEqual(t, utf8.RuneCountInString(titleLine), m.width,
+		"title line should fit within overlay width")
+}
+
+func TestSubAgentOverlayModel_TitleSpecialChars(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Bash": 1},
+		ToolDurs:   map[string]time.Duration{"Bash": time.Second},
+		ToolCount:  1,
+		Duration:   time.Second,
+		Command:    "grep 'pattern' | sort > out.txt",
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-special", stats)
+	view := m.View()
+	clean := stripOverlayANSI(view)
+
+	// Special chars should render verbatim
+	assert.Contains(t, clean, "|")
+	assert.Contains(t, clean, ">")
+	assert.Contains(t, clean, "'")
+}
+
+func TestSubAgentOverlayModel_Golden_HookScrollWithScrollbar(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	// Create 25 unique hooks to trigger scrolling
+	hooks := make([]parser.HookDetail, 25)
+	for i := 0; i < 25; i++ {
+		hooks[i] = parser.HookDetail{
+			HookType:  "PreToolUse",
+			Target:    fmt.Sprintf("Tool%d", i),
+			TurnIndex: (i / 5) + 1,
+			FullID:    fmt.Sprintf("PreToolUse::Tool%d", i),
+		}
+	}
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 5},
+		ToolDurs:    map[string]time.Duration{"Bash": 5 * time.Second},
+		ToolCount:   5,
+		Duration:    5 * time.Second,
+		Command:     "Bash: run tests",
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: hooks,
+	}
+
+	m = m.Show("agent-scroll", stats)
+	view := m.View()
+
+	golden := filepath.Join("testdata", "overlay_hook_scroll.golden")
+	if *updateGolden {
+		_ = os.WriteFile(golden, []byte(view), 0644)
+	}
+	want, err := os.ReadFile(golden)
+	assert.NoError(t, err)
+	assert.Equal(t, string(want), view)
+}
+
+func TestSubAgentOverlayModel_Golden_HookFewItemsNoScrollbar(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	// 5 unique hooks, which should fit in the stats section without scrollbar
+	hooks := make([]parser.HookDetail, 5)
+	for i := 0; i < 5; i++ {
+		hooks[i] = parser.HookDetail{
+			HookType:  "PreToolUse",
+			Target:    fmt.Sprintf("Tool%d", i),
+			TurnIndex: (i / 3) + 1,
+			FullID:    fmt.Sprintf("PreToolUse::Tool%d", i),
+		}
+	}
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 5},
+		ToolDurs:    map[string]time.Duration{"Bash": 5 * time.Second},
+		ToolCount:   5,
+		Duration:    5 * time.Second,
+		Command:     "Read: config.yaml",
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: hooks,
+	}
+
+	m = m.Show("agent-few", stats)
+	view := m.View()
+
+	golden := filepath.Join("testdata", "overlay_hook_few.golden")
+	if *updateGolden {
+		_ = os.WriteFile(golden, []byte(view), 0644)
+	}
+	want, err := os.ReadFile(golden)
+	assert.NoError(t, err)
+	assert.Equal(t, string(want), view)
+
+	// Should NOT have scrollbar thumb
+	assert.NotContains(t, stripOverlayANSI(view), "┃", "few items should not show scrollbar thumb")
+}
+
+func TestSubAgentOverlayModel_Golden_TitleWithCommand(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 12, "Edit": 5, "Bash": 8, "Write": 3},
+		ToolDurs: map[string]time.Duration{
+			"Read":  1 * time.Second,
+			"Edit":  3100 * time.Millisecond,
+			"Bash":  8200 * time.Millisecond,
+			"Write": 500 * time.Millisecond,
+		},
+		ToolCount: 28,
+		Duration:  12 * time.Second,
+		Command:   "Edit: internal/model/app.go",
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"internal/model/app.go": {ReadCount: 5, EditCount: 3, TotalCount: 8},
+			},
+		},
+	}
+
+	m = m.Show("agent-title", stats)
+	view := m.View()
+
+	golden := filepath.Join("testdata", "overlay_title_command.golden")
+	if *updateGolden {
+		_ = os.WriteFile(golden, []byte(view), 0644)
+	}
+	want, err := os.ReadFile(golden)
+	assert.NoError(t, err)
+	assert.Equal(t, string(want), view)
+}
+
+func TestSubAgentOverlayModel_Golden_TitleTruncation80(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 80
+	m.height = 24
+
+	longCommand := "Edit: this/is/a/very/long/path/that/exceeds/80/columns/and/should/be/truncated/in/the/title/area/app.go"
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5},
+		ToolDurs:   map[string]time.Duration{"Read": time.Second},
+		ToolCount:  5,
+		Duration:   time.Second,
+		Command:    longCommand,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-trunc", stats)
+	view := m.View()
+
+	golden := filepath.Join("testdata", "overlay_title_truncation_80.golden")
+	if *updateGolden {
+		_ = os.WriteFile(golden, []byte(view), 0644)
+	}
+	want, err := os.ReadFile(golden)
+	assert.NoError(t, err)
+	assert.Equal(t, string(want), view)
+}
+
+func TestSubAgentOverlayModel_ZeroHookItemsNoCrash(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 1},
+		ToolDurs:    map[string]time.Duration{"Bash": time.Second},
+		ToolCount:   1,
+		Duration:    time.Second,
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: []parser.HookDetail{},
+	}
+
+	m = m.Show("agent-empty-hooks", stats)
+	view := m.View()
+	assert.NotEmpty(t, view)
+	assert.NotContains(t, view, "Hook Analysis", "empty hooks should not render section")
+}
+
+func TestSubAgentOverlayModel_OneHookItemNoScrollbar(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Bash": 1},
+		ToolDurs:   map[string]time.Duration{"Bash": time.Second},
+		ToolCount:  1,
+		Duration:   time.Second,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: []parser.HookDetail{
+			{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
+		},
+	}
+
+	m = m.Show("agent-one-hook", stats)
+	view := m.View()
+	assert.NotEmpty(t, view)
+	assert.Contains(t, view, "Hook Analysis")
+	// Single item should not show scrollbar chars
+	assert.NotContains(t, stripOverlayANSI(view), "┃", "single item should not show scrollbar thumb")
 }
 
 // stripOverlayANSI removes ANSI escape sequences from a string.

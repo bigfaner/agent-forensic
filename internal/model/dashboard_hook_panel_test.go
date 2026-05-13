@@ -251,7 +251,7 @@ func TestRenderHookStatsSection_GroupsByFullID(t *testing.T) {
 		{FullID: "PreToolUse::Bash", HookType: "PreToolUse", Target: "Bash", TurnIndex: 2},
 		{FullID: "PostToolUse::Edit", HookType: "PostToolUse", Target: "Edit", TurnIndex: 1},
 	}
-	lines := renderHookStatsSection(details, 80)
+	lines := renderHookStatsSection(details, 80, 0, len(details))
 	found := false
 	for _, l := range lines {
 		if strings.Contains(l, "PreToolUse::Bash") && strings.Contains(l, "×2") {
@@ -388,7 +388,7 @@ func TestHookStatsSection_UsesWidthParam(t *testing.T) {
 	details := []parser.HookDetail{
 		{HookType: "PreToolUse", Target: "VeryLongTargetNameThatExceedsPanelWidthByALot", TurnIndex: 1, FullID: longFullID},
 	}
-	lines := renderHookStatsSection(details, 25)
+	lines := renderHookStatsSection(details, 25, 0, len(details))
 	t.Logf("Lines: %v", lines)
 	for _, line := range lines {
 		if strings.Contains(line, "×1") {
