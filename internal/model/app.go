@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
+	stats2 "github.com/user/agent-forensic/internal/stats"
 )
 
 // ActivePanel identifies which panel has keyboard focus.
@@ -618,6 +619,18 @@ func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
 	}
 
 	stats.Duration = totalDur
+
+	// Derive Command from first tool_use entry
+	for i := range children {
+		if children[i].Type == parser.EntryToolUse {
+			cmd := stats2.ExtractToolCommand(children[i].ToolName, children[i].Input)
+			if cmd != "" {
+				stats.Command = children[i].ToolName + ": " + cmd
+			}
+			break
+		}
+	}
+
 	return stats
 }
 
@@ -709,6 +722,20 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 	}
 
 	stats.Duration = totalDur
+
+	// Derive Command from first tool_use entry across all turns
+	for ti := range turns {
+		for ei := range turns[ti].Entries {
+			if turns[ti].Entries[ei].Type == parser.EntryToolUse {
+				cmd := stats2.ExtractToolCommand(turns[ti].Entries[ei].ToolName, turns[ti].Entries[ei].Input)
+				if cmd != "" {
+					stats.Command = turns[ti].Entries[ei].ToolName + ": " + cmd
+				}
+				return stats
+			}
+		}
+	}
+
 	return stats
 }
 

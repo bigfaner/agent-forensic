@@ -41,12 +41,6 @@ type SubAgentOverlayModel struct {
 	hookCursor     int
 }
 
-// SubAgentLoadMsg triggers async loading of a SubAgent session.
-type SubAgentLoadMsg struct {
-	AgentID     string
-	SessionPath string
-}
-
 // SubAgentLoadDoneMsg carries the async parse result.
 type SubAgentLoadDoneMsg struct {
 	AgentID  string

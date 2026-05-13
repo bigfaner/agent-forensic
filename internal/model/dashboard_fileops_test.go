@@ -179,7 +179,6 @@ func TestFileOpsPanel_Render_PathTruncation(t *testing.T) {
 	assert.NotContains(t, got, longPath)
 }
 
-
 // bug: counts columns misalign when mixing single and double digit values
 func TestFileOpsPanel_Render_CountsColumnAlignment(t *testing.T) {
 	panel := NewFileOpsPanel()

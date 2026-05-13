@@ -516,15 +516,15 @@ func parseFlatEntry(env claudeEnvelope, ts time.Time, hasTS bool, filePath strin
 
 // hookAttachment represents the `attachment` field in main session hook entries.
 type hookAttachment struct {
-	Type      string `json:"type"`       // hook_success, hook_blocking_error, etc.
-	HookName  string `json:"hookName"`   // "Stop", "SessionStart"
-	HookEvent string `json:"hookEvent"`  // "Stop", "SessionStart"
-	Command   string `json:"command"`    // hook script command (e.g., "task all-completed")
-	ToolUseID string `json:"toolUseID"`  // linked tool call ID
-	Content   string `json:"content"`    // hook output
-	Stdout    string `json:"stdout"`     // hook stdout
-	Stderr    string `json:"stderr"`     // hook stderr
-	Message   string `json:"message"`    // for hook_stopped_continuation
+	Type      string `json:"type"`      // hook_success, hook_blocking_error, etc.
+	HookName  string `json:"hookName"`  // "Stop", "SessionStart"
+	HookEvent string `json:"hookEvent"` // "Stop", "SessionStart"
+	Command   string `json:"command"`   // hook script command (e.g., "task all-completed")
+	ToolUseID string `json:"toolUseID"` // linked tool call ID
+	Content   string `json:"content"`   // hook output
+	Stdout    string `json:"stdout"`    // hook stdout
+	Stderr    string `json:"stderr"`    // hook stderr
+	Message   string `json:"message"`   // for hook_stopped_continuation
 }
 
 // hookProgressData represents the `data` field in subagent hook entries.
