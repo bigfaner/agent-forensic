@@ -476,8 +476,13 @@ func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
 		agentID = fmt.Sprintf("SubAgent (%d tools)", len(entry.Children))
 		m.subagentOverlay = m.subagentOverlay.Show(agentID, stats)
 	} else {
-		// Children not loaded yet — show loading state
-		m.subagentOverlay = m.subagentOverlay.ShowLoading(agentID)
+		// Children not loaded — load from subagents/ directory
+		stats, loaded := m.loadSubAgentStatsFromDisk()
+		if loaded && stats != nil && stats.ToolCount > 0 {
+			m.subagentOverlay = m.subagentOverlay.Show(agentID, stats)
+		} else {
+			m.subagentOverlay = m.subagentOverlay.ShowLoading(agentID)
+		}
 	}
 
 	m.subagentOverlay.width = m.width
@@ -485,6 +490,41 @@ func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
 	m.activeView = ViewSubAgent
 	m.updateStatusBarMode()
 	return m, nil
+}
+
+// loadSubAgentStatsFromDisk loads subagent JSONL files from the session's
+// subagents/ directory and computes aggregate stats.
+func (m AppModel) loadSubAgentStatsFromDisk() (*parser.SubAgentStats, bool) {
+	sessionPath := m.callTree.sessionPath
+	if sessionPath == "" {
+		return nil, false
+	}
+
+	files, err := parser.ScanSubagentsDir(sessionPath)
+	if err != nil || len(files) == 0 {
+		return nil, false
+	}
+
+	var allChildren []parser.TurnEntry
+	for _, f := range files {
+		session, err := parser.ParseSubAgent(f, 0)
+		if err != nil {
+			continue
+		}
+		for _, turn := range session.Turns {
+			for _, e := range turn.Entries {
+				if e.Type == parser.EntryToolUse {
+					allChildren = append(allChildren, e)
+				}
+			}
+		}
+	}
+
+	if len(allChildren) == 0 {
+		return nil, false
+	}
+
+	return computeSubAgentStats(allChildren), true
 }
 
 // handleSubAgentOverlayKeys handles keys when the SubAgent overlay is active.
