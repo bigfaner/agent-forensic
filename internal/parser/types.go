@@ -108,6 +108,8 @@ type SubAgentStats struct {
 	FileOps    *FileOpStats             // file operation statistics
 	ToolCount  int                      // total number of tool calls
 	Duration   time.Duration            // total session duration
+	HookCounts map[string]int           // hook type → trigger count
+	HookDetails []HookDetail            // detailed hook invocations
 }
 
 // SessionStats holds computed statistics for a session.

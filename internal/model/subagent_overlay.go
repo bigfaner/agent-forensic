@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
+	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
 
@@ -23,35 +25,36 @@ const (
 
 // SubAgentOverlayModel is a bubbletea.Model implementing a full-screen
 // overlay that displays SubAgent session details in three sections:
-//   - Tool Statistics: horizontal bar chart sorted by count descending
+//   - Tool & Time Stats: two-column layout (call counts left, time % right)
+//   - Hook Analysis: hook statistics + timeline
 //   - File Operations: per-file rows with Read/Edit counts
-//   - Duration Distribution: bar chart with time and percentage
 type SubAgentOverlayModel struct {
-	stats          *parser.SubAgentStats // currently displayed stats (nil = hidden or loading)
-	agentID        string                // agent ID for title
-	width          int                   // terminal width
-	height         int                   // terminal height
-	scrollOff      int                   // scroll offset within focused section
-	active         bool                  // whether overlay is visible
-	state          overlayState          // current display state
-	focusedSection int                   // 0=ToolStats, 1=FileOps, 2=Duration
-	errMsg         string                // error message for error state
+	stats          *parser.SubAgentStats
+	agentID        string
+	width          int
+	height         int
+	scrollOff      int
+	active         bool
+	state          overlayState
+	focusedSection int // 0=ToolStats, 1=Hooks, 2=FileOps
+	errMsg         string
+	hookCursor     int
 }
 
 // SubAgentLoadMsg triggers async loading of a SubAgent session.
 type SubAgentLoadMsg struct {
 	AgentID     string
-	SessionPath string // main session path for locating subagents/ dir
+	SessionPath string
 }
 
 // SubAgentLoadDoneMsg carries the async parse result.
 type SubAgentLoadDoneMsg struct {
 	AgentID  string
 	Stats    *parser.SubAgentStats
-	Err      error              // non-nil if parse failed
-	TurnIdx  int                // tree integration: turn index in call tree (-1 if N/A)
-	EntryIdx int                // tree integration: entry index within turn (-1 if N/A)
-	Children []parser.TurnEntry // tree integration: parsed children for inline expand
+	Err      error
+	TurnIdx  int
+	EntryIdx int
+	Children []parser.TurnEntry
 }
 
 // NewSubAgentOverlayModel creates the overlay in hidden state.
@@ -65,6 +68,7 @@ func (m SubAgentOverlayModel) Show(agentID string, stats *parser.SubAgentStats) 
 	m.agentID = agentID
 	m.scrollOff = 0
 	m.focusedSection = 0
+	m.hookCursor = 0
 
 	if stats == nil || stats.ToolCount == 0 {
 		m.state = overlayStateEmpty
@@ -103,7 +107,7 @@ func (m SubAgentOverlayModel) IsActive() bool {
 	return m.active
 }
 
-// Init implements bubbletea.Model. Returns nil (no initial commands).
+// Init implements bubbletea.Model.
 func (m SubAgentOverlayModel) Init() tea.Cmd {
 	return nil
 }
@@ -115,7 +119,6 @@ func (m SubAgentOverlayModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m SubAgentOverlayModel) update(msg tea.Msg) (SubAgentOverlayModel, tea.Cmd) {
 	if !m.active {
-		// Handle SubAgentLoadMsg even when hidden (to activate)
 		switch msg := msg.(type) {
 		case SubAgentLoadDoneMsg:
 			if msg.Err != nil {
@@ -164,43 +167,72 @@ func (m SubAgentOverlayModel) handleKey(msg tea.KeyMsg) (SubAgentOverlayModel, t
 		m.stats = nil
 		return m, nil
 	case "tab":
-		m.focusedSection = (m.focusedSection + 1) % 3
+		m.focusedSection = m.nextSection()
 		m.scrollOff = 0
+		if m.focusedSection == 1 {
+			m.hookCursor = 0
+		}
 	case "down", "j":
-		maxScroll := m.maxScrollForSection(m.focusedSection)
-		if m.scrollOff < maxScroll {
-			m.scrollOff++
+		if m.focusedSection == 1 && m.stats != nil && len(m.stats.HookDetails) > 0 {
+			if m.hookCursor < len(m.stats.HookDetails)-1 {
+				m.hookCursor++
+			}
+		} else {
+			maxScroll := m.maxScrollForSection(m.focusedSection)
+			if m.scrollOff < maxScroll {
+				m.scrollOff++
+			}
 		}
 	case "up", "k":
-		if m.scrollOff > 0 {
-			m.scrollOff--
+		if m.focusedSection == 1 && m.stats != nil && len(m.stats.HookDetails) > 0 {
+			if m.hookCursor > 0 {
+				m.hookCursor--
+			}
+		} else {
+			if m.scrollOff > 0 {
+				m.scrollOff--
+			}
 		}
 	}
 	return m, nil
 }
 
-// View implements bubbletea.Model. Returns empty string when inactive.
+// nextSection cycles to the next available section.
+// Section order: 0=ToolStats, 1=Hooks, 2=FileOps.
+func (m SubAgentOverlayModel) nextSection() int {
+	hasHooks := m.stats != nil && len(m.stats.HookDetails) > 0
+	hasFileOps := m.stats != nil && m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0
+	for i := 1; i <= 3; i++ {
+		candidate := (m.focusedSection + i) % 3
+		switch candidate {
+		case 0:
+			return candidate
+		case 1:
+			if hasHooks {
+				return candidate
+			}
+		case 2:
+			if hasFileOps {
+				return candidate
+			}
+		}
+	}
+	return m.focusedSection
+}
+
+// View implements bubbletea.Model.
 func (m SubAgentOverlayModel) View() string {
 	if !m.active {
 		return ""
 	}
 
-	// Minimum terminal size
 	if m.width < 40 || m.height < 12 {
 		return ""
 	}
 
-	// Overlay uses full screen dimensions
 	overlayW := m.width
 	overlayH := m.height
-	if overlayW < 40 {
-		overlayW = 40
-	}
-	if overlayH < 12 {
-		overlayH = 12
-	}
 
-	// Render content based on state
 	var content string
 	switch m.state {
 	case overlayStateLoading:
@@ -213,7 +245,6 @@ func (m SubAgentOverlayModel) View() string {
 		content = m.renderPopulated(overlayW, overlayH)
 	}
 
-	// Full-screen bordered overlay
 	borderStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("15")).
@@ -254,57 +285,86 @@ func (m SubAgentOverlayModel) renderError(w, h int) string {
 }
 
 func (m SubAgentOverlayModel) renderPopulated(overlayW, overlayH int) string {
-	innerW := overlayW - 4 // account for border padding
+	innerW := overlayW - 4
 	innerH := overlayH - 4
 
-	// Title
-	title := m.renderTitle()
-
-	// Footer
+	title := m.renderTitle(innerW)
 	footer := m.renderFooter()
 
-	// Content area: innerH - title(1) - footer(1)
-	contentH := innerH - 2
+	contentH := innerH - 2 // title + footer
 	if contentH < 6 {
 		contentH = 6
 	}
 
-	// Section heights: 25/50/25
-	tsH, foH, ddH := m.sectionHeightsFixed(contentH)
+	// Section heights: 30/30/40 (Tools/Hooks/FileOps)
+	tsH, hookH, foH := m.sectionHeightsFixed(contentH)
 
-	// Dividers
 	divider := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(strings.Repeat("─", innerW))
 
-	// Build sections
 	var b strings.Builder
 	b.WriteString(title)
 	b.WriteByte('\n')
 	b.WriteString(divider)
 	b.WriteByte('\n')
-	b.WriteString(m.renderToolStats(tsH, innerW))
-	b.WriteByte('\n')
-	b.WriteString(divider)
-	b.WriteByte('\n')
-	b.WriteString(m.renderFileOps(foH, innerW))
-	b.WriteByte('\n')
-	b.WriteString(divider)
-	b.WriteByte('\n')
-	b.WriteString(m.renderDurationDist(ddH, innerW))
+	b.WriteString(m.renderToolTimeSection(tsH, innerW))
+
+	if len(m.stats.HookDetails) > 0 {
+		b.WriteByte('\n')
+		b.WriteString(divider)
+		b.WriteByte('\n')
+		b.WriteString(m.renderHookSection(hookH, innerW))
+	}
+
+	if m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0 {
+		b.WriteByte('\n')
+		b.WriteString(divider)
+		b.WriteByte('\n')
+		b.WriteString(m.renderFileOps(foH, innerW))
+	}
+
 	b.WriteByte('\n')
 	b.WriteString(footer)
 
 	return b.String()
 }
 
-func (m SubAgentOverlayModel) renderTitle() string {
+func (m SubAgentOverlayModel) renderTitle(w int) string {
 	durStr := "0s"
 	toolCount := 0
 	if m.stats != nil {
 		durStr = formatDuration(m.stats.Duration)
 		toolCount = m.stats.ToolCount
 	}
-	title := fmt.Sprintf("SubAgent: %s — %d tools, %s", m.agentID, toolCount, durStr)
+	right := fmt.Sprintf("%d tools, %s", toolCount, durStr)
+	const gap = 6
+	agentID := m.agentID
+	rightW := runewidth.StringWidth(right)
+	maxLeftW := w - rightW - gap
+	if maxLeftW < 10 {
+		maxLeftW = 10
+	}
+	if runewidth.StringWidth(agentID) > maxLeftW {
+		agentID = truncRunes(agentID, maxLeftW-1) + "…"
+	}
+	leftW := runewidth.StringWidth(agentID)
+	pad := w - leftW - rightW
+	title := agentID + strings.Repeat(" ", pad) + right
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
+}
+
+// truncRunes truncates s to at most maxW display-width columns, respecting rune boundaries.
+func truncRunes(s string, maxW int) string {
+	var out []rune
+	w := 0
+	for _, r := range s {
+		rw := runewidth.RuneWidth(r)
+		if w+rw > maxW {
+			break
+		}
+		out = append(out, r)
+		w += rw
+	}
+	return string(out)
 }
 
 func (m SubAgentOverlayModel) renderFooter() string {
@@ -312,48 +372,41 @@ func (m SubAgentOverlayModel) renderFooter() string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(hints)
 }
 
-func (m SubAgentOverlayModel) renderToolStats(maxLines, width int) string {
+// renderToolTimeSection renders a two-column layout identical to the dashboard:
+// Left: tool call count bars, Right: time percentage bars.
+// No section header — column headers only (like dashboard).
+func (m SubAgentOverlayModel) renderToolTimeSection(maxLines, width int) string {
 	if m.stats == nil || len(m.stats.ToolCounts) == 0 {
-		return m.renderSectionHeader("Tool Statistics", false)
+		return ""
 	}
 
-	header := m.renderSectionHeader("Tool Statistics", m.focusedSection == 0)
-
-	// Sort tools by count descending
+	// Build sorted entries
 	type toolEntry struct {
 		name  string
 		count int
+		pct   float64
 	}
 	var entries []toolEntry
+	totalDur := m.stats.Duration
 	for name, count := range m.stats.ToolCounts {
-		entries = append(entries, toolEntry{name, count})
+		dur := m.stats.ToolDurs[name]
+		pct := float64(0)
+		if totalDur > 0 {
+			pct = float64(dur) / float64(totalDur) * 100
+		}
+		entries = append(entries, toolEntry{name, count, pct})
 	}
 	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].count > entries[j].count
+		if entries[i].count != entries[j].count {
+			return entries[i].count > entries[j].count
+		}
+		return entries[i].name < entries[j].name
 	})
 
-	// Calculate max for bar proportion
-	maxCount := 0
-	for _, e := range entries {
-		if e.count > maxCount {
-			maxCount = e.count
-		}
-	}
-
-	// Available lines for content (excluding header)
-	contentLines := maxLines - 1
-	if contentLines < 1 {
+	// Scroll
+	if contentLines := maxLines - 2; contentLines < 1 {
 		contentLines = 1
 	}
-
-	// Bar width: max 20 chars
-	barWidth := 20
-
-	var b strings.Builder
-	b.WriteString(header)
-	b.WriteByte('\n')
-
-	// Apply scroll offset for focused section
 	start := 0
 	if m.focusedSection == 0 {
 		start = m.scrollOff
@@ -361,14 +414,86 @@ func (m SubAgentOverlayModel) renderToolStats(maxLines, width int) string {
 	if start > len(entries) {
 		start = len(entries)
 	}
-
-	end := start + contentLines
+	end := start + maxLines - 2
 	if end > len(entries) {
 		end = len(entries)
 	}
 
+	// Two-column layout (dashboard pattern)
+	colGap := 3
+	colWidth := (width - colGap) / 2
+	if colWidth < 20 {
+		colWidth = 20
+	}
+
+	// Dynamic label width (display-width aware)
+	const maxLabelWidth = 40
+	labelWidth := 5
+	for _, e := range entries {
+		w := runewidth.StringWidth(e.name)
+		if w > labelWidth {
+			labelWidth = w
+		}
+	}
+	if labelWidth > maxLabelWidth {
+		labelWidth = maxLabelWidth
+	}
+	maxAllowed := colWidth - 9
+	if maxAllowed < 5 {
+		maxAllowed = 5
+	}
+	if labelWidth > maxAllowed {
+		labelWidth = maxAllowed
+	}
+	maxCount := 0
+	for _, e := range entries {
+		if e.count > maxCount {
+			maxCount = e.count
+		}
+	}
+
+	countWidth := len(fmt.Sprintf("%d", maxCount))
+	pctWidth := 4 // e.g. "100%"
+	barWidth := colWidth - labelWidth - 2 - max(countWidth, pctWidth) - 2
+	if barWidth < 3 {
+		barWidth = 3
+	}
+
+	truncateName := func(name string) string {
+		if runewidth.StringWidth(name) <= labelWidth {
+			return name
+		}
+		return truncRunes(name, labelWidth-1) + "…"
+	}
+
+	padName := func(name string) string {
+		pw := labelWidth - runewidth.StringWidth(name)
+		if pw < 0 {
+			pw = 0
+		}
+		return name + strings.Repeat(" ", pw)
+	}
+
+
+	// Highlight column headers when section focused
+	focused := m.focusedSection == 0
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
+	if focused {
+		headerStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
+	}
+
+	// Build left and right columns (dashboard style: ▄ bars, _ empty)
+	var leftBuf, rightBuf strings.Builder
+	leftBuf.WriteString(headerStyle.Render(i18n.T("dashboard.tool_stats")))
+	leftBuf.WriteByte('\n')
+	rightBuf.WriteString(headerStyle.Render(i18n.T("dashboard.time_stats")))
+	rightBuf.WriteByte('\n')
+
 	for i := start; i < end; i++ {
 		e := entries[i]
+		displayName := truncateName(e.name)
+
+		// Left: count bar (▄)
 		barLen := 0
 		if maxCount > 0 {
 			barLen = e.count * barWidth / maxCount
@@ -376,37 +501,83 @@ func (m SubAgentOverlayModel) renderToolStats(maxLines, width int) string {
 		if barLen < 1 && e.count > 0 {
 			barLen = 1
 		}
-		line := fmt.Sprintf("  %-14s %s %d", e.name, strings.Repeat("█", barLen), e.count)
-		b.WriteString(line)
+		leftBuf.WriteString(fmt.Sprintf("%s %s %d", padName(displayName), strings.Repeat("▄", barLen), e.count))
+
+		// Right: time percentage bar (▄/_
+		filled := int(e.pct / 100 * float64(barWidth))
+		if filled < 1 && e.pct > 0 {
+			filled = 1
+		}
+		if filled > barWidth {
+			filled = barWidth
+		}
+		pctBar := strings.Repeat("▄", filled) + strings.Repeat("_", barWidth-filled)
+		rightBuf.WriteString(fmt.Sprintf("%s %s %3.0f%%", padName(displayName), pctBar, e.pct))
+
 		if i < end-1 {
-			b.WriteByte('\n')
+			leftBuf.WriteString("\n")
+			rightBuf.WriteString("\n")
 		}
 	}
 
+	leftCol := lipgloss.NewStyle().Width(colWidth).Render(leftBuf.String())
+	rightCol := lipgloss.NewStyle().Width(colWidth).Render(rightBuf.String())
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftCol, strings.Repeat(" ", colGap), rightCol)
+}
+
+// renderHookSection renders the Hook Analysis section with stats + timeline.
+func (m SubAgentOverlayModel) renderHookSection(maxLines, width int) string {
+	if m.stats == nil || len(m.stats.HookDetails) == 0 {
+		return ""
+	}
+
+	header := m.renderSectionHeader("Hook Analysis", m.focusedSection == 1)
+
+	statsLines := renderHookStatsSection(m.stats.HookDetails, width)
+	timelineLines := renderHookTimelineSection(m.stats.HookDetails, width, m.hookCursor, m.focusedSection == 1)
+
+	var b strings.Builder
+	b.WriteString(header)
+	b.WriteByte('\n')
+	if len(statsLines) > 0 {
+		b.WriteString(strings.Join(statsLines, "\n"))
+		b.WriteByte('\n')
+	}
+	if len(timelineLines) > 0 {
+		b.WriteString(strings.Join(timelineLines, "\n"))
+	}
 	return b.String()
 }
 
 func (m SubAgentOverlayModel) renderFileOps(maxLines, width int) string {
-	header := m.renderSectionHeader("File Operations", m.focusedSection == 1)
+	header := m.renderSectionHeader("File Operations", m.focusedSection == 2)
 
 	if m.stats == nil || m.stats.FileOps == nil || len(m.stats.FileOps.Files) == 0 {
 		return header
 	}
 
-	// Sort files by total count descending
 	type fileEntry struct {
-		path  string
-		count *parser.FileOpCount
+		path       string
+		readCount  int
+		editCount  int
+		totalCount int
 	}
 	var entries []fileEntry
 	for path, count := range m.stats.FileOps.Files {
-		entries = append(entries, fileEntry{path, count})
+		entries = append(entries, fileEntry{
+			path:       path,
+			readCount:  count.ReadCount,
+			editCount:  count.EditCount,
+			totalCount: count.TotalCount,
+		})
 	}
 	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].count.TotalCount > entries[j].count.TotalCount
+		if entries[i].totalCount != entries[j].totalCount {
+			return entries[i].totalCount > entries[j].totalCount
+		}
+		return entries[i].path < entries[j].path
 	})
 
-	// Max 20 rows
 	if len(entries) > 20 {
 		entries = entries[:20]
 	}
@@ -416,115 +587,34 @@ func (m SubAgentOverlayModel) renderFileOps(maxLines, width int) string {
 		contentLines = 1
 	}
 
-	// Max for bar proportion
-	maxTotal := 0
+	maxRWidth := 0
+	maxEWidth := 0
+	maxTotalVis := 0
 	for _, e := range entries {
-		if e.count.TotalCount > maxTotal {
-			maxTotal = e.count.TotalCount
+		if e.readCount > 0 {
+			w := utf8.RuneCountInString(fmt.Sprintf("R×%d", e.readCount))
+			if w > maxRWidth {
+				maxRWidth = w
+			}
+		}
+		if e.editCount > 0 {
+			w := utf8.RuneCountInString(fmt.Sprintf("E×%d", e.editCount))
+			if w > maxEWidth {
+				maxEWidth = w
+			}
+		}
+		tv := len(fmt.Sprintf("%d", e.totalCount))
+		if tv > maxTotalVis {
+			maxTotalVis = tv
 		}
 	}
 
-	barWidth := 12
-
-	var b strings.Builder
-	b.WriteString(header)
-	b.WriteByte('\n')
-
-	start := 0
-	if m.focusedSection == 1 {
-		start = m.scrollOff
+	countsWidth := maxRWidth + 2 + maxEWidth
+	fixedOverhead := 6 + countsWidth + maxTotalVis
+	pathWidth := width - fixedOverhead
+	if pathWidth < 20 {
+		pathWidth = 20
 	}
-	if start > len(entries) {
-		start = len(entries)
-	}
-
-	end := start + contentLines
-	if end > len(entries) {
-		end = len(entries)
-	}
-
-	for i := start; i < end; i++ {
-		e := entries[i]
-		path := truncatePath(e.path, 30)
-
-		readLabel := ""
-		if e.count.ReadCount > 0 {
-			readLabel = lipgloss.NewStyle().Foreground(lipgloss.Color("82")).Render(fmt.Sprintf("Read ×%d", e.count.ReadCount))
-		}
-		editLabel := ""
-		if e.count.EditCount > 0 {
-			editLabel = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(fmt.Sprintf("Edit ×%d", e.count.EditCount))
-		}
-
-		barLen := 0
-		if maxTotal > 0 {
-			barLen = e.count.TotalCount * barWidth / maxTotal
-		}
-		if barLen < 1 && e.count.TotalCount > 0 {
-			barLen = 1
-		}
-		bar := strings.Repeat("█", barLen)
-
-		parts := []string{fmt.Sprintf("  %-30s", path)}
-		if readLabel != "" {
-			parts = append(parts, readLabel)
-		}
-		if editLabel != "" {
-			parts = append(parts, editLabel)
-		}
-		parts = append(parts, fmt.Sprintf("%s %d", bar, e.count.TotalCount))
-
-		b.WriteString(strings.Join(parts, "  "))
-		if i < end-1 {
-			b.WriteByte('\n')
-		}
-	}
-
-	return b.String()
-}
-
-func (m SubAgentOverlayModel) renderDurationDist(maxLines, width int) string {
-	header := m.renderSectionHeader("Duration Distribution", m.focusedSection == 2)
-
-	if m.stats == nil || len(m.stats.ToolDurs) == 0 {
-		return header
-	}
-
-	// Sort by duration descending
-	type durEntry struct {
-		name string
-		dur  time.Duration
-	}
-	var entries []durEntry
-	for name, dur := range m.stats.ToolDurs {
-		entries = append(entries, durEntry{name, dur})
-	}
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].dur > entries[j].dur
-	})
-
-	contentLines := maxLines - 1
-	if contentLines < 1 {
-		contentLines = 1
-	}
-
-	maxDur := time.Duration(0)
-	for _, e := range entries {
-		if e.dur > maxDur {
-			maxDur = e.dur
-		}
-	}
-
-	totalDur := time.Duration(0)
-	if m.stats != nil {
-		totalDur = m.stats.Duration
-	}
-
-	barWidth := 20
-
-	var b strings.Builder
-	b.WriteString(header)
-	b.WriteByte('\n')
 
 	start := 0
 	if m.focusedSection == 2 {
@@ -533,33 +623,55 @@ func (m SubAgentOverlayModel) renderDurationDist(maxLines, width int) string {
 	if start > len(entries) {
 		start = len(entries)
 	}
-
 	end := start + contentLines
 	if end > len(entries) {
 		end = len(entries)
 	}
 
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+	redStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+
+	var b strings.Builder
+	b.WriteString(header)
+	b.WriteByte('\n')
+
 	for i := start; i < end; i++ {
 		e := entries[i]
-		barLen := 0
-		if maxDur > 0 {
-			barLen = int(e.dur) * barWidth / int(maxDur)
-		}
-		if barLen < 1 && e.dur > 0 {
-			barLen = 1
+
+		displayPath := truncatePath(e.path, pathWidth)
+		if len(displayPath) < pathWidth {
+			displayPath += strings.Repeat(" ", pathWidth-len(displayPath))
 		}
 
-		pct := float64(0)
-		if totalDur > 0 {
-			pct = float64(e.dur) / float64(totalDur) * 100
+		rStr := ""
+		if e.readCount > 0 {
+			rStr = greenStyle.Render(fmt.Sprintf("R×%d", e.readCount))
+			rVis := utf8.RuneCountInString(fmt.Sprintf("R×%d", e.readCount))
+			if rVis < maxRWidth {
+				rStr += strings.Repeat(" ", maxRWidth-rVis)
+			}
+		} else if maxRWidth > 0 {
+			rStr = strings.Repeat(" ", maxRWidth)
 		}
 
-		line := fmt.Sprintf("  %-14s %s %s (%.0f%%)",
-			e.name,
-			strings.Repeat("█", barLen),
-			formatDuration(e.dur),
-			pct)
-		b.WriteString(line)
+		eStr := ""
+		if e.editCount > 0 {
+			eStr = redStyle.Render(fmt.Sprintf("E×%d", e.editCount))
+			eVis := utf8.RuneCountInString(fmt.Sprintf("E×%d", e.editCount))
+			if eVis < maxEWidth {
+				eStr += strings.Repeat(" ", maxEWidth-eVis)
+			}
+		} else if maxEWidth > 0 {
+			eStr = strings.Repeat(" ", maxEWidth)
+		}
+
+		totalStr := fmt.Sprintf("%d", e.totalCount)
+		tv := len(totalStr)
+		if tv < maxTotalVis {
+			totalStr = strings.Repeat(" ", maxTotalVis-tv) + totalStr
+		}
+
+		b.WriteString(fmt.Sprintf("%s  %s  %s  %s", displayPath, rStr, eStr, totalStr))
 		if i < end-1 {
 			b.WriteByte('\n')
 		}
@@ -575,19 +687,19 @@ func (m SubAgentOverlayModel) renderSectionHeader(title string, focused bool) st
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
 }
 
-// sectionHeightsFixed returns the section heights for the 25/50/25 split.
-func (m SubAgentOverlayModel) sectionHeightsFixed(contentH int) (toolStats, fileOps, durDist int) {
-	toolStats = (contentH + 3) / 4 // ceil(25%) = round up
-	fileOps = contentH / 2         // floor(50%)
-	durDist = contentH - toolStats - fileOps
-	if durDist < 1 {
-		durDist = 1
+// sectionHeightsFixed returns section heights for the 30/30/40 split.
+func (m SubAgentOverlayModel) sectionHeightsFixed(contentH int) (toolTime, hooks, fileOps int) {
+	toolTime = (contentH*3 + 9) / 10 // ceil(30%)
+	hooks = contentH * 3 / 10        // floor(30%)
+	fileOps = contentH - toolTime - hooks
+	if fileOps < 1 {
+		fileOps = 1
 	}
 	return
 }
 
 // sectionHeights returns section heights using the model's full-screen dimensions.
-func (m SubAgentOverlayModel) sectionHeights() (toolStats, fileOps, durDist int) {
+func (m SubAgentOverlayModel) sectionHeights() (toolTime, hooks, fileOps int) {
 	innerH := m.height - 4
 	contentH := innerH - 2
 	if contentH < 6 {
@@ -603,17 +715,17 @@ func (m SubAgentOverlayModel) maxScrollForSection(section int) int {
 
 	var totalItems int
 	switch section {
-	case 0: // Tool Statistics
+	case 0:
 		totalItems = len(m.stats.ToolCounts)
-	case 1: // File Operations
+	case 1: // Hooks — handled by hookCursor
+		return 0
+	case 2:
 		if m.stats.FileOps != nil {
 			totalItems = len(m.stats.FileOps.Files)
 			if totalItems > 20 {
 				totalItems = 20
 			}
 		}
-	case 2: // Duration Distribution
-		totalItems = len(m.stats.ToolDurs)
 	}
 
 	innerH := m.height - 4
@@ -621,18 +733,15 @@ func (m SubAgentOverlayModel) maxScrollForSection(section int) int {
 	if contentH < 6 {
 		contentH = 6
 	}
-	tsH, _, _ := m.sectionHeightsFixed(contentH)
 
 	var sectionH int
 	switch section {
 	case 0:
-		sectionH = tsH - 1 // minus header
-	case 1:
-		_, foH, _ := m.sectionHeightsFixed(contentH)
-		sectionH = foH - 1
+		ttH, _, _ := m.sectionHeightsFixed(contentH)
+		sectionH = ttH - 2
 	case 2:
-		_, _, ddH := m.sectionHeightsFixed(contentH)
-		sectionH = ddH - 1
+		_, _, foH := m.sectionHeightsFixed(contentH)
+		sectionH = foH - 1
 	}
 
 	maxScroll := totalItems - sectionH

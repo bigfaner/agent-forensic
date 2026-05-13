@@ -991,10 +991,10 @@ func TestSubAgentOverlay_DelegatesKeysWhenActive(t *testing.T) {
 	updated, _ = m.Update(keyMsg("a"))
 	m = updated.(AppModel)
 
-	// Tab should cycle overlay sections (not panel focus)
+	// Tab should cycle overlay sections (skips empty sections, wraps to 0)
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = updated.(AppModel)
-	assert.Equal(t, 1, m.subagentOverlay.focusedSection)
+	assert.Equal(t, 0, m.subagentOverlay.focusedSection, "Tab wraps back to 0 since FileOps and Hooks are empty")
 	assert.Equal(t, ViewSubAgent, m.activeView)
 }
 
@@ -1020,8 +1020,8 @@ func TestSubAgentOverlay_ViewRendersOverlay(t *testing.T) {
 
 	view := m.View()
 	assert.NotEmpty(t, view)
-	// Overlay should contain tool stats section
-	assert.Contains(t, view, "Tool Statistics")
+	// Overlay should contain tool stats column headers
+	assert.Contains(t, view, "工具调用统计")
 }
 
 func TestSubAgentOverlay_OverlayDataFromSessionStats(t *testing.T) {
@@ -1105,7 +1105,7 @@ func TestSubAgentOverlay_DimsExistingContent(t *testing.T) {
 	// Overlay view should be different from main view
 	assert.NotEqual(t, mainView, overlayView)
 	// Overlay view should contain overlay content
-	assert.Contains(t, overlayView, "Tool Statistics")
+	assert.Contains(t, overlayView, "工具调用统计")
 }
 
 // --- computeSubAgentStats tests ---

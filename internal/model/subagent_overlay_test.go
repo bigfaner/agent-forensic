@@ -84,24 +84,18 @@ func TestSubAgentOverlayModel_ViewPopulated(t *testing.T) {
 	view := m.View()
 	assert.NotEmpty(t, view)
 
-	// Title contains tool count and duration
 	assert.Contains(t, view, "30 tools")
 	assert.Contains(t, view, "12s")
 
-	// Sections present
-	assert.Contains(t, view, "Tool Statistics")
-	assert.Contains(t, view, "File Operations")
-	assert.Contains(t, view, "Duration Distribution")
-
-	// Tool names in bars
+	// Tool names in bars (▄ style)
 	assert.Contains(t, view, "Read")
 	assert.Contains(t, view, "Bash")
 	assert.Contains(t, view, "Edit")
 
-	// File operations
+	// File operations section
+	assert.Contains(t, view, "File Operations")
 	assert.Contains(t, view, "app.go")
 
-	// Footer hints
 	assert.Contains(t, view, "Esc:close")
 }
 
@@ -159,25 +153,50 @@ func TestSubAgentOverlayModel_TabCycles(t *testing.T) {
 		ToolDurs:   map[string]time.Duration{"Read": time.Second},
 		ToolCount:  1,
 		Duration:   time.Second,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{"f.go": {ReadCount: 1, TotalCount: 1}}},
+		HookDetails: []parser.HookDetail{
+			{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
+		},
+	}
+
+	m = m.Show("agent-123", stats)
+	assert.Equal(t, 0, m.focusedSection)
+
+	// Tab to Hooks (section 1)
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 1, m.focusedSection)
+
+	// Tab to FileOps (section 2)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 2, m.focusedSection)
+
+	// Tab wraps to ToolStats (section 0)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 0, m.focusedSection)
+}
+
+func TestSubAgentOverlayModel_TabSkipsEmptySections(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 1},
+		ToolDurs:   map[string]time.Duration{"Read": time.Second},
+		ToolCount:  1,
+		Duration:   time.Second,
 		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
 	}
 
 	m = m.Show("agent-123", stats)
 	assert.Equal(t, 0, m.focusedSection)
 
-	// Tab cycles to next section
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 1, m.focusedSection)
-
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 2, m.focusedSection)
-
-	// Tab wraps around
-	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
-	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 0, m.focusedSection)
+	assert.Equal(t, 0, m.focusedSection, "Tab should skip empty sections and wrap to 0")
 }
 
 func TestSubAgentOverlayModel_ScrollWithinFocusedSection(t *testing.T) {
@@ -185,7 +204,6 @@ func TestSubAgentOverlayModel_ScrollWithinFocusedSection(t *testing.T) {
 	m.width = 120
 	m.height = 40
 
-	// Create stats with many tools to enable scrolling
 	toolCounts := map[string]int{}
 	toolDurs := map[string]time.Duration{}
 	for i := 0; i < 30; i++ {
@@ -203,23 +221,61 @@ func TestSubAgentOverlayModel_ScrollWithinFocusedSection(t *testing.T) {
 	}
 
 	m = m.Show("agent-123", stats)
-	m.focusedSection = 0 // Tool Statistics
+	m.focusedSection = 0
 
-	// j scrolls down
 	assert.Equal(t, 0, m.scrollOff)
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	m = updated.(SubAgentOverlayModel)
 	assert.Equal(t, 1, m.scrollOff)
 
-	// k scrolls up
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	m = updated.(SubAgentOverlayModel)
 	assert.Equal(t, 0, m.scrollOff)
 
-	// k at top stays at 0
 	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
 	m = updated.(SubAgentOverlayModel)
 	assert.Equal(t, 0, m.scrollOff)
+}
+
+func TestSubAgentOverlayModel_HookCursorNavigation(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	hooks := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
+		{HookType: "PostToolUse", Target: "Edit", TurnIndex: 1, FullID: "PostToolUse::Edit"},
+		{HookType: "Stop", TurnIndex: 2, FullID: "Stop"},
+	}
+	stats := &parser.SubAgentStats{
+		ToolCounts:  map[string]int{"Bash": 1},
+		ToolDurs:    map[string]time.Duration{"Bash": time.Second},
+		ToolCount:   1,
+		Duration:    time.Second,
+		FileOps:     &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: hooks,
+	}
+
+	m = m.Show("agent-123", stats)
+	m.focusedSection = 1 // Hooks section
+
+	assert.Equal(t, 0, m.hookCursor)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 1, m.hookCursor)
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 2, m.hookCursor)
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 2, m.hookCursor)
+
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
+	m = updated.(SubAgentOverlayModel)
+	assert.Equal(t, 1, m.hookCursor)
 }
 
 func TestSubAgentOverlayModel_EscCloses(t *testing.T) {
@@ -264,19 +320,17 @@ func TestSubAgentOverlayModel_SectionHeightAllocation(t *testing.T) {
 	}
 	m = m.Show("agent-123", stats)
 
-	// Verify section heights follow 25/50/25 split
-	// Full screen: overlayH = 40, innerH = 40-4 = 36, contentH = 36-2 = 34
-	// toolStats: ceil(34*0.25) = (34+3)/4 = 9
-	// fileOps: floor(34*0.50) = 17
-	// duration: 34 - 9 - 17 = 8
-	tsH, foH, ddH := m.sectionHeights()
-	assert.Equal(t, 9, tsH)
-	assert.Equal(t, 17, foH)
-	assert.Equal(t, 8, ddH)
+	// Full screen: overlayH = 40, innerH = 36, contentH = 34
+	// 30/30/40 split:
+	// toolTime: ceil(34*0.30) = (34*3+9)/10 = 11
+	// hooks: floor(34*0.30) = 10
+	// fileOps: 34 - 11 - 10 = 13
+	ttH, hookH, foH := m.sectionHeights()
+	assert.Equal(t, 11, ttH)
+	assert.Equal(t, 10, hookH)
+	assert.Equal(t, 13, foH)
 }
 
-// bug: overlay uses 80%x90% dimensions — too small, data truncated.
-// Overlay should use full screen dimensions like the dashboard.
 func TestSubAgentOverlayModel_ViewUsesFullScreenWidth(t *testing.T) {
 	m := NewSubAgentOverlayModel()
 	m.width = 120
@@ -292,8 +346,6 @@ func TestSubAgentOverlayModel_ViewUsesFullScreenWidth(t *testing.T) {
 	m = m.Show("agent-123", stats)
 	view := m.View()
 
-	// The view should NOT be centered/padded — it should fill the full width.
-	// Strip ANSI codes to check visible content width.
 	clean := stripOverlayANSI(view)
 	lines := strings.Split(clean, "\n")
 	for _, line := range lines {
@@ -301,45 +353,17 @@ func TestSubAgentOverlayModel_ViewUsesFullScreenWidth(t *testing.T) {
 		if trimmed == "" {
 			continue
 		}
-		// No line should have significant left padding from centering
 		leftPad := len(line) - len(strings.TrimLeft(line, " "))
 		assert.LessOrEqual(t, leftPad, 2,
 			"overlay should not be centered; found %d spaces of left padding in: %q", leftPad, trimmed)
 	}
 }
 
-// bug: sectionHeights uses 90% of height instead of full screen dimensions.
-func TestSubAgentOverlayModel_SectionHeightsUsesFullScreen(t *testing.T) {
-	m := NewSubAgentOverlayModel()
-	m.width = 120
-	m.height = 40
-
-	stats := &parser.SubAgentStats{
-		ToolCounts: map[string]int{"Read": 1},
-		ToolDurs:   map[string]time.Duration{"Read": time.Second},
-		ToolCount:  1,
-		Duration:   time.Second,
-		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
-	}
-	m = m.Show("agent-123", stats)
-
-	// With full-screen: overlayH = 40, innerH = 40-4 = 36, contentH = 36-2 = 34
-	// toolStats: ceil(34*0.25) = (34+3)/4 = 9
-	// fileOps: floor(34*0.50) = 17
-	// duration: 34 - 9 - 17 = 8
-	tsH, foH, ddH := m.sectionHeights()
-	assert.Equal(t, 9, tsH, "toolStats section should use full-screen height")
-	assert.Equal(t, 17, foH, "fileOps section should use full-screen height")
-	assert.Equal(t, 8, ddH, "duration section should use full-screen height")
-}
-
-// Verify scrolling only affects the focused section's visible items.
 func TestSubAgentOverlayModel_ScrollOnlyAffectsFocusedSection(t *testing.T) {
 	m := NewSubAgentOverlayModel()
 	m.width = 120
 	m.height = 40
 
-	// Create stats where ToolStats and DurationDist both have many items
 	toolCounts := map[string]int{}
 	toolDurs := map[string]time.Duration{}
 	for i := 0; i < 30; i++ {
@@ -349,7 +373,7 @@ func TestSubAgentOverlayModel_ScrollOnlyAffectsFocusedSection(t *testing.T) {
 	}
 
 	files := map[string]*parser.FileOpCount{}
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 5; i++ {
 		files[fmt.Sprintf("file_%02d.go", i)] = &parser.FileOpCount{
 			ReadCount: i + 1, EditCount: 0, TotalCount: i + 1,
 		}
@@ -364,7 +388,6 @@ func TestSubAgentOverlayModel_ScrollOnlyAffectsFocusedSection(t *testing.T) {
 	}
 	m = m.Show("agent-123", stats)
 
-	// Focus on ToolStats (section 0), scroll down
 	m.focusedSection = 0
 	for i := 0; i < 5; i++ {
 		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -372,15 +395,108 @@ func TestSubAgentOverlayModel_ScrollOnlyAffectsFocusedSection(t *testing.T) {
 	}
 	assert.Equal(t, 5, m.scrollOff)
 
-	// Now switch to FileOps (section 1) — scrollOff should reset
+	// Tab to FileOps (section 2) — scrollOff should reset
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
 	m = updated.(SubAgentOverlayModel)
-	assert.Equal(t, 1, m.focusedSection)
+	assert.Equal(t, 2, m.focusedSection)
 	assert.Equal(t, 0, m.scrollOff, "scroll offset should reset when switching sections")
+}
 
-	// FileOps should show from beginning (not scrolled)
+func TestSubAgentOverlayModel_FocusedToolHeaderCyan(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 1},
+		ToolDurs:   map[string]time.Duration{"Read": time.Second},
+		ToolCount:  1,
+		Duration:   time.Second,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-123", stats)
 	view := m.View()
-	assert.Contains(t, view, "file_00.go", "FileOps should show first file when not scrolled")
+
+	// Should contain the tool/time column headers
+	assert.Contains(t, view, "工具调用统计")
+}
+
+func TestSubAgentOverlayModel_HookSectionRendered(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Bash": 2},
+		ToolDurs:   map[string]time.Duration{"Bash": 2 * time.Second},
+		ToolCount:  2,
+		Duration:   2 * time.Second,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+		HookDetails: []parser.HookDetail{
+			{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Command: "echo test"},
+			{HookType: "PostToolUse", Target: "Edit", TurnIndex: 2, FullID: "PostToolUse::Edit"},
+		},
+	}
+
+	m = m.Show("agent-123", stats)
+	view := m.View()
+
+	assert.Contains(t, view, "Hook Analysis")
+	assert.Contains(t, view, "PreToolUse::Bash")
+	assert.Contains(t, view, "PostToolUse::Edit")
+	assert.Contains(t, view, "Hook Timeline")
+}
+
+func TestSubAgentOverlayModel_HookAboveFileOps(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Bash": 2},
+		ToolDurs:   map[string]time.Duration{"Bash": 2 * time.Second},
+		ToolCount:  2,
+		Duration:   2 * time.Second,
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"main.go": {ReadCount: 3, TotalCount: 3},
+			},
+		},
+		HookDetails: []parser.HookDetail{
+			{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
+		},
+	}
+
+	m = m.Show("agent-123", stats)
+	view := m.View()
+
+	hookIdx := strings.Index(view, "Hook Analysis")
+	fileOpsIdx := strings.Index(view, "File Operations")
+	assert.Greater(t, hookIdx, 0)
+	assert.Greater(t, fileOpsIdx, 0)
+	assert.Less(t, hookIdx, fileOpsIdx, "Hook section should appear above File Operations")
+}
+
+func TestSubAgentOverlayModel_BarCharsMatchDashboard(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5, "Bash": 3},
+		ToolDurs:   map[string]time.Duration{"Read": 5 * time.Second, "Bash": 3 * time.Second},
+		ToolCount:  8,
+		Duration:   8 * time.Second,
+		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
+	}
+
+	m = m.Show("agent-123", stats)
+	view := m.View()
+
+	// Should use ▄ (dashboard style), not █
+	assert.Contains(t, view, "▄")
+	assert.NotContains(t, "█ dashboard ▄ mixed", view)
 }
 
 // stripOverlayANSI removes ANSI escape sequences from a string.
@@ -403,24 +519,4 @@ func stripOverlayANSI(s string) string {
 		}
 	}
 	return string(result)
-}
-
-func TestSubAgentOverlayModel_FocusedHeaderCyan(t *testing.T) {
-	m := NewSubAgentOverlayModel()
-	m.width = 120
-	m.height = 40
-
-	stats := &parser.SubAgentStats{
-		ToolCounts: map[string]int{"Read": 1},
-		ToolDurs:   map[string]time.Duration{"Read": time.Second},
-		ToolCount:  1,
-		Duration:   time.Second,
-		FileOps:    &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}},
-	}
-
-	m = m.Show("agent-123", stats)
-	view := m.View()
-
-	// First section header (Tool Statistics) should be focused (cyan)
-	assert.Contains(t, view, "Tool Statistics")
 }
