@@ -37,7 +37,7 @@
       "title": "Create shared truncation utilities (truncate.go)",
       "priority": "P0",
       "estimatedTime": "2h",
-      "status": "pending",
+      "status": "completed",
       "file": "1.1-truncate-utilities.md",
       "record": "records/1.1-truncate-utilities.md",
       "scope": "all",

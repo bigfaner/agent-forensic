@@ -1024,26 +1024,3 @@ func (m CallTreeModel) needsOverflowAfter(i int) bool {
 	// This is the last shown child
 	return node.subIdx == maxSubAgentChildren-1
 }
-
-// truncateLineToWidth truncates s to fit within maxWidth terminal columns,
-// appending "…" if truncated. Handles CJK double-width characters.
-func truncateLineToWidth(s string, maxWidth int) string {
-	if lipgloss.Width(s) <= maxWidth {
-		return s
-	}
-	budget := maxWidth - lipgloss.Width("…")
-	if budget <= 0 {
-		return "…"
-	}
-	var out []rune
-	used := 0
-	for _, r := range s {
-		w := lipgloss.Width(string(r))
-		if used+w > budget {
-			break
-		}
-		out = append(out, r)
-		used += w
-	}
-	return string(out) + "…"
-}

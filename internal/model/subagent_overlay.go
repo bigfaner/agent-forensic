@@ -352,21 +352,6 @@ func (m SubAgentOverlayModel) renderTitle(w int) string {
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
 }
 
-// truncRunes truncates s to at most maxW display-width columns, respecting rune boundaries.
-func truncRunes(s string, maxW int) string {
-	var out []rune
-	w := 0
-	for _, r := range s {
-		rw := runewidth.RuneWidth(r)
-		if w+rw > maxW {
-			break
-		}
-		out = append(out, r)
-		w += rw
-	}
-	return string(out)
-}
-
 func (m SubAgentOverlayModel) renderFooter() string {
 	hints := "Esc:close  ↑/↓:scroll  Tab:sections"
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(hints)
@@ -473,7 +458,6 @@ func (m SubAgentOverlayModel) renderToolTimeSection(maxLines, width int) string 
 		}
 		return name + strings.Repeat(" ", pw)
 	}
-
 
 	// Highlight column headers when section focused
 	focused := m.focusedSection == 0

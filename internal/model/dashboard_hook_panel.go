@@ -273,21 +273,3 @@ func truncateStr(s string, maxLen int) string {
 	}
 	return string(runes[:maxLen-1]) + "…"
 }
-
-// wrapText wraps a string into lines of at most width runes.
-func wrapText(s string, width int) []string {
-	if width <= 0 || len([]rune(s)) <= width {
-		return []string{s}
-	}
-	runes := []rune(s)
-	var result []string
-	for len(runes) > 0 {
-		if len(runes) <= width {
-			result = append(result, string(runes))
-			break
-		}
-		result = append(result, string(runes[:width]))
-		runes = runes[width:]
-	}
-	return result
-}
