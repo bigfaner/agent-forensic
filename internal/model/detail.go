@@ -465,7 +465,7 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 
 	// File operations section (UF-3)
 	fileOps := stats.ExtractFilePaths(m.turn.Entries)
-	contentWidth := m.width - 4
+	contentWidth := m.width - 5 // -4 border, -1 potential scrollbar
 	if contentWidth < 1 {
 		contentWidth = 1
 	}
@@ -1048,7 +1048,7 @@ func (m DetailModel) buildSubAgentStats() string {
 	}
 
 	// Files sub-block (reuse renderFileList)
-	contentWidth := m.width - 4
+	contentWidth := m.width - 7 // -4 border, -1 scrollbar, -2 sub-block indent
 	if contentWidth < 1 {
 		contentWidth = 1
 	}
