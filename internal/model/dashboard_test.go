@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
@@ -1019,6 +1020,49 @@ func TestDashboard_PickerDownAtBottom(t *testing.T) {
 	dm = updated.(DashboardModel)
 	assert.Equal(t, 0, dm.pickerCursor)
 }
+
+// --- Bug regression: percentage numbers wrapping in 耗时统计 panel ---
+
+func TestDashboard_TimeStatsLinesFitScrollContentWidth(t *testing.T) {
+	// Root cause: renderDashboard() used contentWidth = m.width - 4 for the
+	// two-column bar chart layout, but renderScrollableContent() wraps each
+	// line to m.width - 5 when a scrollbar is present. The 1-column mismatch
+	// causes the right column's percentage to wrap when the terminal width is odd.
+	entries := make([]parser.TurnEntry, 10)
+	for i := range entries {
+		entries[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			ToolName: fmt.Sprintf("Tool_%02d", i),
+			Duration: time.Duration(i+1) * time.Second,
+		}
+	}
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 10,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{Index: 1, Duration: 5 * time.Minute, Entries: entries},
+		},
+	}
+
+	// Use odd width to trigger the width mismatch
+	m := NewDashboardModel()
+	m = m.SetSize(79, 10)
+	m.Refresh(session)
+
+	output := m.renderDashboard()
+	scrollContentWidth := m.width - 5
+
+	for i, line := range strings.Split(output, "\n") {
+		w := lipgloss.Width(line)
+		assert.LessOrEqual(t, w, scrollContentWidth,
+			"bug: line %d exceeds scroll content width (%d): width=%d, %q",
+			i, scrollContentWidth, w, line)
+	}
+}
+
+// --- End bug regression test ---
 
 func TestDashboard_PickerUpAtTop(t *testing.T) {
 	m := newTestDashboardModel()

@@ -334,7 +334,6 @@ func (m DashboardModel) renderContent() string {
 	return ""
 }
 
-
 // renderScrollableContent splits content into lines, applies scrollPos,
 // and adds a scrollbar when content overflows the viewport.
 func (m DashboardModel) renderScrollableContent(content string) string {
@@ -440,8 +439,10 @@ func (m DashboardModel) renderDashboard() string {
 		return entries[i].Name < entries[j].Name
 	})
 
-	// Two-column layout
-	contentWidth := m.width - 4
+	// Two-column layout — use m.width-5 to match renderScrollableContent's
+	// scroll-case width (m.width-5). When not scrolling it uses m.width-4,
+	// which is wider, so the narrower content just gets padded.
+	contentWidth := m.width - 5
 	colGap := 3
 	colWidth := (contentWidth - colGap) / 2
 	if colWidth < 20 {
