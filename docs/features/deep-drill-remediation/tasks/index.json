@@ -48,7 +48,7 @@
       "title": "Create tool accessor functions + promote stats API",
       "priority": "P1",
       "estimatedTime": "1h",
-      "status": "pending",
+      "status": "completed",
       "file": "1.2-tool-accessors-stats-api.md",
       "record": "records/1.2-tool-accessors-stats-api.md",
       "scope": "all",

@@ -213,9 +213,9 @@ func (m CallTreeModel) selectedNode() *visibleNode {
 }
 
 // isAgentTool returns true if the tool name represents a sub-agent invocation.
-// Claude Code JSONL uses "Agent" as the tool_name.
+// Delegates to parser.IsAgentTool for consistent alias handling.
 func isAgentTool(name string) bool {
-	return name == "Agent" || name == "SubAgent"
+	return parser.IsAgentTool(name)
 }
 
 // parentSubAgentEntry returns the parent SubAgent TurnEntry for a depth-2 child node.
