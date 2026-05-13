@@ -387,7 +387,7 @@ func (m AppModel) handleCallTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Intercept 'a' key for SubAgent overlay
 	if msg.String() == "a" {
 		entry := m.callTree.SelectedEntry()
-		if entry != nil && isAgentTool(entry.ToolName) {
+		if entry != nil && parser.IsAgentTool(entry.ToolName) {
 			return m.handleSubAgentOverlayOpen()
 		}
 		// 'a' on non-SubAgent node is a no-op
@@ -484,7 +484,7 @@ func (m AppModel) handleDiagnosisKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSubAgentOverlayOpen opens the SubAgent full-screen overlay.
 func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
 	entry := m.callTree.SelectedEntry()
-	if entry == nil || !isAgentTool(entry.ToolName) {
+	if entry == nil || !parser.IsAgentTool(entry.ToolName) {
 		return m, nil
 	}
 
@@ -592,8 +592,7 @@ func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
 		totalDur += child.Duration
 		stats.ToolCount++
 
-		switch child.ToolName {
-		case "Read":
+		if parser.IsReadTool(child.ToolName) {
 			fp := extractFilePathFromInput(child.Input)
 			if fp != "" {
 				fc := stats.FileOps.Files[fp]
@@ -604,7 +603,7 @@ func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
 				fc.ReadCount++
 				fc.TotalCount++
 			}
-		case "Write", "Edit":
+		} else if parser.IsEditTool(child.ToolName) {
 			fp := extractFilePathFromInput(child.Input)
 			if fp != "" {
 				fc := stats.FileOps.Files[fp]
@@ -670,8 +669,7 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 				totalDur += e.Duration
 				stats.ToolCount++
 
-				switch e.ToolName {
-				case "Read":
+				if parser.IsReadTool(e.ToolName) {
 					fp := extractFilePathFromInput(e.Input)
 					if fp != "" {
 						fc := stats.FileOps.Files[fp]
@@ -682,7 +680,7 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 						fc.ReadCount++
 						fc.TotalCount++
 					}
-				case "Write", "Edit":
+				} else if parser.IsEditTool(e.ToolName) {
 					fp := extractFilePathFromInput(e.Input)
 					if fp != "" {
 						fc := stats.FileOps.Files[fp]
@@ -1163,15 +1161,14 @@ func extractToolCommand(toolName, rawInput string) string {
 	if err := json.Unmarshal([]byte(rawInput), &input); err != nil {
 		return ""
 	}
-	switch toolName {
-	case "Bash":
+	if parser.IsBashTool(toolName) {
 		if cmd, ok := input["command"].(string); ok && cmd != "" {
 			if len(cmd) > 60 {
 				return cmd[:59] + "…"
 			}
 			return cmd
 		}
-	case "Read", "Write", "Edit":
+	} else if parser.IsFileTool(toolName) {
 		if fp, ok := input["file_path"].(string); ok && fp != "" {
 			return fp
 		}

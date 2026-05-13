@@ -16,6 +16,11 @@ func IsFileTool(name string) bool {
 	return IsReadTool(name) || IsEditTool(name)
 }
 
+// IsBashTool returns true for tool names that run shell commands.
+func IsBashTool(name string) bool {
+	return name == "Bash"
+}
+
 // IsAgentTool returns true for tool names that spawn sub-agents.
 func IsAgentTool(name string) bool {
 	return name == "Agent" || name == "SubAgent"

@@ -152,7 +152,7 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 			m.hookCursor = 0
 		}
 		return m, nil
-	case "down", "j":
+	case "down":
 		if m.focusSection == SectionHookAnalysis && m.stats != nil && len(m.stats.HookDetails) > 0 {
 			if m.hookCursor < len(m.stats.HookDetails)-1 {
 				m.hookCursor++
@@ -161,7 +161,7 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 			m.scrollPos++
 		}
 		return m, nil
-	case "up", "k":
+	case "up":
 		if m.focusSection == SectionHookAnalysis && m.stats != nil && len(m.stats.HookDetails) > 0 {
 			if m.hookCursor > 0 {
 				m.hookCursor--

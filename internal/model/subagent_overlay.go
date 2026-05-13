@@ -166,7 +166,7 @@ func (m SubAgentOverlayModel) handleKey(msg tea.KeyMsg) (SubAgentOverlayModel, t
 		if m.focusedSection == 1 {
 			m.hookCursor = 0
 		}
-	case "down", "j":
+	case "down":
 		if m.focusedSection == 1 && m.stats != nil && len(m.stats.HookDetails) > 0 {
 			if m.hookCursor < len(m.stats.HookDetails)-1 {
 				m.hookCursor++
@@ -177,7 +177,7 @@ func (m SubAgentOverlayModel) handleKey(msg tea.KeyMsg) (SubAgentOverlayModel, t
 				m.scrollOff++
 			}
 		}
-	case "up", "k":
+	case "up":
 		if m.focusedSection == 1 && m.stats != nil && len(m.stats.HookDetails) > 0 {
 			if m.hookCursor > 0 {
 				m.hookCursor--

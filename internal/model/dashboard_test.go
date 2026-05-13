@@ -209,7 +209,7 @@ func TestDashboard_TabFocus_FileOpsHeaderCyan(t *testing.T) {
 	assert.Contains(t, view, "File Operations")
 }
 
-func TestDashboard_JKScroll_InDashboard(t *testing.T) {
+func TestDashboard_ArrowScroll_InDashboard(t *testing.T) {
 	session := &parser.Session{
 		FilePath:  "/test/session.jsonl",
 		Date:      time.Now(),
@@ -232,20 +232,20 @@ func TestDashboard_JKScroll_InDashboard(t *testing.T) {
 	m.Refresh(session)
 	assert.Equal(t, 0, m.scrollPos)
 
-	// Press j (down)
-	updated, _ := m.Update(createRuneKeyMsg('j'))
+	// Press down arrow
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	dm := updated.(DashboardModel)
-	assert.Equal(t, 1, dm.scrollPos, "j should increment scroll position")
+	assert.Equal(t, 1, dm.scrollPos, "down arrow should increment scroll position")
 
-	// Press k (up)
-	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	// Press up arrow
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyUp})
 	dm = updated.(DashboardModel)
-	assert.Equal(t, 0, dm.scrollPos, "k should decrement scroll position")
+	assert.Equal(t, 0, dm.scrollPos, "up arrow should decrement scroll position")
 
-	// Press k at top - should not go negative
-	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	// Press up arrow at top - should not go negative
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyUp})
 	dm = updated.(DashboardModel)
-	assert.Equal(t, 0, dm.scrollPos, "k at top should not go below 0")
+	assert.Equal(t, 0, dm.scrollPos, "up arrow at top should not go below 0")
 }
 
 // --- Hook Analysis Panel integration tests ---
@@ -281,13 +281,13 @@ func TestDashboard_ScrollContent_VisibleWhenScrolled(t *testing.T) {
 	view0 := m.View()
 	assert.Contains(t, view0, "总耗时", "header should be visible at scroll=0")
 
-	// Scroll down by pressing j multiple times
+	// Scroll down by pressing down arrow multiple times
 	cur := m
 	for i := 0; i < 5; i++ {
-		updated, _ := cur.Update(createRuneKeyMsg('j'))
+		updated, _ := cur.Update(tea.KeyMsg{Type: tea.KeyDown})
 		cur = updated.(DashboardModel)
 	}
-	assert.Greater(t, cur.scrollPos, 0, "scrollPos should be > 0 after pressing j 5 times")
+	assert.Greater(t, cur.scrollPos, 0, "scrollPos should be > 0 after pressing down arrow 5 times")
 
 	viewScrolled := cur.View()
 	assert.NotContains(t, viewScrolled, "总耗时",

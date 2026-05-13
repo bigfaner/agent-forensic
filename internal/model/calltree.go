@@ -212,12 +212,6 @@ func (m CallTreeModel) selectedNode() *visibleNode {
 	return &m.visibleNodes[m.cursor]
 }
 
-// isAgentTool returns true if the tool name represents a sub-agent invocation.
-// Delegates to parser.IsAgentTool for consistent alias handling.
-func isAgentTool(name string) bool {
-	return parser.IsAgentTool(name)
-}
-
 // parentSubAgentEntry returns the parent SubAgent TurnEntry for a depth-2 child node.
 // Returns nil if the parent cannot be found.
 func (m CallTreeModel) parentSubAgentEntry(node *visibleNode) *parser.TurnEntry {
@@ -228,7 +222,7 @@ func (m CallTreeModel) parentSubAgentEntry(node *visibleNode) *parser.TurnEntry 
 		return nil
 	}
 	parent := &m.turns[node.turnIdx].Entries[node.entryIdx]
-	if !isAgentTool(parent.ToolName) {
+	if !parser.IsAgentTool(parent.ToolName) {
 		return nil
 	}
 	return parent
@@ -282,7 +276,7 @@ func (m *CallTreeModel) rebuildVisibleNodes() {
 						entry:    entry,
 					})
 					// If this is a SubAgent entry and it's expanded, show its children
-					if isAgentTool(entry.ToolName) {
+					if parser.IsAgentTool(entry.ToolName) {
 						key := fmt.Sprintf("%d-%d", i, j)
 						if m.subAgentExpanded[key] && m.subAgentErrors[key] == nil {
 							children := entry.Children
@@ -411,7 +405,7 @@ func (m *CallTreeModel) toggleExpand() {
 	}
 
 	// SubAgent node expand/collapse
-	if node.entry != nil && isAgentTool(node.entry.ToolName) {
+	if node.entry != nil && parser.IsAgentTool(node.entry.ToolName) {
 		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
 
 		// Error state: do not expand
@@ -711,7 +705,7 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 	if node.entryIdx == lastToolIdx {
 		// Only use └─ if the SubAgent is NOT expanded with children
 		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
-		if isAgentTool(entry.ToolName) && m.subAgentExpanded[key] && m.subAgentErrors[key] == nil && len(entry.Children) > 0 {
+		if parser.IsAgentTool(entry.ToolName) && m.subAgentExpanded[key] && m.subAgentErrors[key] == nil && len(entry.Children) > 0 {
 			connector = "├─ "
 		} else {
 			connector = "└─ "
@@ -723,7 +717,7 @@ func (m CallTreeModel) renderToolNode(b *strings.Builder, cursorIdx int, node vi
 	duration := formatDuration(entry.Duration)
 
 	// Sub-agent detection: tool named SubAgent
-	if isAgentTool(toolName) {
+	if parser.IsAgentTool(toolName) {
 		m.renderSubAgentNode(b, cursorIdx, node, turn, connector, duration)
 		return
 	}
@@ -936,7 +930,7 @@ func (m CallTreeModel) SelectedSubAgentError() error {
 	node := m.visibleNodes[m.cursor]
 
 	// Check if this is the SubAgent parent node with an error
-	if !node.isTurn && node.entry != nil && isAgentTool(node.entry.ToolName) {
+	if !node.isTurn && node.entry != nil && parser.IsAgentTool(node.entry.ToolName) {
 		key := fmt.Sprintf("%d-%d", node.turnIdx, node.entryIdx)
 		return m.subAgentErrors[key]
 	}
