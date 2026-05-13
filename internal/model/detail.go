@@ -290,7 +290,7 @@ func (m DetailModel) View() string {
 	}
 	if hintText != "" {
 		hintRendered := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(hintText)
-		pad := innerWidth - runewidth.StringWidth(titlePlain) - runewidth.StringWidth(hintText)
+		pad := innerWidth - nonEastAsian.StringWidth(titlePlain) - nonEastAsian.StringWidth(hintText)
 		if pad > 0 {
 			titleStr = titleStr + strings.Repeat(" ", pad) + hintRendered
 		}
@@ -763,6 +763,11 @@ func (m DetailModel) contentNeedsScroll() bool {
 
 // ansiEscape matches ANSI color/style escape sequences.
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// nonEastAsian is a runewidth condition that treats ambiguous-width characters
+// (e.g., —, ↑, ↓) as width 1, matching the golden file expectations and
+// ensuring consistent title bar alignment regardless of locale/code page.
+var nonEastAsian = runewidth.Condition{EastAsianWidth: false}
 
 // sanitizeControlChars replaces tabs with spaces and strips other control
 // characters (except newline) from a string, keeping only printable runes.
