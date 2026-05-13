@@ -13,6 +13,9 @@ Browse by category or search by tag.
 - [TUI Task Verify Criteria 必须包含视觉验证](lesson-tui-visual-verify.md) — 编译+测试通过但 11 个渲染 bug 在运行时暴露
 - [Vibe Coding 阶段的 Scope 控制与反思阈值](lesson-vibe-coding-scope-control.md) — 23 个连续提交无 checkpoint，3 个 feat 提交属于 scope creep
 
+### Agent Behavior
+- [Skill 加载路径必须验证版本一致性](lesson-trust-without-verify-skill-artifacts.md) — 从 plugin cache 旧版本读取 rubric，3 轮 eval 全部无效（100 分 vs 1000 分）
+
 ### Meta
 - [Forge Pipeline TUI 防护缺失 — 系统性诊断与改进计划](lesson-forge-tui-pipeline-gap.md) — 9 条 skill 修改建议 0 条已实施；P0 改动 3 个 skill 文件可阻止 60-70% vibe coding
 
@@ -32,3 +35,6 @@ Browse by category or search by tag.
 | scope-control | [lesson-vibe-coding-scope-control](lesson-vibe-coding-scope-control.md) |
 | vibe-coding | [lesson-vibe-coding-scope-control](lesson-vibe-coding-scope-control.md) |
 | reflection | [lesson-vibe-coding-scope-control](lesson-vibe-coding-scope-control.md) |
+| trust-without-verify | [lesson-trust-without-verify-skill-artifacts](lesson-trust-without-verify-skill-artifacts.md) |
+| skill-loading | [lesson-trust-without-verify-skill-artifacts](lesson-trust-without-verify-skill-artifacts.md) |
+| version-mismatch | [lesson-trust-without-verify-skill-artifacts](lesson-trust-without-verify-skill-artifacts.md) |
