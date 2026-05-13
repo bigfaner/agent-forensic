@@ -10,6 +10,8 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -733,6 +735,607 @@ func TestDetail_AllContentReachableByScrolling(t *testing.T) {
 		}
 	}
 	assert.True(t, foundOutput, "output section should be reachable by scrolling, seen: %+v", seen)
+}
+
+// --- renderFileList tests (UF-3: Turn File Operations) ---
+
+func TestRenderFileList_BasicFileOps(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"internal/parser/types.go": {ReadCount: 2, EditCount: 1, TotalCount: 3},
+			"internal/stats/stats.go":  {ReadCount: 1, EditCount: 0, TotalCount: 1},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	// Strip ANSI for content assertions
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "files:")
+	assert.Contains(t, clean, "internal/parser/types.go")
+	assert.Contains(t, clean, "R×2")
+	assert.Contains(t, clean, "E×1")
+	assert.Contains(t, clean, "internal/stats/stats.go")
+	assert.Contains(t, clean, "R×1")
+}
+
+func TestRenderFileList_SortedByTotalCount(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"a.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
+			"b.go": {ReadCount: 3, EditCount: 2, TotalCount: 5},
+			"c.go": {ReadCount: 2, EditCount: 0, TotalCount: 2},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// b.go (5) should come before c.go (2) which should come before a.go (1)
+	idxB := strings.Index(clean, "b.go")
+	idxC := strings.Index(clean, "c.go")
+	idxA := strings.Index(clean, "a.go")
+	assert.Less(t, idxB, idxC, "b.go (5 ops) should appear before c.go (2 ops)")
+	assert.Less(t, idxC, idxA, "c.go (2 ops) should appear before a.go (1 op)")
+}
+
+func TestRenderFileList_NilFileOps(t *testing.T) {
+	result := renderFileList(nil, 80)
+	assert.Empty(t, result, "should return empty string for nil FileOpStats")
+}
+
+func TestRenderFileList_EmptyFileOps(t *testing.T) {
+	fileOps := &parser.FileOpStats{Files: map[string]*parser.FileOpCount{}}
+	result := renderFileList(fileOps, 80)
+	assert.Empty(t, result, "should return empty string for empty FileOpStats")
+}
+
+func TestRenderFileList_Max20Rows(t *testing.T) {
+	files := make(map[string]*parser.FileOpCount)
+	for i := 0; i < 25; i++ {
+		name := fmt.Sprintf("file_%02d.go", i)
+		files[name] = &parser.FileOpCount{ReadCount: 25 - i, EditCount: 0, TotalCount: 25 - i}
+	}
+	fileOps := &parser.FileOpStats{Files: files}
+
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Should contain "+5 more" for the 5 overflow files
+	assert.Contains(t, clean, "+5 more")
+
+	// Should NOT contain the 21st+ files (file_20.go through file_24.go)
+	// file_00.go has count 25 (highest), file_20.go has count 5 (21st)
+	assert.NotContains(t, clean, "file_20.go")
+	assert.NotContains(t, clean, "file_24.go")
+
+	// Should contain the first 20 files
+	assert.Contains(t, clean, "file_00.go")
+	assert.Contains(t, clean, "file_19.go")
+}
+
+func TestRenderFileList_PathTruncation(t *testing.T) {
+	// Long path that exceeds available width
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"/very/long/path/to/some/deeply/nested/directory/structure/that/exceeds/width/internal/model/app.go": {ReadCount: 1, EditCount: 1, TotalCount: 2},
+		},
+	}
+	// Use a narrow width to force truncation
+	result := renderFileList(fileOps, 40)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Should show truncated path with ... prefix and keep filename
+	assert.Contains(t, clean, "...")
+	assert.Contains(t, clean, "app.go")
+}
+
+func TestRenderFileList_OnlyReadNoEdit(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"read_only.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "R×3")
+	assert.NotContains(t, clean, "E×0") // E×0 should not be shown when edit count is 0
+}
+
+func TestRenderFileList_OnlyEditNoRead(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"edit_only.go": {ReadCount: 0, EditCount: 2, TotalCount: 2},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "E×2")
+	assert.NotContains(t, clean, "R×0") // R×0 should not be shown when read count is 0
+}
+
+func TestRenderFileList_FilesLabelInCyan(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"test.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	// The "files:" label should be present
+	assert.Contains(t, result, "files:")
+	// Verify label is on the first line
+	lines := strings.Split(result, "\n")
+	assert.True(t, strings.Contains(lines[0], "files:"), "files: should be the first line")
+}
+
+func TestRenderFileList_ReadCountGreen(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"test.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	// R×3 should be rendered in green (bright green = color 83 or similar)
+	clean := ansiEscape.ReplaceAllString(result, "")
+	assert.Contains(t, clean, "R×3")
+}
+
+func TestRenderFileList_EditCountRed(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"test.go": {ReadCount: 0, EditCount: 2, TotalCount: 2},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+
+	clean := ansiEscape.ReplaceAllString(result, "")
+	assert.Contains(t, clean, "E×2")
+}
+
+func TestRenderFileList_BothReadAndEdit(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"mixed.go": {ReadCount: 3, EditCount: 2, TotalCount: 5},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	assert.Contains(t, clean, "R×3")
+	assert.Contains(t, clean, "E×2")
+}
+
+func TestRenderFileList_Exactly20Files(t *testing.T) {
+	files := make(map[string]*parser.FileOpCount)
+	for i := 0; i < 20; i++ {
+		name := fmt.Sprintf("file_%02d.go", i)
+		files[name] = &parser.FileOpCount{ReadCount: 20 - i, EditCount: 0, TotalCount: 20 - i}
+	}
+	fileOps := &parser.FileOpStats{Files: files}
+
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Exactly 20 files should NOT show "+N more"
+	assert.NotContains(t, clean, "+")
+	assert.NotContains(t, clean, "more")
+
+	// All 20 files should be present
+	assert.Contains(t, clean, "file_00.go")
+	assert.Contains(t, clean, "file_19.go")
+}
+
+func TestRenderFileList_TruncatePathKeepsFilename(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"/Users/dev/projects/myapp/internal/model/dashboard_custom_tools.go": {ReadCount: 1, EditCount: 0, TotalCount: 1},
+		},
+	}
+	// Narrow width that forces path truncation
+	result := renderFileList(fileOps, 50)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	// Should keep filename
+	assert.Contains(t, clean, "dashboard_custom_tools.go")
+	// Should have ... prefix for truncation
+	assert.Contains(t, clean, "...")
+	// Should preserve parent directory segments, not just filename
+	assert.Contains(t, clean, "/model/dashboard_custom_tools.go")
+}
+
+func TestTruncateFilePath(t *testing.T) {
+	tests := []struct {
+		path    string
+		maxLen  int
+		want    string
+	}{
+		{"short.go", 20, "short.go"},
+		{"/a/b/c.go", 8, ".../c.go"},
+		{"/a/b/c.go", 7, "...c.go"},
+		{"/a/b/c.go", 5, "...go"},
+		{"/Users/dev/projects/myapp/internal/model/dashboard.go", 30, ".../model/dashboard.go"},
+		{"/Users/dev/projects/myapp/internal/model/dashboard.go", 20, ".../dashboard.go"},
+	}
+	for _, tt := range tests {
+		got := truncateFilePath(tt.path, tt.maxLen)
+		assert.Equal(t, tt.want, got, "truncateFilePath(%q, %d)", tt.path, tt.maxLen)
+		assert.LessOrEqual(t, runewidth.StringWidth(got), tt.maxLen, "result width for %q", tt.path)
+	}
+}
+
+func TestRenderFileList_OverflowMoreInSecondaryColor(t *testing.T) {
+	files := make(map[string]*parser.FileOpCount)
+	for i := 0; i < 22; i++ {
+		name := fmt.Sprintf("file_%02d.go", i)
+		files[name] = &parser.FileOpCount{ReadCount: 22 - i, EditCount: 0, TotalCount: 22 - i}
+	}
+	fileOps := &parser.FileOpStats{Files: files}
+
+	result := renderFileList(fileOps, 80)
+
+	// "+2 more" should be present (dim/secondary color — has ANSI codes)
+	assert.Contains(t, result, "+2 more")
+}
+
+// bug: Rx/Ex suffix alignment uses byte length instead of visible width.
+// The × character (U+00D7) is 2 bytes in UTF-8 but 1 cell wide, so using
+// len() for padding causes misalignment when one row has Rx=0.
+func TestRenderFileList_SuffixAlignmentAcrossMixedRows(t *testing.T) {
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"aaa.go": {ReadCount: 5, EditCount: 3, TotalCount: 8}, // has both Rx and Ex
+			"bbb.go": {ReadCount: 0, EditCount: 2, TotalCount: 2}, // only Ex, no Rx
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	lines := strings.Split(clean, "\n")
+	var dataLines []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "files:") {
+			dataLines = append(dataLines, l)
+		}
+	}
+	require.Len(t, dataLines, 2)
+
+	// Use visible column position within each line, not byte index
+	colEx0 := runewidth.StringWidth(dataLines[0][:strings.Index(dataLines[0], "E×")])
+	colEx1 := runewidth.StringWidth(dataLines[1][:strings.Index(dataLines[1], "E×")])
+	assert.Equal(t, colEx0, colEx1, "E× visible column should align across all rows.\nRow 0: %q\nRow 1: %q", dataLines[0], dataLines[1])
+}
+
+func TestRenderFileList_SuffixWidthUsesVisibleWidth(t *testing.T) {
+	// When a row has Rx>0 and another has Rx=0, the padding for Rx=0
+	// should use visible width, not byte length. Otherwise the E× column
+	// shifts right by (byteLen - visibleWidth) characters.
+	fileOps := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"both.go":    {ReadCount: 1, EditCount: 1, TotalCount: 2},
+			"edit_lt.go": {ReadCount: 0, EditCount: 1, TotalCount: 1},
+		},
+	}
+	result := renderFileList(fileOps, 80)
+	clean := ansiEscape.ReplaceAllString(result, "")
+
+	lines := strings.Split(clean, "\n")
+	var dataLines []string
+	for _, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "files:") {
+			dataLines = append(dataLines, l)
+		}
+	}
+	require.Len(t, dataLines, 2)
+
+	// E× should be at the same visible column in both rows,
+	// even when row 1 has Rx=0 and skips the read suffix.
+	colEx0 := runewidth.StringWidth(dataLines[0][:strings.Index(dataLines[0], "E×")])
+	colEx1 := runewidth.StringWidth(dataLines[1][:strings.Index(dataLines[1], "E×")])
+	assert.Equal(t, colEx0, colEx1, "E× visible column should align even when Rx is missing.\nRow 0: %q\nRow 1: %q", dataLines[0], dataLines[1])
+}
+
+// --- SubAgent Statistics View tests (UF-4) ---
+
+func testSubAgentStats() *parser.SubAgentStats {
+	return &parser.SubAgentStats{
+		ToolCounts: map[string]int{
+			"Read":  3,
+			"Edit":  2,
+			"Bash":  2,
+			"Write": 1,
+		},
+		ToolDurs: map[string]time.Duration{
+			"Read":  2100 * time.Millisecond,
+			"Edit":  6500 * time.Millisecond,
+			"Bash":  5800 * time.Millisecond,
+			"Write": 800 * time.Millisecond,
+		},
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"internal/model/app.go": {ReadCount: 2, EditCount: 2, TotalCount: 4},
+				"cmd/root.go":           {ReadCount: 1, EditCount: 1, TotalCount: 2},
+			},
+		},
+		ToolCount: 8,
+		Duration:  15200 * time.Millisecond,
+	}
+}
+
+func newTestDetailModelWithSubAgentStats() DetailModel {
+	m := newTestDetailModel()
+	m = m.SetSubAgentStats(testSubAgentStats())
+	return m
+}
+
+func TestDetail_SetSubAgentStats_EnablesSubAgentMode(t *testing.T) {
+	m := newTestDetailModel()
+	stats := testSubAgentStats()
+	m = m.SetSubAgentStats(stats)
+	assert.True(t, m.showSubAgentStats, "showSubAgentStats should be true after SetSubAgentStats")
+	assert.Equal(t, DetailTruncated, m.state)
+	assert.NotNil(t, m.subAgentStats)
+}
+
+func TestDetail_SetSubAgentStats_NilClearsMode(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	m = m.SetSubAgentStats(nil)
+	assert.False(t, m.showSubAgentStats)
+	assert.Nil(t, m.subAgentStats)
+}
+
+func TestDetail_SetEntry_ClearsSubAgentStats(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	m = m.SetEntry(testDetailEntry())
+	assert.False(t, m.showSubAgentStats, "SetEntry should clear subagent stats mode")
+	assert.Nil(t, m.subAgentStats)
+}
+
+func TestDetail_SetTurn_ClearsSubAgentStats(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	m = m.SetTurn(parser.Turn{Index: 1, Entries: []parser.TurnEntry{}})
+	assert.False(t, m.showSubAgentStats, "SetTurn should clear subagent stats mode")
+}
+
+func TestDetail_SubAgentStats_LabelInCyan(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	assert.Contains(t, content, "subagent stats:")
+}
+
+func TestDetail_SubAgentStats_ToolsBlock(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	// Should contain "tools: N calls, duration"
+	assert.Contains(t, clean, "tools: 8 calls, 15s")
+	// Per-tool breakdown
+	assert.Contains(t, clean, "Read")
+	assert.Contains(t, clean, "Edit")
+	assert.Contains(t, clean, "Bash")
+	assert.Contains(t, clean, "Write")
+}
+
+func TestDetail_SubAgentStats_FilesBlock(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	assert.Contains(t, clean, "files:")
+	assert.Contains(t, clean, "internal/model/app.go")
+	assert.Contains(t, clean, "cmd/root.go")
+	assert.Contains(t, clean, "R×2")
+	assert.Contains(t, clean, "E×2")
+}
+
+func TestDetail_SubAgentStats_DurationBlock(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	// Duration format: "avg Xs, peak {tool} ({duration})"
+	assert.Contains(t, clean, "duration:")
+	assert.Contains(t, clean, "avg ")
+	assert.Contains(t, clean, "peak ")
+	assert.Contains(t, clean, "Edit")
+	assert.Contains(t, clean, "6s")
+}
+
+func TestDetail_SubAgentStats_TabTogglesView(t *testing.T) {
+	m := newTestDetailModelWithSubAgentStats()
+	assert.True(t, m.showSubAgentStats, "stats view should be default")
+
+	// Tab should switch to tool detail view
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(DetailModel)
+	assert.False(t, m.showSubAgentStats, "after Tab, should show tool detail view")
+
+	// Tab again should switch back to stats view
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	m = updated.(DetailModel)
+	assert.True(t, m.showSubAgentStats, "after second Tab, should show stats view again")
+}
+
+func TestDetail_SubAgentStats_NoFileOps(t *testing.T) {
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{
+			"Bash": 1,
+		},
+		ToolDurs: map[string]time.Duration{
+			"Bash": 5 * time.Second,
+		},
+		FileOps:   nil,
+		ToolCount: 1,
+		Duration:  5 * time.Second,
+	}
+	m := newTestDetailModel()
+	m = m.SetSubAgentStats(stats)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+	// No files block when FileOps is nil
+	assert.NotContains(t, clean, "files:")
+	assert.Contains(t, clean, "tools:")
+	assert.Contains(t, clean, "duration:")
+}
+
+func TestDetail_SubAgentStats_StatsViewDefaultOnSetSubAgentStats(t *testing.T) {
+	m := newTestDetailModel()
+	m = m.SetSubAgentStats(testSubAgentStats())
+	// Stats view is default
+	assert.True(t, m.showSubAgentStats)
+	content := m.buildContent(false)
+	assert.Contains(t, content, "subagent stats:")
+}
+
+func TestDetail_SubAgentStats_ViewRendering(t *testing.T) {
+	// Verify the full view renders correctly with subagent stats
+	m := NewDetailModel()
+	m = m.SetSize(120, 20)
+	m = m.SetFocused(true)
+	m = m.SetSubAgentStats(testSubAgentStats())
+	view := m.View()
+	clean := ansiEscape.ReplaceAllString(view, "")
+
+	// View should contain key elements
+	assert.Contains(t, clean, "SubAgent")
+	assert.Contains(t, clean, "subagent stats:")
+	assert.Contains(t, clean, "tools: 8 calls")
+	assert.Contains(t, clean, "files:")
+	assert.Contains(t, clean, "duration:")
+}
+
+// --- UF-3 Integration: Turn Overview File List in buildTurnOverview ---
+
+func TestDetail_TurnOverview_IncludesFilesSection(t *testing.T) {
+	readEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Read",
+		Input:    `{"file_path":"/project/src/index.ts"}`,
+		Output:   "content",
+		Duration: 500 * time.Millisecond,
+	}
+	editEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Edit",
+		Input:    `{"file_path":"/project/src/index.ts"}`,
+		Output:   "ok",
+		Duration: 800 * time.Millisecond,
+	}
+	promptEntry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: "Fix the bug",
+	}
+
+	turn := parser.Turn{
+		Index:    2,
+		Entries:  []parser.TurnEntry{promptEntry, readEntry, editEntry},
+		Duration: 1300 * time.Millisecond,
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	// Should contain files section after tools
+	assert.Contains(t, clean, "files:", "buildTurnOverview should include files section")
+	assert.Contains(t, clean, "index.ts", "files section should show file name")
+	assert.Contains(t, clean, "R×1", "files section should show read count")
+	assert.Contains(t, clean, "E×1", "files section should show edit count")
+}
+
+func TestDetail_TurnOverview_NoFilesSectionWhenNoFileOps(t *testing.T) {
+	bashEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Bash",
+		Input:    `{"command":"go test"}`,
+		Output:   "ok",
+		Duration: 1 * time.Second,
+	}
+	promptEntry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: "Run tests",
+	}
+
+	turn := parser.Turn{
+		Index:    1,
+		Entries:  []parser.TurnEntry{promptEntry, bashEntry},
+		Duration: 1 * time.Second,
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	assert.NotContains(t, clean, "files:", "buildTurnOverview should not include files section when no file ops")
+}
+
+func TestDetail_TurnOverview_FilesAfterToolsBeforeAnomalies(t *testing.T) {
+	readEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Read",
+		Input:    `{"file_path":"/src/app.go"}`,
+		Output:   "content",
+		Duration: 300 * time.Millisecond,
+	}
+	editEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Edit",
+		Input:    `{"file_path":"/src/app.go"}`,
+		Output:   "ok",
+		Duration: 800 * time.Millisecond,
+		Anomaly:  &parser.Anomaly{Type: parser.AnomalySlow, ToolName: "Edit"},
+	}
+	promptEntry := parser.TurnEntry{
+		Type:   parser.EntryMessage,
+		Output: "Edit the file",
+	}
+
+	turn := parser.Turn{
+		Index:    3,
+		Entries:  []parser.TurnEntry{promptEntry, readEntry, editEntry},
+		Duration: 1100 * time.Millisecond,
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	// Verify ordering: tools section before files section before anomalies
+	toolsIdx := strings.Index(clean, "tools:")
+	filesIdx := strings.Index(clean, "files:")
+	anomalyIdx := strings.Index(clean, "anomalies:")
+
+	assert.Greater(t, filesIdx, 0, "files section should exist")
+	assert.Greater(t, filesIdx, toolsIdx, "files section should come after tools section")
+	if anomalyIdx > 0 {
+		assert.Greater(t, anomalyIdx, filesIdx, "anomalies should come after files section")
+	}
+}
+
+func TestDetail_TurnOverview_FilesSectionHiddenForEmptyTurn(t *testing.T) {
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{},
+	}
+	m := newTestDetailModel()
+	m = m.SetTurn(turn)
+	content := m.buildContent(false)
+	clean := ansiEscape.ReplaceAllString(content, "")
+
+	assert.NotContains(t, clean, "files:", "buildTurnOverview should not include files section for empty turn")
+}
+
+// --- UF-4 Integration: SubAgent Stats in updateDetailFromCallTree ---
+
+func TestDetail_SetEntry_PreservesNonSubAgentBehavior(t *testing.T) {
+	// Non-SubAgent entries should work exactly as before
+	m := newTestDetailModel()
+	m = m.SetEntry(testDetailEntry())
+	assert.Equal(t, DetailTruncated, m.state)
+	assert.Nil(t, m.subAgentStats)
+	assert.False(t, m.showSubAgentStats)
 }
 
 func TestDetail_PanelHeight_FixedWithLongContent(t *testing.T) {

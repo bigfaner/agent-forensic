@@ -1,0 +1,25 @@
+{
+	"taskId": "T-test-5",
+	"status": "completed",
+	"summary": "Extracted business rules and technical specifications from dashboard-custom-tools feature documents into preview files. All items classified as LOCAL (no project-level spec directories exist). Created biz-specs.md with 8 business rules and tech-specs.md with 11 technical specifications. Integration marker written with 'skipped: all local' status.",
+	"filesCreated": [
+		"docs/features/dashboard-custom-tools/specs/biz-specs.md",
+		"docs/features/dashboard-custom-tools/specs/tech-specs.md",
+		"docs/features/dashboard-custom-tools/specs/.integrated"
+	],
+	"filesModified": [],
+	"keyDecisions": [
+		"All extracted items are LOCAL to this feature - no project-level business-rules/ or conventions/ directories exist",
+		"Preview files retained for traceability",
+		"No integration to project-level directories performed"
+	],
+	"testsPassed": 0,
+	"testsFailed": 0,
+	"coverage": -1.0,
+	"acceptanceCriteria": [
+		{ "criterion": "docs/features/dashboard-custom-tools/specs/biz-specs.md exists", "met": true },
+		{ "criterion": "docs/features/dashboard-custom-tools/specs/tech-specs.md exists", "met": true },
+		{ "criterion": "docs/features/dashboard-custom-tools/specs/.integrated marker exists", "met": true }
+	],
+	"notes": "Task completed via consolidate-specs skill. All extracted rules and specs are feature-specific. No overlaps detected (no existing decisions/lessons directories). Early exit path taken per skill instructions."
+}

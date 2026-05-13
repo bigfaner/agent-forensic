@@ -79,6 +79,39 @@ type MCPServerStats struct {
 	Tools map[string]int // tool name → call count
 }
 
+// FileOpStats holds aggregated file operation statistics.
+type FileOpStats struct {
+	Files map[string]*FileOpCount // file path → operation counts
+}
+
+// FileOpCount holds per-file operation counts.
+type FileOpCount struct {
+	ReadCount  int // Read tool call count
+	EditCount  int // Write/Edit tool call count
+	TotalCount int // ReadCount + EditCount
+}
+
+// HookDetail holds detailed information about a single hook invocation.
+type HookDetail struct {
+	HookType  string // PreToolUse, PostToolUse, Stop, user-prompt-submit-hook
+	Target    string // target tool name or command (may be empty)
+	TurnIndex int    // 1-based turn number when the hook fired
+	FullID    string // "HookType::Target" or "HookType" (Target empty)
+	Command   string // extracted tool command (e.g., "echo test", "/path/to/file")
+	Output    string // raw hook output text from EntryMessage
+}
+
+// SubAgentStats holds aggregated statistics for a sub-agent session.
+type SubAgentStats struct {
+	ToolCounts map[string]int           // tool name → call count
+	ToolDurs   map[string]time.Duration // tool name → total duration
+	FileOps    *FileOpStats             // file operation statistics
+	ToolCount  int                      // total number of tool calls
+	Duration   time.Duration            // total session duration
+	HookCounts map[string]int           // hook type → trigger count
+	HookDetails []HookDetail            // detailed hook invocations
+}
+
 // SessionStats holds computed statistics for a session.
 type SessionStats struct {
 	TotalDuration  time.Duration
@@ -90,4 +123,9 @@ type SessionStats struct {
 	SkillCounts map[string]int             // skill name → call count
 	MCPServers  map[string]*MCPServerStats // server name → stats
 	HookCounts  map[string]int             // hook type → trigger count
+
+	// deep drill analytics
+	FileOps     *FileOpStats              // file operation statistics
+	HookDetails []HookDetail              // hook detail list (with turn sequence)
+	SubAgents   map[string]*SubAgentStats // subagent file path → stats
 }

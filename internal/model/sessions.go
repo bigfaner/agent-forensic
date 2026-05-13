@@ -8,7 +8,6 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -361,12 +360,14 @@ func (m SessionsModel) View() string {
 	panelStyle := lipgloss.NewStyle().
 		BorderForeground(borderColor).
 		Border(lipgloss.RoundedBorder()).
+		Width(m.width - 2).
 		Height(m.height - 2)
 
 	title := i18n.T("panel.sessions.title")
 	content := m.renderContent()
 
 	rendered := lipgloss.NewStyle().
+		Width(m.width - 4).
 		Height(m.height - 4).
 		Render(content)
 
@@ -521,6 +522,8 @@ func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth 
 	// Strip newlines so the row stays on a single terminal line
 	title = strings.ReplaceAll(title, "\n", " ")
 	title = strings.ReplaceAll(title, "\r", "")
+	title = ansiEscape.ReplaceAllString(title, "")
+	title = sanitizeControlChars(title)
 	// Replace hyphens with non-breaking hyphens (U+2011) to prevent
 	// lipgloss from word-wrapping at hyphens inside the panel border.
 	title = strings.ReplaceAll(title, "-", "‑")
@@ -547,10 +550,10 @@ func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
 // truncateToWidth truncates s to fit within maxWidth terminal columns,
 // appending "…" if truncated. Handles CJK double-width characters correctly.
 func truncateToWidth(s string, maxWidth int) string {
-	if runewidth.StringWidth(s) <= maxWidth {
+	if lipgloss.Width(s) <= maxWidth {
 		return s
 	}
-	ellipsisWidth := runewidth.StringWidth("…")
+	ellipsisWidth := lipgloss.Width("…")
 	budget := maxWidth - ellipsisWidth
 	if budget <= 0 {
 		return "…"
@@ -558,7 +561,7 @@ func truncateToWidth(s string, maxWidth int) string {
 	var out []rune
 	used := 0
 	for _, r := range s {
-		w := runewidth.RuneWidth(r)
+		w := lipgloss.Width(string(r))
 		if used+w > budget {
 			break
 		}
@@ -572,7 +575,7 @@ func truncateToWidth(s string, maxWidth int) string {
 // If s is already wider, it is truncated first.
 func padToWidth(s string, maxWidth int) string {
 	s = truncateToWidth(s, maxWidth)
-	w := runewidth.StringWidth(s)
+	w := lipgloss.Width(s)
 	if w < maxWidth {
 		s += strings.Repeat(" ", maxWidth-w)
 	}

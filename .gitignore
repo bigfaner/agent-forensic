@@ -2,7 +2,7 @@
 *.exe~
 *.out
 *~
-.claude/
+.claude/settings.local.json
 node_modules/
 docs/features/*/tasks/process/
 docs/forensics/
@@ -11,3 +11,4 @@ tmp/
 bin/
 agent-forensic
 agent-forensic.exe
+**/.DS_Store

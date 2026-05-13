@@ -1,6 +1,6 @@
 ---
 feature: "deep-drill-analytics"
-status: design
+status: tasks
 ---
 
 # Feature: deep-drill-analytics
@@ -19,12 +19,15 @@ status: design
 
 ## Traceability
 
-| PRD Section | Design Section | UI Component | Tasks |
-|-------------|----------------|--------------|-------|
-| P1-1 SubAgent Drill-down | Interface 1 (SubAgent Loading), Integration 1/3/6 | UF-1, UF-2, UF-4 | |
-| P1-2 File Read/Write Tracking | Interface 2 (File Path Extraction), Integration 2/4 | UF-3, UF-5 | |
-| P1-3 Hook Analysis Enhancement | Interface 3 (Hook Target), Integration 5 | UF-6 | |
-| P2-1 Turn Efficiency Analysis | | | |
-| P2-2 Repeat Operation Detection | | | |
-| P2-3 Thinking Chain Visualization | | | |
-| P2-4 Cost & Success Rate | | | |
+| PRD Section | Design Section | UI Component | Placement | Tasks |
+|-------------|----------------|--------------|-----------|-------|
+| P1-1 SubAgent Drill-down | Interface 1 (SubAgent Loading), Integration 1/3/6 | UF-1 SubAgent Inline Expand | existing-page:Call Tree 面板 | 1.1, 2.1, 3.1 |
+| P1-1 SubAgent Drill-down | Interface 4 (Extended Stats), Integration 6 | UF-2 SubAgent Full-Screen Overlay | new-page:SubAgent Analysis Overlay | 1.4, 2.2, 3.2 |
+| P1-1 SubAgent Drill-down | Interface 4 (Extended Stats), Integration 3 | UF-4 SubAgent Statistics View | existing-page:Detail 面板 | 1.4, 2.4, 3.3 |
+| P1-2 File Read/Write Tracking | Interface 2 (File Path Extraction), Integration 2 | UF-3 Turn File Operations | existing-page:Detail 面板 | 1.2, 2.3, 3.3 |
+| P1-2 File Read/Write Tracking | Interface 2 (File Path Extraction), Integration 4 | UF-5 Dashboard File Operations | existing-page:Dashboard overlay | 1.2, 2.5, 3.4 |
+| P1-3 Hook Analysis Enhancement | Interface 3 (Hook Target), Integration 5 | UF-6 Dashboard Hook Analysis | existing-page:Dashboard overlay | 1.3, 2.6, 3.5 |
+| P2-1 Turn Efficiency Analysis | — | — | — | — |
+| P2-2 Repeat Operation Detection | — | — | — | — |
+| P2-3 Thinking Chain Visualization | — | — | — | — |
+| P2-4 Cost & Success Rate | — | — | — | — |

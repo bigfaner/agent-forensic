@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/user/agent-forensic/internal/parser"
 )
 
@@ -350,7 +351,7 @@ func TestParseMCPToolName_ToolWithUnderscores(t *testing.T) {
 // --- parseHookMarker tests ---
 
 func TestParseHookMarker_PreToolUse(t *testing.T) {
-	assert.Equal(t, "PreToolUse", parseHookMarker("hook triggered: PreToolUse"))
+	assert.Equal(t, "PreToolUse", parseHookMarker("PreToolUse hook ran"))
 }
 
 func TestParseHookMarker_PostToolUse(t *testing.T) {
@@ -492,4 +493,492 @@ func TestCalculateStats_NewMapsNonNil(t *testing.T) {
 	assert.NotNil(t, s.SkillCounts)
 	assert.NotNil(t, s.MCPServers)
 	assert.NotNil(t, s.HookCounts)
+}
+
+// --- HookDetails extraction tests ---
+
+func TestCalculateStats_HookDetails_Extracted(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"npm test"}`},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+					{Type: parser.EntryMessage, Output: "PostToolUse hook result: allowed"},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, Output: "Stop hook triggered"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	assert.Len(t, s.HookDetails, 3, "should extract 3 HookDetail entries")
+
+	// Find each hook type
+	var foundPre, foundPost, foundStop bool
+	for _, hd := range s.HookDetails {
+		switch hd.FullID {
+		case "PreToolUse::Bash":
+			foundPre = true
+			assert.Equal(t, "PreToolUse", hd.HookType)
+			assert.Equal(t, "Bash", hd.Target)
+			assert.Equal(t, 1, hd.TurnIndex)
+			assert.Equal(t, "npm test", hd.Command)
+			assert.Contains(t, hd.Output, "PreToolUse hook for Bash")
+		case "PostToolUse":
+			foundPost = true
+			assert.Equal(t, "PostToolUse", hd.HookType)
+			assert.Equal(t, "", hd.Target)
+			assert.Equal(t, 1, hd.TurnIndex)
+			assert.Equal(t, "", hd.Command)
+			assert.Contains(t, hd.Output, "PostToolUse hook result")
+		case "Stop":
+			foundStop = true
+			assert.Equal(t, "Stop", hd.HookType)
+			assert.Equal(t, "", hd.Target)
+			assert.Equal(t, 2, hd.TurnIndex)
+			assert.Equal(t, "npm test", hd.Command) // extracted from previous turn's Bash tool_use
+			assert.Contains(t, hd.Output, "Stop hook triggered")
+		}
+	}
+	assert.True(t, foundPre, "should find PreToolUse::Bash")
+	assert.True(t, foundPost, "should find PostToolUse")
+	assert.True(t, foundStop, "should find Stop")
+}
+
+func TestCalculateStats_HookDetails_EmptyWhenNoHooks(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	assert.Len(t, s.HookDetails, 0, "HookDetails should be empty when no hooks")
+}
+
+// --- extractToolCommand tests ---
+
+func TestExtractToolCommand_Bash(t *testing.T) {
+	assert.Equal(t, "echo test", extractToolCommand("Bash", `{"command":"echo test"}`))
+}
+
+func TestExtractToolCommand_Read(t *testing.T) {
+	assert.Equal(t, "/src/main.go", extractToolCommand("Read", `{"file_path":"/src/main.go"}`))
+}
+
+func TestExtractToolCommand_Edit(t *testing.T) {
+	assert.Equal(t, "app.ts", extractToolCommand("Edit", `{"file_path":"app.ts","old_string":"x"}`))
+}
+
+func TestExtractToolCommand_UnknownTool(t *testing.T) {
+	assert.Equal(t, "", extractToolCommand("Skill", `{"skill":"forge"}`))
+}
+
+func TestExtractToolCommand_InvalidJSON(t *testing.T) {
+	assert.Equal(t, "", extractToolCommand("Bash", "not json"))
+}
+
+func TestExtractToolCommand_MissingField(t *testing.T) {
+	assert.Equal(t, "", extractToolCommand("Bash", `{"timeout":30}`))
+}
+
+// --- findCommandForHook tests ---
+
+func TestFindCommandForHook_WithTarget(t *testing.T) {
+	hd := parser.HookDetail{HookType: "PreToolUse", Target: "Bash", FullID: "PreToolUse::Bash"}
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"ls -la"}`},
+	}
+	assert.Equal(t, "ls -la", findCommandForHook(hd, entries, nil))
+}
+
+func TestFindCommandForHook_NoTargetWithPrevTurn(t *testing.T) {
+	hd := parser.HookDetail{HookType: "Stop", Target: "", FullID: "Stop"}
+	entries := []parser.TurnEntry{}
+	prevEntries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"ls"}`},
+	}
+	assert.Equal(t, "ls", findCommandForHook(hd, entries, prevEntries))
+}
+
+func TestFindCommandForHook_NoTargetNoPrevTurn(t *testing.T) {
+	hd := parser.HookDetail{HookType: "Stop", Target: "", FullID: "Stop"}
+	assert.Equal(t, "", findCommandForHook(hd, nil, nil))
+}
+
+func TestFindCommandForHook_NoMatchingTool(t *testing.T) {
+	hd := parser.HookDetail{HookType: "PreToolUse", Target: "Edit", FullID: "PreToolUse::Edit"}
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"ls"}`},
+	}
+	assert.Equal(t, "", findCommandForHook(hd, entries, nil))
+}
+
+// bug: hooks in different turn from tool_use show no command
+func TestFindCommandForHook_WithTargetInPrevTurn(t *testing.T) {
+	hd := parser.HookDetail{HookType: "PreToolUse", Target: "Bash", FullID: "PreToolUse::Bash"}
+	// Hook is in turn N+1, tool_use is in turn N
+	entries := []parser.TurnEntry{}
+	prevEntries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"npm test"}`},
+	}
+	assert.Equal(t, "npm test", findCommandForHook(hd, entries, prevEntries))
+}
+
+// bug: hook timeline shows type+matcher but no command when ToolUseID is empty
+func TestCalculateStats_HookDetails_HookInDifferentTurnShowsCommand(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"git status"}`},
+					{Type: parser.EntryToolResult, ToolName: "Bash", Output: "ok"},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					// No ToolUseID — simulates attachment hook without ID correlation
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	require.Len(t, s.HookDetails, 1)
+	assert.Equal(t, "PreToolUse::Bash", s.HookDetails[0].FullID)
+	assert.Equal(t, "git status", s.HookDetails[0].Command, "should find command from previous turn")
+}
+
+// bug: Stop hooks show no command even when a tool_use exists in the previous turn
+func TestCalculateStats_HookDetails_StopHookGetsCommandFromPrevTurn(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"npm test"}`},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, Output: "Stop hook triggered"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	require.Len(t, s.HookDetails, 1)
+	assert.Equal(t, "Stop", s.HookDetails[0].HookType)
+	assert.Equal(t, "npm test", s.HookDetails[0].Command, "Stop hook should extract command from previous turn's tool_use")
+	assert.Contains(t, s.HookDetails[0].Output, "Stop hook triggered")
+}
+
+func TestFindCommandByToolUseID_Found(t *testing.T) {
+	lookup := map[string]*parser.TurnEntry{
+		"abc123": {Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"git status"}`},
+	}
+	assert.Equal(t, "git status", findCommandByToolUseID("abc123", lookup))
+}
+
+func TestFindCommandByToolUseID_EmptyID(t *testing.T) {
+	lookup := map[string]*parser.TurnEntry{
+		"abc123": {Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"git status"}`},
+	}
+	assert.Equal(t, "", findCommandByToolUseID("", lookup))
+}
+
+func TestFindCommandByToolUseID_NotFound(t *testing.T) {
+	lookup := map[string]*parser.TurnEntry{}
+	assert.Equal(t, "", findCommandByToolUseID("missing", lookup))
+}
+
+func TestCalculateStats_HookDetails_ToolUseIDCorrelatesCommand(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", ToolUseID: "tu_001", Input: `{"command":"echo hello"}`},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, ToolUseID: "tu_001", Output: "PostToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	require.Len(t, s.HookDetails, 1)
+	assert.Equal(t, "PostToolUse", s.HookDetails[0].HookType)
+	assert.Equal(t, "Bash", s.HookDetails[0].Target)
+	assert.Equal(t, "echo hello", s.HookDetails[0].Command, "should correlate command via ToolUseID")
+}
+
+// --- ExtractFilePaths tests ---
+
+func TestExtractFilePaths_ReadTool(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"/src/main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	fc := stats.Files["/src/main.go"]
+	assert.NotNil(t, fc)
+	assert.Equal(t, 1, fc.ReadCount)
+	assert.Equal(t, 0, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_WriteTool(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"/src/output.txt"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	fc := stats.Files["/src/output.txt"]
+	assert.Equal(t, 0, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_EditTool(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"/src/config.yaml"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	fc := stats.Files["/src/config.yaml"]
+	assert.Equal(t, 0, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_MixedTools(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"output.txt"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 2)
+
+	fc := stats.Files["main.go"]
+	assert.Equal(t, 2, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 3, fc.TotalCount)
+
+	fc = stats.Files["output.txt"]
+	assert.Equal(t, 0, fc.ReadCount)
+	assert.Equal(t, 1, fc.EditCount)
+	assert.Equal(t, 1, fc.TotalCount)
+}
+
+func TestExtractFilePaths_EntryWithoutFilePath(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"command":"ls"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	assert.NotNil(t, stats.Files["main.go"])
+}
+
+func TestExtractFilePaths_MalformedJSON(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `not valid json`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	assert.NotNil(t, stats.Files["main.go"])
+}
+
+func TestExtractFilePaths_EmptySlice(t *testing.T) {
+	stats := ExtractFilePaths([]parser.TurnEntry{})
+
+	assert.NotNil(t, stats)
+	assert.NotNil(t, stats.Files)
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_NonToolUseEntries(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryThinking, Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryMessage, Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolResult, Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_OtherToolsIgnored(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"file_path":"main.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Skill", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_FilePathNotString(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":123}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Empty(t, stats.Files)
+}
+
+func TestExtractFilePaths_EmptyFilePath(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":""}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Len(t, stats.Files, 1)
+	assert.NotNil(t, stats.Files["main.go"])
+}
+
+func TestExtractFilePaths_TotalCountComputed(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Edit", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"a.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Write", Input: `{"file_path":"a.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	fc := stats.Files["a.go"]
+	assert.Equal(t, 3, fc.ReadCount)
+	assert.Equal(t, 3, fc.EditCount)
+	assert.Equal(t, 6, fc.TotalCount)
+}
+
+func TestExtractFilePaths_StoresPathAsIs(t *testing.T) {
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Input: `{"file_path":"/Users/dev/project/src/main.go"}`},
+	}
+	stats := ExtractFilePaths(entries)
+
+	assert.Contains(t, stats.Files, "/Users/dev/project/src/main.go")
+}
+
+// --- ParseHookWithTarget tests ---
+
+func TestParseHookWithTarget_PreToolUseWithTarget(t *testing.T) {
+	assert.Equal(t, "PreToolUse::Bash", ParseHookWithTarget("PreToolUse hook for Bash"))
+}
+
+func TestParseHookWithTarget_PreToolUseWithTargetMixedCase(t *testing.T) {
+	assert.Equal(t, "PreToolUse::Bash", ParseHookWithTarget("pretooluse hook for Bash"))
+}
+
+func TestParseHookWithTarget_PostToolUseResultAllowed(t *testing.T) {
+	// "result: allowed" is not a meaningful target, falls back to hook type only
+	assert.Equal(t, "PostToolUse", ParseHookWithTarget("PostToolUse hook result: allowed"))
+}
+
+func TestParseHookWithTarget_PostToolUseForTool(t *testing.T) {
+	assert.Equal(t, "PostToolUse::Edit", ParseHookWithTarget("PostToolUse hook for Edit"))
+}
+
+func TestParseHookWithTarget_PreToolUseNoTargetMatch(t *testing.T) {
+	// "PreToolUse triggered" doesn't match the regex, falls back to marker detection
+	assert.Equal(t, "PreToolUse", ParseHookWithTarget("PreToolUse triggered"))
+}
+
+func TestParseHookWithTarget_PostToolUseNoTargetMatch(t *testing.T) {
+	assert.Equal(t, "PostToolUse", ParseHookWithTarget("PostToolUse hook ran"))
+}
+
+func TestParseHookWithTarget_Stop(t *testing.T) {
+	assert.Equal(t, "Stop", ParseHookWithTarget("Stop hook triggered"))
+}
+
+func TestParseHookWithTarget_UserPromptSubmitHook(t *testing.T) {
+	assert.Equal(t, "user-prompt-submit-hook", ParseHookWithTarget("user-prompt-submit-hook fired"))
+}
+
+func TestParseHookWithTarget_UserPromptSubmitHookAngleBrackets(t *testing.T) {
+	assert.Equal(t, "user-prompt-submit-hook", ParseHookWithTarget("<user-prompt-submit-hook>"))
+}
+
+func TestParseHookWithTarget_NoMatch(t *testing.T) {
+	assert.Equal(t, "some random text", ParseHookWithTarget("some random text"))
+}
+
+func TestParseHookWithTarget_Empty(t *testing.T) {
+	assert.Equal(t, "", ParseHookWithTarget(""))
+}
+
+func TestParseHookWithTarget_PreToolUseForEdit(t *testing.T) {
+	assert.Equal(t, "PreToolUse::Edit", ParseHookWithTarget("PreToolUse hook for Edit"))
+}
+
+func TestParseHookWithTarget_PostToolUseResultDenied(t *testing.T) {
+	// "result: Denied" is not a meaningful target, falls back to hook type only
+	assert.Equal(t, "PostToolUse", ParseHookWithTarget("PostToolUse hook result: Denied"))
+}
+
+func TestParseHookWithTarget_CaseInsensitiveHookType(t *testing.T) {
+	// The regex is case-insensitive; canonical form should be returned
+	assert.Equal(t, "PreToolUse::Bash", ParseHookWithTarget("PRETOOLUSE hook for Bash"))
+}
+
+// --- HookDetail struct test ---
+
+func TestHookDetail_FullIDWithTarget(t *testing.T) {
+	hd := HookDetail{
+		HookType:  "PreToolUse",
+		Target:    "Bash",
+		TurnIndex: 3,
+		FullID:    "PreToolUse::Bash",
+	}
+	assert.Equal(t, "PreToolUse::Bash", hd.FullID)
+	assert.Equal(t, "PreToolUse", hd.HookType)
+	assert.Equal(t, "Bash", hd.Target)
+	assert.Equal(t, 3, hd.TurnIndex)
+}
+
+func TestHookDetail_FullIDWithoutTarget(t *testing.T) {
+	hd := HookDetail{
+		HookType:  "Stop",
+		Target:    "",
+		TurnIndex: 5,
+		FullID:    "Stop",
+	}
+	assert.Equal(t, "Stop", hd.FullID)
+	assert.Empty(t, hd.Target)
 }

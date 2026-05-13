@@ -1,10 +1,13 @@
 package model
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
@@ -50,6 +53,453 @@ func TestDashboard_CustomToolsBlock_Rendered_WhenHasData(t *testing.T) {
 }
 
 // --- End bug regression test ---
+
+// --- FileOps panel integration tests ---
+
+func TestDashboard_FileOpsPanel_Rendered_WhenHasData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.Contains(t, view, "File Operations", "Dashboard should contain File Operations panel when session has file ops")
+}
+
+func TestDashboard_FileOpsPanel_Hidden_WhenNoData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 1,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second, Input: `{"command":"ls"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.NotContains(t, view, "File Operations", "Dashboard should NOT contain File Operations panel when session has no file ops")
+}
+
+func TestDashboard_FileOpsPanel_PositionAfterCustomTools(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 5,
+		Duration:  2 * time.Minute,
+		Title:     "Test session",
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 60 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "mcp__test-server__testTool", Duration: 10 * time.Second},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	// File Operations panel should appear after Custom Tools (自定义工具)
+	// Verify both are present
+	assert.Contains(t, view, "自定义工具", "Custom tools block should be present")
+	assert.Contains(t, view, "File Operations", "File Operations panel should be present")
+
+	// Verify ordering: Custom Tools appears before File Operations
+	ctIdx := strings.Index(view, "自定义工具")
+	foIdx := strings.Index(view, "File Operations")
+	assert.Greater(t, foIdx, ctIdx, "File Operations should appear after Custom Tools block")
+}
+
+func TestDashboard_TabCyclesToFileOps(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Press Tab to cycle to next section
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	dm := updated.(DashboardModel)
+	assert.Equal(t, SectionFileOps, dm.focusSection, "Tab should skip CustomTools (no data) and land on FileOps")
+
+	// Tab again cycles back to Tools
+	updated, _ = dm.Update(tea.KeyMsg{Type: tea.KeyTab})
+	dm = updated.(DashboardModel)
+	assert.Equal(t, SectionTools, dm.focusSection, "Second Tab should cycle back to Tools")
+}
+
+func TestDashboard_TabFocus_FileOpsHeaderCyan(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Cycle to FileOps section
+	m.focusSection = SectionFileOps
+	view := m.View()
+	assert.Contains(t, view, "File Operations")
+}
+
+func TestDashboard_JKScroll_InDashboard(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+	assert.Equal(t, 0, m.scrollPos)
+
+	// Press j (down)
+	updated, _ := m.Update(createRuneKeyMsg('j'))
+	dm := updated.(DashboardModel)
+	assert.Equal(t, 1, dm.scrollPos, "j should increment scroll position")
+
+	// Press k (up)
+	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	dm = updated.(DashboardModel)
+	assert.Equal(t, 0, dm.scrollPos, "k should decrement scroll position")
+
+	// Press k at top - should not go negative
+	updated, _ = dm.Update(createRuneKeyMsg('k'))
+	dm = updated.(DashboardModel)
+	assert.Equal(t, 0, dm.scrollPos, "k at top should not go below 0")
+}
+
+// --- Hook Analysis Panel integration tests ---
+
+// --- Bug: scrollPos is updated but never applied to the view ---
+
+func TestDashboard_ScrollContent_VisibleWhenScrolled(t *testing.T) {
+	_ = i18n.SetLocale("zh")
+	t.Cleanup(func() { _ = i18n.SetLocale("zh") })
+
+	entries := make([]parser.TurnEntry, 30)
+	for i := range entries {
+		entries[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			ToolName: fmt.Sprintf("Tool_%02d", i),
+			Duration: time.Duration(i+1) * time.Second,
+		}
+	}
+	session := &parser.Session{
+		FilePath:  "/test/scroll.jsonl",
+		Date:      time.Now(),
+		ToolCount: 30,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{Index: 1, Duration: 5 * time.Minute, Entries: entries},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(80, 10)
+	m.Refresh(session)
+
+	view0 := m.View()
+	assert.Contains(t, view0, "总耗时", "header should be visible at scroll=0")
+
+	// Scroll down by pressing j multiple times
+	cur := m
+	for i := 0; i < 5; i++ {
+		updated, _ := cur.Update(createRuneKeyMsg('j'))
+		cur = updated.(DashboardModel)
+	}
+	assert.Greater(t, cur.scrollPos, 0, "scrollPos should be > 0 after pressing j 5 times")
+
+	viewScrolled := cur.View()
+	assert.NotContains(t, viewScrolled, "总耗时",
+		"header should be scrolled out of view after scrolling down")
+}
+
+func TestDashboard_Scrollbar_VisibleWhenContentOverflows(t *testing.T) {
+	entries := make([]parser.TurnEntry, 30)
+	for i := range entries {
+		entries[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			ToolName: fmt.Sprintf("Tool_%02d", i),
+			Duration: time.Duration(i+1) * time.Second,
+		}
+	}
+	session := &parser.Session{
+		FilePath:  "/test/scrollbar.jsonl",
+		Date:      time.Now(),
+		ToolCount: 30,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{Index: 1, Duration: 5 * time.Minute, Entries: entries},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(80, 10)
+	m.Refresh(session)
+
+	view := m.View()
+	// The scrollbar uses │ and ┃ characters. The border uses │ as well,
+	// so we check for ┃ (thumb) which is unique to the scrollbar.
+	// After fix: scrollbar should appear when content overflows.
+	// Count occurrences of ┃ — border does not use it.
+	thumbCount := strings.Count(view, "┃")
+	assert.Greater(t, thumbCount, 0,
+		"scrollbar thumb (┃) should appear when content overflows viewport")
+}
+
+func TestDashboard_HookPanel_Rendered_WhenHasHookData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+					{Type: parser.EntryMessage, Output: "PostToolUse hook result: allowed"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.Contains(t, view, "Hook Statistics", "Dashboard should contain Hook Statistics when session has hooks")
+	assert.Contains(t, view, "Hook Timeline", "Dashboard should contain Hook Timeline when session has hooks")
+}
+
+func TestDashboard_HookPanel_Hidden_WhenNoHookData(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 1,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 5 * time.Second},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.NotContains(t, view, "Hook Statistics", "Dashboard should NOT contain Hook Statistics when no hooks")
+	assert.NotContains(t, view, "Hook Timeline", "Dashboard should NOT contain Hook Timeline when no hooks")
+}
+
+func TestDashboard_HookPanel_ReplacesOldHookColumn(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	// Old Hook column header should not appear
+	assert.NotContains(t, view, "\nHook\n", "Old Hook column should be replaced by Hook Analysis panel")
+	// New sections should be present
+	assert.Contains(t, view, "Hook Statistics")
+}
+
+func TestDashboard_HookPanel_PositionBeforeFileOps(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 5,
+		Duration:  2 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 60 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryToolUse, ToolName: "Write", Duration: 5 * time.Second, Input: `{"file_path":"/src/main.go"}`},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m.Refresh(session)
+
+	view := m.View()
+	assert.Contains(t, view, "File Operations")
+	assert.Contains(t, view, "Hook Statistics")
+
+	// Hook Analysis should appear before File Operations
+	foIdx := strings.Index(view, "File Operations")
+	haIdx := strings.Index(view, "Hook Statistics")
+	assert.Less(t, haIdx, foIdx, "Hook Analysis should appear before File Operations panel")
+}
+
+func TestDashboard_TabCyclesToHookAnalysis(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 3,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Press Tab to cycle to next section
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyTab})
+	dm := updated.(DashboardModel)
+	assert.Equal(t, SectionHookAnalysis, dm.focusSection, "Tab should cycle to HookAnalysis")
+}
+
+func TestDashboard_TabFocus_HookAnalysisHeaderCyan(t *testing.T) {
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 2,
+		Duration:  1 * time.Minute,
+		Turns: []parser.Turn{
+			{
+				Index:    1,
+				Duration: 30 * time.Second,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Read", Duration: 5 * time.Second},
+					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
+				},
+			},
+		},
+	}
+
+	m := NewDashboardModel()
+	m = m.SetSize(100, 40)
+	m = m.SetFocused(true)
+	m.Refresh(session)
+
+	// Cycle to HookAnalysis section
+	m.focusSection = SectionHookAnalysis
+	view := m.View()
+	assert.Contains(t, view, "Hook Statistics")
+}
 
 // --- Test data helpers ---
 
@@ -300,7 +750,7 @@ func TestDashboardView_Populated(t *testing.T) {
 	m.Show()
 	m.Refresh(testDashboardSession())
 	view := m.View()
-	assert.Contains(t, view, "█")
+	assert.Contains(t, view, "▄")
 	// Default locale is zh, so check for Chinese label
 	assert.Contains(t, view, "总耗时")
 	// Should show tool names
@@ -384,7 +834,7 @@ func TestDashboardView_BarChartDescending(t *testing.T) {
 	assert.Contains(t, view, "Bash")
 	assert.Contains(t, view, "Write")
 	// Verify the stats are sorted: count bar for Read (3) should be longest
-	assert.Contains(t, view, "█")
+	assert.Contains(t, view, "▄")
 }
 
 func TestDashboardView_LongToolNames(t *testing.T) {
@@ -417,7 +867,7 @@ func TestDashboardView_LongToolNames(t *testing.T) {
 	// Should not contain the full untruncated name
 	assert.NotContains(t, view, "mcp__zai-mcp-server__analyze_data_visualization")
 	// Bars should still render
-	assert.Contains(t, view, "█")
+	assert.Contains(t, view, "▄")
 }
 
 // Helper to find first index of substring
@@ -445,7 +895,7 @@ func TestDashboardView_PercentageBars(t *testing.T) {
 	m.Refresh(testDashboardSession())
 	view := m.View()
 	// Should contain percentage bar characters
-	assert.Contains(t, view, "░")
+	assert.Contains(t, view, "_")
 }
 
 func TestDashboardView_EnglishLocale(t *testing.T) {
@@ -570,6 +1020,49 @@ func TestDashboard_PickerDownAtBottom(t *testing.T) {
 	dm = updated.(DashboardModel)
 	assert.Equal(t, 0, dm.pickerCursor)
 }
+
+// --- Bug regression: percentage numbers wrapping in 耗时统计 panel ---
+
+func TestDashboard_TimeStatsLinesFitScrollContentWidth(t *testing.T) {
+	// Root cause: renderDashboard() used contentWidth = m.width - 4 for the
+	// two-column bar chart layout, but renderScrollableContent() wraps each
+	// line to m.width - 5 when a scrollbar is present. The 1-column mismatch
+	// causes the right column's percentage to wrap when the terminal width is odd.
+	entries := make([]parser.TurnEntry, 10)
+	for i := range entries {
+		entries[i] = parser.TurnEntry{
+			Type:     parser.EntryToolUse,
+			ToolName: fmt.Sprintf("Tool_%02d", i),
+			Duration: time.Duration(i+1) * time.Second,
+		}
+	}
+	session := &parser.Session{
+		FilePath:  "/test/session.jsonl",
+		Date:      time.Now(),
+		ToolCount: 10,
+		Duration:  5 * time.Minute,
+		Turns: []parser.Turn{
+			{Index: 1, Duration: 5 * time.Minute, Entries: entries},
+		},
+	}
+
+	// Use odd width to trigger the width mismatch
+	m := NewDashboardModel()
+	m = m.SetSize(79, 10)
+	m.Refresh(session)
+
+	output := m.renderDashboard()
+	scrollContentWidth := m.width - 5
+
+	for i, line := range strings.Split(output, "\n") {
+		w := lipgloss.Width(line)
+		assert.LessOrEqual(t, w, scrollContentWidth,
+			"bug: line %d exceeds scroll content width (%d): width=%d, %q",
+			i, scrollContentWidth, w, line)
+	}
+}
+
+// --- End bug regression test ---
 
 func TestDashboard_PickerUpAtTop(t *testing.T) {
 	m := newTestDashboardModel()

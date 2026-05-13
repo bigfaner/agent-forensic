@@ -48,7 +48,7 @@ func (m DashboardModel) renderCustomToolsBlock(width int) string {
 		return ""
 	}
 	s := m.stats
-	if len(s.SkillCounts) == 0 && len(s.MCPServers) == 0 && len(s.HookCounts) == 0 {
+	if len(s.SkillCounts) == 0 && len(s.MCPServers) == 0 {
 		return ""
 	}
 
@@ -57,20 +57,19 @@ func (m DashboardModel) renderCustomToolsBlock(width int) string {
 	b.WriteString(primary.Render("自定义工具"))
 	b.WriteString("\n\n")
 
-	colWidth := (width - 6) / 3
-	wide := width >= 80 && colWidth >= ctMinColWidth
+	colWidth := (width - 4) / 2
+	wide := width >= 60 && colWidth >= ctMinColWidth
+
+	colWidth = (width - 4) / 2
+	wide = width >= 60 && colWidth >= ctMinColWidth
 
 	if wide {
 		skillLines := renderSkillCol(s, colWidth)
 		mcpLines := renderMCPCol(s, colWidth)
-		hookLines := renderHookCol(s, colWidth)
 
 		maxLines := len(skillLines)
 		if len(mcpLines) > maxLines {
 			maxLines = len(mcpLines)
-		}
-		if len(hookLines) > maxLines {
-			maxLines = len(hookLines)
 		}
 
 		// Root cause: Fixed column widths using lipgloss.Style to prevent
@@ -80,8 +79,7 @@ func (m DashboardModel) renderCustomToolsBlock(width int) string {
 		for i := 0; i < maxLines; i++ {
 			skillCol := colStyle.Render(ctColGet(skillLines, i))
 			mcpCol := colStyle.Render(ctColGet(mcpLines, i))
-			hookCol := colStyle.Render(ctColGet(hookLines, i))
-			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, skillCol, mcpCol, hookCol) + "\n")
+			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, skillCol, mcpCol) + "\n")
 		}
 		if len(s.MCPServers) > 0 {
 			b.WriteString(muted.Render("* 仅统计 mcp__ 前缀工具") + "\n")
@@ -89,17 +87,12 @@ func (m DashboardModel) renderCustomToolsBlock(width int) string {
 	} else {
 		skillLines := renderSkillCol(s, width)
 		mcpLines := renderMCPCol(s, width)
-		hookLines := renderHookCol(s, width)
 
 		for _, l := range skillLines {
 			b.WriteString(l + "\n")
 		}
 		b.WriteString("\n")
 		for _, l := range mcpLines {
-			b.WriteString(l + "\n")
-		}
-		b.WriteString("\n")
-		for _, l := range hookLines {
 			b.WriteString(l + "\n")
 		}
 		if len(s.MCPServers) > 0 {

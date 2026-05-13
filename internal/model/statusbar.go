@@ -17,6 +17,7 @@ const (
 	StatusBarModeDiagnosis
 	StatusBarModeDashboard
 	StatusBarModeError
+	StatusBarModeSubAgent
 )
 
 // StatusBarModel renders the bottom status line of the TUI.
@@ -106,6 +107,8 @@ func (m StatusBarModel) buildHints() string {
 		return m.buildDashboardHints()
 	case StatusBarModeError:
 		return m.buildErrorHints()
+	case StatusBarModeSubAgent:
+		return m.buildSubAgentHints()
 	default:
 		return m.buildNormalHints()
 	}
@@ -208,6 +211,15 @@ func (m StatusBarModel) buildErrorHints() string {
 	return m.joinWithLanguage(parts)
 }
 
+func (m StatusBarModel) buildSubAgentHints() string {
+	parts := []string{
+		hint("Esc", ":close"),
+		hint("j/k", ":scroll"),
+		hint("Tab", ":sections"),
+	}
+	return m.joinWithLanguage(parts)
+}
+
 // joinWithLanguage places hints on the left and language+version on the far right.
 func (m StatusBarModel) joinWithLanguage(parts []string) string {
 	left := strings.Join(parts, " ")
@@ -220,7 +232,11 @@ func (m StatusBarModel) joinWithLanguage(parts []string) string {
 		pad = 1
 	}
 
-	return left + strings.Repeat(" ", pad) + right
+	raw := left + strings.Repeat(" ", pad) + right
+	if lipgloss.Width(raw) > m.width {
+		return lipgloss.NewStyle().MaxWidth(m.width).Render(raw)
+	}
+	return raw
 }
 
 // versionIndicator returns the styled version string with label.

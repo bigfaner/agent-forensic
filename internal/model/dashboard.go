@@ -13,6 +13,16 @@ import (
 	"github.com/user/agent-forensic/internal/stats"
 )
 
+// DashboardSection identifies focusable sections within the dashboard.
+type DashboardSection int
+
+const (
+	SectionTools DashboardSection = iota
+	SectionCustomTools
+	SectionFileOps
+	SectionHookAnalysis
+)
+
 // DashboardModel is a Bubble Tea model for the statistics dashboard overlay.
 // Toggled by pressing 's'. Displays tool call counts as bar charts,
 // time distribution as percentage bars, and peak step info.
@@ -28,6 +38,8 @@ type DashboardModel struct {
 	width        int
 	height       int
 	focused      bool
+	focusSection DashboardSection
+	hookCursor   int
 	errMsg       string
 }
 
@@ -57,6 +69,7 @@ func (m DashboardModel) IsVisible() bool {
 // Refresh recalculates stats from the current session.
 func (m *DashboardModel) Refresh(session *parser.Session) {
 	m.session = session
+	m.hookCursor = 0
 	if session == nil || len(session.Turns) == 0 {
 		m.state = StateEmpty
 		m.stats = stats.CalculateStats(session)
@@ -132,8 +145,109 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 		m.pickerActive = true
 		m.pickerCursor = 0
 		return m, nil
+	case "tab":
+		m.focusSection = m.nextSection()
+		if m.focusSection == SectionHookAnalysis {
+			m.hookCursor = 0
+		}
+		return m, nil
+	case "down", "j":
+		if m.focusSection == SectionHookAnalysis && m.stats != nil && len(m.stats.HookDetails) > 0 {
+			if m.hookCursor < len(m.stats.HookDetails)-1 {
+				m.hookCursor++
+			}
+		} else {
+			m.scrollPos++
+		}
+		return m, nil
+	case "up", "k":
+		if m.focusSection == SectionHookAnalysis && m.stats != nil && len(m.stats.HookDetails) > 0 {
+			if m.hookCursor > 0 {
+				m.hookCursor--
+			}
+		} else {
+			if m.scrollPos > 0 {
+				m.scrollPos--
+			}
+		}
+		return m, nil
 	}
 	return m, nil
+}
+
+func (m *DashboardModel) clampScroll(totalLines int) {
+	vh := m.visibleHeight()
+	if vh <= 0 || totalLines <= vh {
+		m.scrollPos = 0
+		return
+	}
+	maxScroll := totalLines - vh
+	if m.scrollPos > maxScroll {
+		m.scrollPos = maxScroll
+	}
+	if m.scrollPos < 0 {
+		m.scrollPos = 0
+	}
+}
+
+func (m DashboardModel) visibleHeight() int {
+	// Panel interior = height - 2 (border). Title takes 1 line. Content = height - 5.
+	h := m.height - 5
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+func (m DashboardModel) renderScrollbar(height, total int) string {
+	thumbPos := 0
+	if total > height {
+		thumbPos = m.scrollPos * (height - 1) / (total - height)
+	}
+
+	trackStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	thumbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
+
+	var b strings.Builder
+	for i := 0; i < height; i++ {
+		if i == thumbPos {
+			b.WriteString(thumbStyle.Render("┃"))
+		} else {
+			b.WriteString(trackStyle.Render("│"))
+		}
+		if i < height-1 {
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+// nextSection cycles to the next available focusable section.
+func (m DashboardModel) nextSection() DashboardSection {
+	hasCustomTools := m.stats != nil && (len(m.stats.SkillCounts) > 0 || len(m.stats.MCPServers) > 0)
+	hasFileOps := m.stats != nil && m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0
+	hasHookAnalysis := m.stats != nil && len(m.stats.HookDetails) > 0
+
+	for i := 1; i <= 4; i++ {
+		candidate := (m.focusSection + DashboardSection(i)) % 4
+		switch candidate {
+		case SectionTools:
+			return candidate
+		case SectionCustomTools:
+			if hasCustomTools {
+				return candidate
+			}
+		case SectionFileOps:
+			if hasFileOps {
+				return candidate
+			}
+		case SectionHookAnalysis:
+			if hasHookAnalysis {
+				return candidate
+			}
+		}
+	}
+	return m.focusSection
 }
 
 func (m DashboardModel) handlePickerKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
@@ -193,10 +307,7 @@ func (m DashboardModel) View() string {
 
 	content := m.renderContent()
 
-	rendered := lipgloss.NewStyle().
-		Width(m.width - 4).
-		Height(m.height - 4).
-		Render(content)
+	rendered := m.renderScrollableContent(content)
 
 	titleStr := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
 
@@ -221,6 +332,64 @@ func (m DashboardModel) renderContent() string {
 		return m.renderDashboard()
 	}
 	return ""
+}
+
+// renderScrollableContent splits content into lines, applies scrollPos,
+// and adds a scrollbar when content overflows the viewport.
+func (m DashboardModel) renderScrollableContent(content string) string {
+	// Trim trailing newlines to avoid counting phantom empty lines
+	content = strings.TrimRight(content, "\n")
+	lines := strings.Split(content, "\n")
+	totalLines := len(lines)
+	vh := m.visibleHeight()
+
+	// Clamp scroll position to valid range
+	m.clampScroll(totalLines)
+
+	if totalLines <= vh {
+		// Content fits — no scrolling needed
+		return lipgloss.NewStyle().
+			Width(m.width - 4).
+			Height(vh).
+			Render(content)
+	}
+
+	// Content overflows — slice visible window
+	start := m.scrollPos
+	end := start + vh
+	if end > totalLines {
+		end = totalLines
+	}
+
+	contentWidth := m.width - 5 // 4 for panel padding + 1 for scrollbar
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+
+	// Render each line with Width constraint, then flatten any wrapped lines.
+	// Take first vh visual lines to preserve the top (lipgloss Height clips
+	// from the top when wrapping inflates the line count).
+	style := lipgloss.NewStyle().Width(contentWidth)
+	var visualLines []string
+	for i := start; i < end; i++ {
+		rendered := style.Render(lines[i])
+		for _, rl := range strings.Split(rendered, "\n") {
+			visualLines = append(visualLines, rl)
+			if len(visualLines) == vh {
+				break
+			}
+		}
+		if len(visualLines) == vh {
+			break
+		}
+	}
+	for len(visualLines) < vh {
+		visualLines = append(visualLines, strings.Repeat(" ", contentWidth))
+	}
+
+	fixed := strings.Join(visualLines, "\n")
+	scrollbar := m.renderScrollbar(vh, totalLines)
+	return lipgloss.JoinHorizontal(lipgloss.Top, fixed, scrollbar)
 }
 
 // toolBarEntry is used for sorted bar chart rendering.
@@ -270,8 +439,10 @@ func (m DashboardModel) renderDashboard() string {
 		return entries[i].Name < entries[j].Name
 	})
 
-	// Two-column layout
-	contentWidth := m.width - 4
+	// Two-column layout — use m.width-5 to match renderScrollableContent's
+	// scroll-case width (m.width-5). When not scrolling it uses m.width-4,
+	// which is wider, so the narrower content just gets padded.
+	contentWidth := m.width - 5
 	colGap := 3
 	colWidth := (contentWidth - colGap) / 2
 	if colWidth < 20 {
@@ -333,7 +504,7 @@ func (m DashboardModel) renderDashboard() string {
 		if barLen < 1 && entry.Count > 0 {
 			barLen = 1
 		}
-		leftBuf.WriteString(fmt.Sprintf("%-*s %s %d", labelWidth, displayName, strings.Repeat("█", barLen), entry.Count))
+		leftBuf.WriteString(fmt.Sprintf("%-*s %s %d", labelWidth, displayName, strings.Repeat("▄", barLen), entry.Count))
 
 		filled := int(entry.Pct / 100 * float64(barWidth))
 		if filled < 1 && entry.Pct > 0 {
@@ -342,12 +513,12 @@ func (m DashboardModel) renderDashboard() string {
 		if filled > barWidth {
 			filled = barWidth
 		}
-		pctBar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+		pctBar := strings.Repeat("▄", filled) + strings.Repeat("_", barWidth-filled)
 		rightBuf.WriteString(fmt.Sprintf("%-*s %s %3.0f%%", labelWidth, displayName, pctBar, entry.Pct))
 
 		if i < len(entries)-1 {
-			leftBuf.WriteString("\n\n")
-			rightBuf.WriteString("\n\n")
+			leftBuf.WriteString("\n")
+			rightBuf.WriteString("\n")
 		}
 	}
 
@@ -355,11 +526,56 @@ func (m DashboardModel) renderDashboard() string {
 	rightCol := lipgloss.NewStyle().Width(colWidth).Render(rightBuf.String())
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, strings.Repeat(" ", colGap), rightCol))
 
+	// Section helper: separator + content
+	separator := lipgloss.NewStyle().Foreground(lipgloss.Color("239")).Render(strings.Repeat("─", contentWidth))
+	writeSection := func(block string) {
+		if block == "" {
+			return
+		}
+		b.WriteString("\n")
+		b.WriteString(separator)
+		b.WriteString("\n")
+		b.WriteString(block)
+	}
+
 	// Custom tools block (Skill/MCP/Hook)
-	customToolsBlock := m.renderCustomToolsBlock(contentWidth)
-	if customToolsBlock != "" {
-		b.WriteString("\n\n")
-		b.WriteString(customToolsBlock)
+	writeSection(m.renderCustomToolsBlock(contentWidth))
+
+	// Hook Analysis panel (Statistics + Timeline)
+	if len(m.stats.HookDetails) > 0 {
+		statsPanel := NewHookStatsPanel()
+		timelinePanel := NewHookTimelinePanel()
+		hookStatsBlock := statsPanel.Render(m.stats.HookDetails, contentWidth)
+		hookTimelineBlock := timelinePanel.Render(m.stats.HookDetails, contentWidth, m.hookCursor, m.focused && m.focusSection == SectionHookAnalysis)
+		if hookStatsBlock != "" || hookTimelineBlock != "" {
+			if m.focused && m.focusSection == SectionHookAnalysis {
+				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
+				hookStatsBlock = strings.Replace(hookStatsBlock, "Hook Statistics", cyan.Render("Hook Statistics"), 1)
+			}
+			var hookBlock strings.Builder
+			if hookStatsBlock != "" {
+				hookBlock.WriteString(hookStatsBlock)
+			}
+			if hookTimelineBlock != "" {
+				hookBlock.WriteString(separator)
+				hookBlock.WriteString("\n")
+				hookBlock.WriteString(hookTimelineBlock)
+			}
+			writeSection(hookBlock.String())
+		}
+	}
+
+	// File Operations panel
+	if m.stats.FileOps != nil && len(m.stats.FileOps.Files) > 0 {
+		panel := NewFileOpsPanel()
+		fileOpsBlock := panel.Render(m.stats.FileOps, contentWidth)
+		if fileOpsBlock != "" {
+			if m.focused && m.focusSection == SectionFileOps {
+				cyan := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51"))
+				fileOpsBlock = strings.Replace(fileOpsBlock, "File Operations", cyan.Render("File Operations"), 1)
+			}
+			writeSection(fileOpsBlock)
+		}
 	}
 
 	return b.String()

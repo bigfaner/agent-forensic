@@ -14,6 +14,7 @@ import (
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 	"github.com/user/agent-forensic/internal/sanitizer"
+	"github.com/user/agent-forensic/internal/stats"
 )
 
 // DetailExpandMsg is emitted when the user toggles the detail panel expansion.
@@ -52,6 +53,10 @@ type DetailModel struct {
 	sanitizedOutput   string
 	sanitizedThinking string
 	hasSensitive      bool
+
+	// SubAgent stats view state (UF-4)
+	subAgentStats     *parser.SubAgentStats // non-nil when showing subagent stats
+	showSubAgentStats bool                  // true = stats view, false = tool detail view
 }
 
 // NewDetailModel creates a new detail panel model in empty state.
@@ -64,7 +69,9 @@ func NewDetailModel() DetailModel {
 // SetEntry loads a TurnEntry for display and transitions to the appropriate state.
 // Passing a zero-value TurnEntry (no ToolName) resets to empty state.
 func (m DetailModel) SetEntry(entry parser.TurnEntry) DetailModel {
-	m.turn = nil // clear turn overview
+	m.turn = nil          // clear turn overview
+	m.subAgentStats = nil // clear subagent stats
+	m.showSubAgentStats = false
 
 	if entry.ToolName == "" {
 		m.state = DetailEmpty
@@ -107,6 +114,8 @@ func (m DetailModel) SetEntry(entry parser.TurnEntry) DetailModel {
 func (m DetailModel) SetTurn(turn parser.Turn) DetailModel {
 	m.turn = &turn
 	m.entry = parser.TurnEntry{}
+	m.subAgentStats = nil
+	m.showSubAgentStats = false
 	m.expanded = false
 	m.scroll = 0
 	m.state = DetailTruncated
@@ -131,6 +140,25 @@ func (m DetailModel) SetFocused(focused bool) DetailModel {
 func (m DetailModel) SetSize(width, height int) DetailModel {
 	m.width = width
 	m.height = height
+	return m
+}
+
+// SetSubAgentStats loads SubAgent statistics for the stats view (UF-4).
+// Passing nil clears the subagent stats mode.
+func (m DetailModel) SetSubAgentStats(stats *parser.SubAgentStats) DetailModel {
+	if stats == nil {
+		m.subAgentStats = nil
+		m.showSubAgentStats = false
+		return m
+	}
+	m.subAgentStats = stats
+	m.showSubAgentStats = true // stats view is default
+	m.turn = nil
+	m.entry = parser.TurnEntry{}
+	m.expanded = false
+	m.scroll = 0
+	m.state = DetailTruncated
+	m.hasSensitive = false
 	return m
 }
 
@@ -177,6 +205,10 @@ func (m DetailModel) handleKey(msg tea.KeyMsg) (DetailModel, tea.Cmd) {
 			return m, func() tea.Msg { return DetailExpandMsg{Expanded: expanded} }
 		}
 	case "tab":
+		if m.subAgentStats != nil {
+			m.showSubAgentStats = !m.showSubAgentStats
+			m.scroll = 0
+		}
 		return m, nil
 	case "esc":
 		return m, nil
@@ -219,8 +251,6 @@ func (m DetailModel) visibleHeight() int {
 	}
 	return contentHeight
 }
-
-
 
 // View implements tea.Model.
 func (m DetailModel) View() string {
@@ -272,6 +302,21 @@ func (m DetailModel) View() string {
 func (m DetailModel) buildTitle() string {
 	prefix := i18n.T("panel.detail.title")
 
+	// SubAgent stats mode
+	if m.subAgentStats != nil {
+		if m.showSubAgentStats {
+			return fmt.Sprintf("%s: SubAgent — %d tools, %s", prefix, m.subAgentStats.ToolCount, formatDuration(m.subAgentStats.Duration))
+		}
+		// Tool detail view — use entry title if available
+		if m.entry.Type == parser.EntryToolUse {
+			if m.entry.ExitCode != nil {
+				return fmt.Sprintf("%s: %s — exit=%d, line %d", prefix, m.entry.ToolName, *m.entry.ExitCode, m.entry.LineNum)
+			}
+			return fmt.Sprintf("%s: %s — line %d", prefix, m.entry.ToolName, m.entry.LineNum)
+		}
+		return fmt.Sprintf("%s: SubAgent", prefix)
+	}
+
 	// Turn overview mode
 	if m.turn != nil {
 		toolCount := 0
@@ -316,6 +361,11 @@ func (m DetailModel) buildContent(expanded bool) string {
 		return m.buildTurnOverview(expanded)
 	}
 
+	// SubAgent stats mode (UF-4)
+	if m.subAgentStats != nil && m.showSubAgentStats {
+		return m.buildSubAgentStats()
+	}
+
 	var b strings.Builder
 
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51"))   // bright cyan
@@ -335,8 +385,8 @@ func (m DetailModel) buildContent(expanded bool) string {
 	b.WriteString(outputLabel)
 	b.WriteString("\n")
 
-	if len(output) > truncationThreshold && !expanded {
-		b.WriteString(renderLines(contentStyle, indentContent(output[:truncationThreshold], 2)))
+	if len([]rune(output)) > truncationThreshold && !expanded {
+		b.WriteString(renderLines(contentStyle, indentContent(string([]rune(output)[:truncationThreshold]), 2)))
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
 	} else {
@@ -351,8 +401,8 @@ func (m DetailModel) buildContent(expanded bool) string {
 		b.WriteString("\n")
 
 		thinking := m.sanitizedThinking
-		if len(thinking) > truncationThreshold && !expanded {
-			b.WriteString(renderLines(contentStyle, indentContent(thinking[:truncationThreshold], 2)))
+		if len([]rune(thinking)) > truncationThreshold && !expanded {
+			b.WriteString(renderLines(contentStyle, indentContent(string([]rune(thinking)[:truncationThreshold]), 2)))
 			b.WriteString("\n")
 			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("  ...truncated (Enter to expand)"))
 		} else {
@@ -386,8 +436,8 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 		sanitized, _ := sanitizer.Sanitize(promptText)
 		// Compact consecutive blank lines to save vertical space in the viewport
 		compacted := compactBlankLines(sanitized)
-		if len(compacted) > truncationThreshold && !expanded {
-			b.WriteString(renderLines(contentStyle, indentContent(compacted[:truncationThreshold], 2)))
+		if len([]rune(compacted)) > truncationThreshold && !expanded {
+			b.WriteString(renderLines(contentStyle, indentContent(string([]rune(compacted)[:truncationThreshold]), 2)))
 			b.WriteString("\n")
 			b.WriteString(dimStyle.Render("  ...truncated (Enter to expand)"))
 		} else {
@@ -413,6 +463,17 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 		b.WriteString("\n")
 	}
 
+	// File operations section (UF-3)
+	fileOps := stats.ExtractFilePaths(m.turn.Entries)
+	contentWidth := m.width - 5 // -4 border, -1 potential scrollbar
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	fileSection := renderFileList(fileOps, contentWidth)
+	if fileSection != "" {
+		b.WriteString(fileSection)
+	}
+
 	// Anomaly summary
 	anomalyCount := 0
 	for _, e := range m.turn.Entries {
@@ -432,7 +493,12 @@ func (m DetailModel) buildTurnOverview(expanded bool) string {
 func (m DetailModel) turnPromptText() string {
 	for _, e := range m.turn.Entries {
 		if e.Type == parser.EntryMessage && e.Output != "" {
-			return e.Output
+			s := e.Output
+			s = strings.ReplaceAll(s, "\n", " ")
+			s = strings.ReplaceAll(s, "\r", "")
+			s = ansiEscape.ReplaceAllString(s, "")
+			s = sanitizeControlChars(s)
+			return s
 		}
 	}
 	return ""
@@ -698,6 +764,25 @@ func (m DetailModel) contentNeedsScroll() bool {
 // ansiEscape matches ANSI color/style escape sequences.
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
+// sanitizeControlChars replaces tabs with spaces and strips other control
+// characters (except newline) from a string, keeping only printable runes.
+func sanitizeControlChars(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r == '\t':
+			b.WriteString("  ")
+		case r == '\n':
+			b.WriteRune(r)
+		case r < 32 || r == 0x7f:
+			// skip other control characters
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 // visualLineCount returns how many terminal rows a line occupies at the given width.
 func visualLineCount(line string, width int) int {
 	if width <= 0 {
@@ -750,6 +835,170 @@ func indentContent(content string, spaces int) string {
 	return strings.Join(lines, "\n")
 }
 
+// renderFileList renders a "files:" section for the Turn Overview detail panel.
+// It displays file paths with read/edit counts, sorted by total operation count descending.
+// Returns empty string if fileOps is nil or has no files.
+func renderFileList(fileOps *parser.FileOpStats, width int) string {
+	if fileOps == nil || len(fileOps.Files) == 0 {
+		return ""
+	}
+
+	// Sort files by total count descending, then by path for stability
+	type fileEntry struct {
+		path string
+		fc   *parser.FileOpCount
+	}
+	var entries []fileEntry
+	for path, fc := range fileOps.Files {
+		entries = append(entries, fileEntry{path: path, fc: fc})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].fc.TotalCount != entries[j].fc.TotalCount {
+			return entries[i].fc.TotalCount > entries[j].fc.TotalCount
+		}
+		return entries[i].path < entries[j].path
+	})
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51")) // bright cyan
+	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("83")) // bright green
+	redStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("196"))  // bright red
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("242"))  // dim gray
+
+	var b strings.Builder
+	b.WriteString(labelStyle.Render("files:"))
+	b.WriteString("\n")
+
+	maxRows := 20
+	overflow := len(entries) - maxRows
+	if overflow < 0 {
+		overflow = 0
+	}
+
+	displayCount := len(entries)
+	if displayCount > maxRows {
+		displayCount = maxRows
+	}
+
+	// Layout: "  {path}  R×N  E×N"
+	// Indent is 2, path takes most space, then R×N and E×N suffixes
+	// Calculate available path width
+	suffixRead := "" // pre-computed for width calc
+	suffixEdit := ""
+	for _, e := range entries[:displayCount] {
+		rPart := ""
+		if e.fc.ReadCount > 0 {
+			rPart = fmt.Sprintf("  R×%d", e.fc.ReadCount)
+		}
+		if runewidth.StringWidth(rPart) > runewidth.StringWidth(suffixRead) {
+			suffixRead = rPart
+		}
+		ePart := ""
+		if e.fc.EditCount > 0 {
+			ePart = fmt.Sprintf("  E×%d", e.fc.EditCount)
+		}
+		if runewidth.StringWidth(ePart) > runewidth.StringWidth(suffixEdit) {
+			suffixEdit = ePart
+		}
+	}
+
+	// 2 indent + path + suffixRead + suffixEdit (visible width)
+	maxPathWidth := width - 2 - runewidth.StringWidth(suffixRead) - runewidth.StringWidth(suffixEdit)
+	if maxPathWidth < 10 {
+		maxPathWidth = 10
+	}
+
+	for _, e := range entries[:displayCount] {
+		path := truncateFilePath(e.path, maxPathWidth)
+		// Right-pad path so statistics columns align across all rows
+		if pw := runewidth.StringWidth(path); pw < maxPathWidth {
+			path += strings.Repeat(" ", maxPathWidth-pw)
+		}
+
+		var row strings.Builder
+		row.WriteString("  ")
+		row.WriteString(path)
+
+		if e.fc.ReadCount > 0 {
+			rStr := fmt.Sprintf("  R×%d", e.fc.ReadCount)
+			// Pad to align suffixes (use visible width, not byte length)
+			padLen := runewidth.StringWidth(suffixRead) - runewidth.StringWidth(rStr)
+			if padLen > 0 {
+				row.WriteString(strings.Repeat(" ", padLen))
+			}
+			row.WriteString(greenStyle.Render(rStr))
+		} else {
+			// Pad space where read would be
+			row.WriteString(strings.Repeat(" ", runewidth.StringWidth(suffixRead)))
+		}
+
+		if e.fc.EditCount > 0 {
+			eStr := fmt.Sprintf("  E×%d", e.fc.EditCount)
+			padLen := runewidth.StringWidth(suffixEdit) - runewidth.StringWidth(eStr)
+			if padLen > 0 {
+				row.WriteString(strings.Repeat(" ", padLen))
+			}
+			row.WriteString(redStyle.Render(eStr))
+		}
+
+		b.WriteString(row.String())
+		b.WriteString("\n")
+	}
+
+	if overflow > 0 {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("  +%d more", overflow)))
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// truncateFilePath truncates a file path to fit within maxLen visible width.
+// It preserves as many rightmost path components as possible, removing from
+// the left with a "..." prefix: ".../parent/filename.go"
+func truncateFilePath(path string, maxLen int) string {
+	if runewidth.StringWidth(path) <= maxLen {
+		return path
+	}
+
+	// Split into components, keep rightmost segments that fit under "..."
+	prefix := "..."
+	prefixW := runewidth.StringWidth(prefix)
+	avail := maxLen - prefixW
+	if avail < 1 {
+		avail = 1
+	}
+
+	// Collect path segments from right to left
+	var segs []string
+	rest := path
+	for {
+		idx := strings.LastIndex(rest, "/")
+		if idx < 0 {
+			segs = append([]string{rest}, segs...)
+			break
+		}
+		segs = append([]string{rest[idx:]}, segs...)
+		rest = rest[:idx]
+	}
+
+	// Drop segments from the left until the remaining fit
+	for len(segs) > 1 {
+		candidate := strings.Join(segs, "")
+		if runewidth.StringWidth(candidate) <= avail {
+			break
+		}
+		segs = segs[1:]
+	}
+
+	joined := strings.Join(segs, "")
+	// If the remaining segments still exceed avail, truncate from left
+	if runewidth.StringWidth(joined) > avail {
+		runes := []rune(joined)
+		joined = string(runes[len(runes)-avail:])
+	}
+	return prefix + joined
+}
+
 // compactBlankLines reduces runs of 2+ blank lines to a single blank line.
 func compactBlankLines(s string) string {
 	var b strings.Builder
@@ -767,5 +1016,93 @@ func compactBlankLines(s string) string {
 		}
 		prevBlank = isBlank
 	}
+	return b.String()
+}
+
+// buildSubAgentStats renders the SubAgent statistics view (UF-4).
+// Shows tools breakdown, files list, and duration summary.
+func (m DetailModel) buildSubAgentStats() string {
+	var b strings.Builder
+	stats := m.subAgentStats
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51")) // bright cyan
+	statStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252")) // light gray
+	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("242"))  // dim gray
+
+	// Section label
+	b.WriteString(labelStyle.Render("subagent stats:"))
+	b.WriteString("\n")
+
+	// Tools sub-block
+	b.WriteString("  ")
+	b.WriteString(labelStyle.Render(fmt.Sprintf("tools: %d calls, %s", stats.ToolCount, formatDuration(stats.Duration))))
+	b.WriteString("\n")
+
+	if len(stats.ToolCounts) > 0 {
+		// Sort by count descending, then by name for stability
+		type toolEntry struct {
+			name  string
+			count int
+			dur   time.Duration
+		}
+		var entries []toolEntry
+		for name, count := range stats.ToolCounts {
+			dur := stats.ToolDurs[name]
+			entries = append(entries, toolEntry{name: name, count: count, dur: dur})
+		}
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].count != entries[j].count {
+				return entries[i].count > entries[j].count
+			}
+			return entries[i].name < entries[j].name
+		})
+
+		for _, e := range entries {
+			line := fmt.Sprintf("    %-14s ×%-3d %s", e.name, e.count, formatDuration(e.dur))
+			b.WriteString(statStyle.Render(line))
+			b.WriteString("\n")
+		}
+	} else {
+		b.WriteString(dimStyle.Render("    tools: none"))
+		b.WriteString("\n")
+	}
+
+	// Files sub-block (reuse renderFileList)
+	contentWidth := m.width - 7 // -4 border, -1 scrollbar, -2 sub-block indent
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+	fileSection := renderFileList(stats.FileOps, contentWidth)
+	if fileSection != "" {
+		// Indent the files section by 2 spaces
+		lines := strings.Split(fileSection, "\n")
+		for _, line := range lines {
+			if line != "" {
+				b.WriteString("  ")
+				b.WriteString(line)
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	// Duration sub-block: "avg Xs, peak {tool} ({duration})"
+	if stats.ToolCount > 0 {
+		avgDur := stats.Duration / time.Duration(stats.ToolCount)
+		// Find peak tool by longest total duration
+		peakTool := ""
+		peakDur := time.Duration(0)
+		for name, dur := range stats.ToolDurs {
+			if dur > peakDur {
+				peakDur = dur
+				peakTool = name
+			}
+		}
+		b.WriteString("  ")
+		b.WriteString(labelStyle.Render("duration:"))
+		b.WriteString(" ")
+		b.WriteString(statStyle.Render(fmt.Sprintf("avg %s, peak %s (%s)", formatDuration(avgDur), peakTool, formatDuration(peakDur))))
+		b.WriteString("\n")
+	}
+
 	return b.String()
 }

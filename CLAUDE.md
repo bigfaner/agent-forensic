@@ -84,7 +84,24 @@ docs/
 
 ### Convention Loading
 
-执行任务前，按需从 `docs/conventions/` 加载规范：
-1. 先读 `docs/conventions/INDEX.md` 查找与当前任务相关的文件
-2. 按任务 scope 加载基线规范（backend/frontend/global）
-3. 按任务 keyword 加载领域规范
+执行任务前，**必须**按文件模式加载对应规范（不是"按需"，是强制）：
+
+**TUI / 前端任务**（`internal/model/*.go`，或任何导入 `bubbletea`/`lipgloss` 的文件）：
+1. 读取 `docs/conventions/` 下全部 5 个文件（总计 ~800 行）
+2. 读取 `docs/lessons/lesson-tui-tech-design-mockup.md` 和 `lesson-tui-visual-verify.md`
+3. 编码前，用一句话陈述哪些 convention 章节适用于当前任务
+
+**Parser / 数据任务**（`internal/parser/`、`internal/stats/`）：
+1. 读取 `docs/conventions/tui-data-contracts.md`
+
+**TUI Mockup 要求**：编写新的 `View()`/`Render()` 函数前，先输出 ASCII mockup 供用户确认。Mockup 必须包含：
+- 每个面板的 box-drawing 字符图示
+- 精确尺寸数值（禁止"大约"/"适当"）
+- 5 个边界场景：窄终端(80×24)、宽终端(140+)、混合数字宽度、长路径(>50 chars)、无数据
+- 字符调色板（每个视觉元素指定 Unicode 字符 + code point）
+- 颜色从 `tui-layout-ui.md` 色表选取
+
+**Scope Guard**：Feature tasks 完成后的 fix 迭代阶段：
+- 提交前运行 `git diff --stat HEAD`，如任何 .go 文件 +50 行非 test 代码 → 停下，创建 task
+- 同一文件累积 3 个 fix/style 提交 → 停下，运行 `/learn-lesson` 提取 convention
+- 连续 vibe coding 提交达 5 个 → 暂停，检查是否存在结构性问题

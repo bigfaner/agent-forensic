@@ -108,3 +108,22 @@ func TestCorruptSessionError_Fields(t *testing.T) {
 		t.Errorf("FailLines = %d, want %d", err.FailLines, 1)
 	}
 }
+
+func TestSubAgentNotFoundError(t *testing.T) {
+	err := NewSubAgentNotFoundError("agent-123", "/home/user/.claude/projects/test")
+	got := err.Error()
+	want := "subagent not found: agent-123 in /home/user/.claude/projects/test"
+	if got != want {
+		t.Errorf("Error() = %q, want %q", got, want)
+	}
+}
+
+func TestSubAgentNotFoundError_Fields(t *testing.T) {
+	err := NewSubAgentNotFoundError("agent-456", "/sessions/dir")
+	if err.AgentID != "agent-456" {
+		t.Errorf("AgentID = %q, want %q", err.AgentID, "agent-456")
+	}
+	if err.SessionDir != "/sessions/dir" {
+		t.Errorf("SessionDir = %q, want %q", err.SessionDir, "/sessions/dir")
+	}
+}

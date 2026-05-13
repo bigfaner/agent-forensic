@@ -11,7 +11,7 @@ import (
 // --- Bug regression test: columns should maintain fixed width alignment ---
 
 func TestRenderCustomToolsBlock_ColumnAlignment_WideLayout(t *testing.T) {
-	// Create a session where MCP column has many more lines than Skill/Hook
+	// Create a session where MCP column has many more lines than Skill
 	s := &parser.SessionStats{
 		ToolCallCounts: make(map[string]int),
 		ToolTimePcts:   make(map[string]float64),
@@ -39,27 +39,22 @@ func TestRenderCustomToolsBlock_ColumnAlignment_WideLayout(t *testing.T) {
 
 	lines := strings.Split(out, "\n")
 
-	// Find the header line with all three column headers
+	// Find the header line with both column headers (Skill + MCP)
 	var headerLineIdx int = -1
 	for i, line := range lines {
-		if strings.Contains(line, "Skill") && strings.Contains(line, "MCP") && strings.Contains(line, "Hook") {
+		if strings.Contains(line, "Skill") && strings.Contains(line, "MCP") {
 			headerLineIdx = i
 			break
 		}
 	}
 
-	assert.NotEqual(t, -1, headerLineIdx, "Should find a line with all three column headers")
-
-	// BUG: The current implementation will fail this test because columns are not
-	// rendered with fixed width, causing alignment issues
+	assert.NotEqual(t, -1, headerLineIdx, "Should find a line with Skill and MCP column headers")
 
 	// Verify that Skill column content appears in lines after header
 	foundSkillContent := false
 	for i := headerLineIdx + 1; i < len(lines); i++ {
 		if strings.Contains(lines[i], "skill-a") {
 			foundSkillContent = true
-			// Skill content should appear before MCP content on the same line
-			// or MCP content should be properly aligned to its column
 			break
 		}
 	}
@@ -153,9 +148,10 @@ func TestRenderCustomToolsBlock_WideLayout(t *testing.T) {
 	m := newDashboardWithStats(s, 100)
 	out := m.renderCustomToolsBlock(96)
 	assert.Contains(t, out, "Skill")
-	assert.Contains(t, out, "Hook")
 	assert.Contains(t, out, "forge:quick")
-	assert.Contains(t, out, "PostToolUse")
+	// Hook column removed from Custom Tools — hooks now in dedicated Hook Analysis panel
+	assert.NotContains(t, out, "Hook")
+	assert.NotContains(t, out, "PostToolUse")
 }
 
 func TestRenderCustomToolsBlock_NarrowLayout(t *testing.T) {
@@ -169,11 +165,12 @@ func TestRenderCustomToolsBlock_NarrowLayout(t *testing.T) {
 	m := newDashboardWithStats(s, 70)
 	out := m.renderCustomToolsBlock(66)
 	assert.Contains(t, out, "Skill")
-	assert.Contains(t, out, "Hook")
+	// Hook column removed — hooks now in dedicated Hook Analysis panel
+	assert.NotContains(t, out, "Hook")
 }
 
 func TestRenderCustomToolsBlock_VeryNarrowFallsBackToStack(t *testing.T) {
-	// width=50 → colWidth=(50-6)/3=14 < 18 → single column
+	// width=50 → colWidth=(50-4)/2=23 >= 18 → wide layout with 2 columns
 	s := statsWithSkills(map[string]int{"skill-a": 1})
 	m := newDashboardWithStats(s, 50)
 	out := m.renderCustomToolsBlock(46)
@@ -181,7 +178,7 @@ func TestRenderCustomToolsBlock_VeryNarrowFallsBackToStack(t *testing.T) {
 }
 
 func TestRenderCustomToolsBlock_PartialData_NoneShown(t *testing.T) {
-	// Only skills have data; MCP and Hook should show (none)
+	// Only skills have data; MCP should show (none)
 	s := statsWithSkills(map[string]int{"forge:quick": 2})
 	m := newDashboardWithStats(s, 100)
 	out := m.renderCustomToolsBlock(96)
@@ -347,7 +344,7 @@ func TestCtTruncate_Multibyte(t *testing.T) {
 // --- Bug regression test: columns should maintain fixed width alignment ---
 
 func TestRenderCustomToolsBlock_ColumnAlignment_VisualInspection(t *testing.T) {
-	// Create a session where MCP column has many more lines than Skill/Hook
+	// Create a session where MCP column has many more lines than Skill
 	// This reproduces the alignment issue shown in the screenshot
 	s := &parser.SessionStats{
 		ToolCallCounts: make(map[string]int),
@@ -372,26 +369,7 @@ func TestRenderCustomToolsBlock_ColumnAlignment_VisualInspection(t *testing.T) {
 	// Print output for visual inspection (will show in test output)
 	t.Logf("\n=== Visual Output ===\n%s\n=== End Output ===\n", out)
 
-	// BUG DESCRIPTION:
-	// The current implementation uses simple string concatenation:
-	//   ctColGet(skillLines, i) + ctColSep + ctColGet(mcpLines, i) + ctColSep + ctColGet(hookLines, i)
-	//
-	// When a column has fewer lines, ctColGet returns "" (empty string).
-	// This empty string doesn't maintain the column width, causing subsequent
-	// columns to shift left.
-	//
-	// Example buggy output (simplified):
-	//   Skill              MCP *                    Hook
-	//   brainstorm     1    zai-mcp-server...    <- aligned
-	//                     ui_to_artifact...      <- MCP content shifts left!
-	//                     analyze_video...
-	//
-	// Expected output (after fix):
-	//   Skill              MCP *                    Hook
-	//   brainstorm     1    zai-mcp-server...    <- aligned
-	//                      ui_to_artifact...     <- proper column alignment
-	//                      analyze_video...
-
-	// For now, this test documents the bug visually.
-	// The fix will use lipgloss.Style.Width() to enforce fixed column widths.
+	// Verify Skill and MCP columns are rendered with fixed width alignment
+	assert.Contains(t, out, "Skill")
+	assert.Contains(t, out, "MCP")
 }
