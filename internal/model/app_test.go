@@ -1304,3 +1304,81 @@ func TestApp_AKey_OpensOverlay_ForAgentToolName(t *testing.T) {
 	app := updated.(AppModel)
 	assert.Equal(t, ViewSubAgent, app.activeView, "pressing 'a' on Agent node should open SubAgent overlay")
 }
+
+func TestApp_AKey_ShowsContentNotBlank_ForAgentWithChildren(t *testing.T) {
+	// bug: pressing 'a' opens overlay but shows blank because computeSubAgentStats
+	// is called with empty Children (not yet loaded), producing zero stats.
+	// When children ARE present (e.g. loaded via Enter expand first), overlay should show content.
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Read", Duration: time.Second, Input: `{"file_path":"/a/b.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: 2 * time.Second, Input: `{"command":"go test"}`},
+	}
+	agentEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Agent",
+		Input:    `{"description":"test agent"}`,
+		Children: children,
+	}
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{agentEntry},
+	}
+
+	m := NewAppModel("/test/dir", "dev")
+	m.width = 120
+	m.height = 36
+	m.callTree = m.callTree.SetTurns([]parser.Turn{turn})
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.callTree = m.callTree.SetFocused(true)
+	m.activePanel = PanelCallTree
+	m.activeView = ViewMain
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 1
+
+	// Press 'a' key
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	app := updated.(AppModel)
+	assert.Equal(t, ViewSubAgent, app.activeView)
+
+	// Overlay should show content, not "No data"
+	view := app.subagentOverlay.View()
+	assert.Contains(t, view, "Read", "overlay should show tool stats when children are present")
+	assert.NotContains(t, view, "No data", "overlay should not show empty state when children exist")
+}
+
+func TestApp_AKey_EmptyChildren_ShowsLoadingNotBlank(t *testing.T) {
+	// bug: pressing 'a' on Agent node with no pre-loaded Children shows blank
+	// overlay instead of loading state. When Children are empty, the overlay
+	// should show "Loading..." to indicate async load is in progress.
+	agentEntry := parser.TurnEntry{
+		Type:     parser.EntryToolUse,
+		ToolName: "Agent",
+		Input:    `{"description":"test agent"}`,
+		Children: nil, // not loaded yet — this is the real-world case
+	}
+	turn := parser.Turn{
+		Index:   0,
+		Entries: []parser.TurnEntry{agentEntry},
+	}
+
+	m := NewAppModel("/test/dir", "dev")
+	m.width = 120
+	m.height = 36
+	m.callTree = m.callTree.SetTurns([]parser.Turn{turn})
+	m.callTree = m.callTree.SetSize(80, 20)
+	m.callTree = m.callTree.SetFocused(true)
+	m.activePanel = PanelCallTree
+	m.activeView = ViewMain
+	m.callTree.expanded[0] = true
+	m.callTree.rebuildVisibleNodes()
+	m.callTree.cursor = 1
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	app := updated.(AppModel)
+	assert.Equal(t, ViewSubAgent, app.activeView)
+
+	view := app.subagentOverlay.View()
+	// Should show loading state, not just "No data" blank
+	assert.Contains(t, view, "Loading", "overlay should show loading state when children not yet loaded")
+}

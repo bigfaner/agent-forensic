@@ -77,6 +77,17 @@ func (m SubAgentOverlayModel) Show(agentID string, stats *parser.SubAgentStats) 
 	return m
 }
 
+// ShowLoading activates the overlay in loading state (no data yet).
+func (m SubAgentOverlayModel) ShowLoading(agentID string) SubAgentOverlayModel {
+	m.active = true
+	m.agentID = agentID
+	m.scrollOff = 0
+	m.focusedSection = 0
+	m.state = overlayStateLoading
+	m.stats = nil
+	return m
+}
+
 // Hide deactivates the overlay and clears state.
 func (m SubAgentOverlayModel) Hide() SubAgentOverlayModel {
 	m.active = false

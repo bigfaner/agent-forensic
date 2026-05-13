@@ -468,14 +468,18 @@ func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Compute SubAgentStats from entry Children
-	stats := computeSubAgentStats(entry.Children)
 	agentID := "SubAgent"
+
 	if len(entry.Children) > 0 {
+		// Children already loaded — show stats immediately
+		stats := computeSubAgentStats(entry.Children)
 		agentID = fmt.Sprintf("SubAgent (%d tools)", len(entry.Children))
+		m.subagentOverlay = m.subagentOverlay.Show(agentID, stats)
+	} else {
+		// Children not loaded yet — show loading state
+		m.subagentOverlay = m.subagentOverlay.ShowLoading(agentID)
 	}
 
-	m.subagentOverlay = m.subagentOverlay.Show(agentID, stats)
 	m.subagentOverlay.width = m.width
 	m.subagentOverlay.height = m.height
 	m.activeView = ViewSubAgent
