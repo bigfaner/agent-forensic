@@ -130,10 +130,10 @@ func TestFileOpsPanel_Render_BarProportional(t *testing.T) {
 	var bigBarLen, smallBarLen int
 	for _, line := range lines {
 		if strings.Contains(line, "big.go") {
-			bigBarLen = strings.Count(line, "█")
+			bigBarLen = strings.Count(line, "▪")
 		}
 		if strings.Contains(line, "small.go") {
-			smallBarLen = strings.Count(line, "█")
+			smallBarLen = strings.Count(line, "▪")
 		}
 	}
 	assert.Greater(t, bigBarLen, smallBarLen)
@@ -222,21 +222,114 @@ func TestFileOpsPanel_Render_ContainsBar(t *testing.T) {
 
 	got := panel.Render(stats, 80)
 	// Should contain bar characters
-	assert.Contains(t, got, "█")
+	assert.Contains(t, got, "▪")
 }
 
 func TestFileOpsPanel_renderBar(t *testing.T) {
 	panel := NewFileOpsPanel()
 
 	t.Run("produces row with path and counts", func(t *testing.T) {
-		row := panel.renderBar("main.go", 5, 3, 8, 20)
+		row := panel.renderBar("main.go", 5, 3, 8, 40, 15, 3, 3, 2)
 		assert.Contains(t, row, "main.go")
 		assert.Contains(t, row, "R×5")
 		assert.Contains(t, row, "E×3")
 	})
 
 	t.Run("zero max count produces no bar", func(t *testing.T) {
-		row := panel.renderBar("main.go", 0, 0, 0, 20)
+		row := panel.renderBar("main.go", 0, 0, 0, 40, 15, 0, 0, 1)
 		assert.Contains(t, row, "main.go")
 	})
+}
+
+// bug: counts columns misalign when mixing single and double digit values
+func TestFileOpsPanel_Render_CountsColumnAlignment(t *testing.T) {
+	panel := NewFileOpsPanel()
+	stats := &parser.FileOpStats{
+		Files: map[string]*parser.FileOpCount{
+			"aaa.go": {ReadCount: 15, EditCount: 3, TotalCount: 18}, // double-digit R
+			"bbb.go": {ReadCount: 2, EditCount: 7, TotalCount: 9},  // single-digit R
+			"ccc.go": {ReadCount: 3, EditCount: 0, TotalCount: 3},  // R only, single-digit
+		},
+	}
+
+	got := panel.Render(stats, 120)
+	lines := strings.Split(got, "\n")
+
+	// Collect only file data lines (contain R× or E×)
+	var dataLines []string
+	for _, line := range lines {
+		if strings.Contains(line, "R×") || strings.Contains(line, "E×") {
+			dataLines = append(dataLines, line)
+		}
+	}
+	require.Len(t, dataLines, 3)
+
+	// Strip ANSI escape codes, then convert to runes for visual position comparison
+	cleanRunes := make([][]rune, len(dataLines))
+	for i, line := range dataLines {
+		cleanRunes[i] = []rune(stripANSI(line))
+	}
+
+	// The total column is right-aligned — check that the END position (last digit) is the same
+	totalEndPositions := make([]int, len(cleanRunes))
+	for i, runes := range cleanRunes {
+		// Find the last digit rune
+		lastDigitEnd := -1
+		for j := len(runes) - 1; j >= 0; j-- {
+			if runes[j] >= '0' && runes[j] <= '9' {
+				lastDigitEnd = j
+				break
+			}
+		}
+		require.GreaterOrEqual(t, lastDigitEnd, 0, "should find a digit in row %d", i)
+		totalEndPositions[i] = lastDigitEnd
+	}
+
+	// All totals should END at the same visual column (right-aligned)
+	for i := 1; i < len(totalEndPositions); i++ {
+		assert.Equal(t, totalEndPositions[0], totalEndPositions[i],
+			"total column should right-align: row 0 end=%d, row %d end=%d\nrow0: %q\nrow%d: %q",
+			totalEndPositions[0], i, totalEndPositions[i], string(cleanRunes[0]), i, string(cleanRunes[i]))
+	}
+
+	// The E×N should also align across rows that have it (find rune position of 'E' in "E×")
+	ePositions := make([]int, 0, 2)
+	for _, runes := range cleanRunes {
+		for j, r := range runes {
+			if r == 'E' && j+1 < len(runes) && runes[j+1] == '×' {
+				ePositions = append(ePositions, j)
+				break
+			}
+		}
+	}
+	if len(ePositions) >= 2 {
+		for i := 1; i < len(ePositions); i++ {
+			assert.Equal(t, ePositions[0], ePositions[i],
+				"E× column should align: row 0 pos=%d, row %d pos=%d",
+				ePositions[0], i, ePositions[i])
+		}
+	}
+}
+
+// stripANSI removes ANSI escape sequences from a string.
+func stripANSI(s string) string {
+	var result []byte
+	i := 0
+	for i < len(s) {
+		if s[i] == '\x1b' && i+1 < len(s) && s[i+1] == '[' {
+			// Skip until letter
+			j := i + 2
+			for j < len(s) && (s[j] < 'A' || s[j] > 'Z') && (s[j] < 'a' || s[j] > 'z') {
+				j++
+			}
+			if j < len(s) {
+				j++ // skip the letter
+			}
+			i = j
+		} else {
+			result = append(result, s[i])
+			i++
+		}
+	}
+	return string(result)
 }
