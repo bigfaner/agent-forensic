@@ -750,7 +750,7 @@ func TestDashboardView_Populated(t *testing.T) {
 	m.Show()
 	m.Refresh(testDashboardSession())
 	view := m.View()
-	assert.Contains(t, view, "▎")
+	assert.Contains(t, view, "▄")
 	// Default locale is zh, so check for Chinese label
 	assert.Contains(t, view, "总耗时")
 	// Should show tool names
@@ -834,7 +834,7 @@ func TestDashboardView_BarChartDescending(t *testing.T) {
 	assert.Contains(t, view, "Bash")
 	assert.Contains(t, view, "Write")
 	// Verify the stats are sorted: count bar for Read (3) should be longest
-	assert.Contains(t, view, "▎")
+	assert.Contains(t, view, "▄")
 }
 
 func TestDashboardView_LongToolNames(t *testing.T) {
@@ -867,7 +867,7 @@ func TestDashboardView_LongToolNames(t *testing.T) {
 	// Should not contain the full untruncated name
 	assert.NotContains(t, view, "mcp__zai-mcp-server__analyze_data_visualization")
 	// Bars should still render
-	assert.Contains(t, view, "▎")
+	assert.Contains(t, view, "▄")
 }
 
 // Helper to find first index of substring
@@ -895,7 +895,7 @@ func TestDashboardView_PercentageBars(t *testing.T) {
 	m.Refresh(testDashboardSession())
 	view := m.View()
 	// Should contain percentage bar characters
-	assert.Contains(t, view, "░")
+	assert.Contains(t, view, "─")
 }
 
 func TestDashboardView_EnglishLocale(t *testing.T) {

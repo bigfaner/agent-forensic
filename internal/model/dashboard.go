@@ -504,7 +504,7 @@ func (m DashboardModel) renderDashboard() string {
 		if barLen < 1 && entry.Count > 0 {
 			barLen = 1
 		}
-		leftBuf.WriteString(fmt.Sprintf("%-*s %s %d", labelWidth, displayName, strings.Repeat("▎", barLen), entry.Count))
+		leftBuf.WriteString(fmt.Sprintf("%-*s %s %d", labelWidth, displayName, strings.Repeat("▄", barLen), entry.Count))
 
 		filled := int(entry.Pct / 100 * float64(barWidth))
 		if filled < 1 && entry.Pct > 0 {
@@ -513,7 +513,7 @@ func (m DashboardModel) renderDashboard() string {
 		if filled > barWidth {
 			filled = barWidth
 		}
-		pctBar := strings.Repeat("▓", filled) + strings.Repeat("░", barWidth-filled)
+		pctBar := strings.Repeat("▄", filled) + strings.Repeat("─", barWidth-filled)
 		rightBuf.WriteString(fmt.Sprintf("%-*s %s %3.0f%%", labelWidth, displayName, pctBar, entry.Pct))
 
 		if i < len(entries)-1 {
