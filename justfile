@@ -6,6 +6,9 @@ claude:
 claude-c:
     claude --dangerously-skip-permissions -c
 
+claude-p:
+    claude --dangerously-skip-permissions --plugin-dir Z:/project/ai/forge/plugins/forge
+
 # --- forge standard recipes ---
 
 project-type:
