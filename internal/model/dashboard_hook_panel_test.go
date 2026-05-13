@@ -89,13 +89,13 @@ func TestNewHookTimelinePanel(t *testing.T) {
 
 func TestHookTimelinePanel_Render_NilDetails(t *testing.T) {
 	panel := NewHookTimelinePanel()
-	got := panel.Render(nil, 80)
+	got := panel.Render(nil, 80, -1, false)
 	assert.Equal(t, "", got)
 }
 
 func TestHookTimelinePanel_Render_EmptyDetails(t *testing.T) {
 	panel := NewHookTimelinePanel()
-	got := panel.Render([]parser.HookDetail{}, 80)
+	got := panel.Render([]parser.HookDetail{}, 80, -1, false)
 	assert.Equal(t, "", got)
 }
 
@@ -104,7 +104,7 @@ func TestHookTimelinePanel_Render_HeaderAndLegend(t *testing.T) {
 	details := []parser.HookDetail{
 		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
 	}
-	got := panel.Render(details, 80)
+	got := panel.Render(details, 80, -1, false)
 	assert.Contains(t, got, "Hook Timeline (by Turn)")
 	assert.Contains(t, got, "PreToolUse")
 	assert.Contains(t, got, "PostToolUse")
@@ -119,7 +119,7 @@ func TestHookTimelinePanel_Render_TurnLabels(t *testing.T) {
 		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 2, FullID: "PreToolUse::Bash"},
 		{HookType: "Stop", Target: "", TurnIndex: 3, FullID: "Stop"},
 	}
-	got := panel.Render(details, 80)
+	got := panel.Render(details, 80, -1, false)
 	assert.Contains(t, got, "T1")
 	assert.Contains(t, goFirstNonEmptyLineWith(got, "T2"), "T2")
 	assert.Contains(t, goFirstNonEmptyLineWith(got, "T3"), "T3")
@@ -131,7 +131,7 @@ func TestHookTimelinePanel_Render_MarkerLabels(t *testing.T) {
 		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
 		{HookType: "PostToolUse", Target: "Edit", TurnIndex: 1, FullID: "PostToolUse::Edit"},
 	}
-	got := panel.Render(details, 80)
+	got := panel.Render(details, 80, -1, false)
 	// Markers should contain full HookType::Target names
 	assert.Contains(t, got, "●PreToolUse::Bash")
 	assert.Contains(t, got, "●PostToolUse::Edit")
@@ -149,7 +149,7 @@ func TestHookTimelinePanel_Render_OverflowWraps(t *testing.T) {
 			FullID:    "PreToolUse::Bash",
 		}
 	}
-	got := panel.Render(details, 80)
+	got := panel.Render(details, 80, -1, false)
 	// Should have overflow wrapping — multiple lines for T1
 	t1Lines := 0
 	for _, line := range strings.Split(got, "\n") {
@@ -167,7 +167,7 @@ func TestHookTimelinePanel_Render_SortedByTurn(t *testing.T) {
 		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash"},
 		{HookType: "PostToolUse", Target: "Edit", TurnIndex: 2, FullID: "PostToolUse::Edit"},
 	}
-	got := panel.Render(details, 80)
+	got := panel.Render(details, 80, -1, false)
 	lines := strings.Split(got, "\n")
 
 	// Find turn lines
@@ -186,6 +186,60 @@ func TestHookTimelinePanel_Render_SortedByTurn(t *testing.T) {
 	}
 	assert.Less(t, t1Idx, t2Idx, "T1 should appear before T2")
 	assert.Less(t, t2Idx, t3Idx, "T2 should appear before T3")
+}
+
+// --- Command display ---
+
+func TestHookTimelinePanel_Render_ShowsCommand(t *testing.T) {
+	panel := NewHookTimelinePanel()
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Command: "npm test"},
+	}
+	got := panel.Render(details, 80, -1, false)
+	assert.Contains(t, got, "[npm test]")
+}
+
+func TestHookTimelinePanel_Render_NoCommandNoBracket(t *testing.T) {
+	panel := NewHookTimelinePanel()
+	details := []parser.HookDetail{
+		{HookType: "Stop", Target: "", TurnIndex: 1, FullID: "Stop"},
+	}
+	got := panel.Render(details, 80, -1, false)
+	assert.Contains(t, got, "●Stop")
+	assert.NotContains(t, got, "[")
+}
+
+func TestHookTimelinePanel_Render_CommandTruncated(t *testing.T) {
+	panel := NewHookTimelinePanel()
+	longCmd := strings.Repeat("x", 50)
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Command: longCmd},
+	}
+	got := panel.Render(details, 80, -1, false)
+	// Should contain truncated command with ellipsis
+	assert.Contains(t, got, "…")
+}
+
+// --- Selection and output display ---
+
+func TestHookTimelinePanel_Render_SelectedShowsOutput(t *testing.T) {
+	panel := NewHookTimelinePanel()
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Command: "npm test", Output: "hook output text here"},
+	}
+	got := panel.Render(details, 80, 0, true)
+	assert.Contains(t, got, "│")
+	assert.Contains(t, got, "hook output text here")
+}
+
+func TestHookTimelinePanel_Render_NoSelectionNoOutput(t *testing.T) {
+	panel := NewHookTimelinePanel()
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Output: "should not appear"},
+	}
+	got := panel.Render(details, 80, -1, false)
+	assert.NotContains(t, got, "should not appear")
+	assert.NotContains(t, got, "│")
 }
 
 // --- renderHookStatsSection ---
@@ -214,7 +268,7 @@ func TestRenderHookTimelineSection_MarkersPerType(t *testing.T) {
 		{FullID: "PostToolUse::Edit", HookType: "PostToolUse", Target: "Edit", TurnIndex: 1},
 		{FullID: "Stop", HookType: "Stop", Target: "", TurnIndex: 2},
 	}
-	lines := renderHookTimelineSection(details, 80)
+	lines := renderHookTimelineSection(details, 80, -1, false)
 	// Should have legend + at least one turn row
 	assert.True(t, len(lines) >= 3, "should have header, divider, legend, and turn rows")
 

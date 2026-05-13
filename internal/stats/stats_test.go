@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/user/agent-forensic/internal/parser"
 )
 
@@ -502,6 +503,7 @@ func TestCalculateStats_HookDetails_Extracted(t *testing.T) {
 			{
 				Index: 1,
 				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"npm test"}`},
 					{Type: parser.EntryMessage, Output: "PreToolUse hook for Bash"},
 					{Type: parser.EntryMessage, Output: "PostToolUse hook result: allowed"},
 				},
@@ -527,16 +529,22 @@ func TestCalculateStats_HookDetails_Extracted(t *testing.T) {
 			assert.Equal(t, "PreToolUse", hd.HookType)
 			assert.Equal(t, "Bash", hd.Target)
 			assert.Equal(t, 1, hd.TurnIndex)
+			assert.Equal(t, "npm test", hd.Command)
+			assert.Contains(t, hd.Output, "PreToolUse hook for Bash")
 		case "PostToolUse":
 			foundPost = true
 			assert.Equal(t, "PostToolUse", hd.HookType)
 			assert.Equal(t, "", hd.Target)
 			assert.Equal(t, 1, hd.TurnIndex)
+			assert.Equal(t, "", hd.Command)
+			assert.Contains(t, hd.Output, "PostToolUse hook result")
 		case "Stop":
 			foundStop = true
 			assert.Equal(t, "Stop", hd.HookType)
 			assert.Equal(t, "", hd.Target)
 			assert.Equal(t, 2, hd.TurnIndex)
+			assert.Equal(t, "npm test", hd.Command) // extracted from previous turn's Bash tool_use
+			assert.Contains(t, hd.Output, "Stop hook triggered")
 		}
 	}
 	assert.True(t, foundPre, "should find PreToolUse::Bash")
@@ -558,6 +566,90 @@ func TestCalculateStats_HookDetails_EmptyWhenNoHooks(t *testing.T) {
 
 	s := CalculateStats(session)
 	assert.Len(t, s.HookDetails, 0, "HookDetails should be empty when no hooks")
+}
+
+// --- extractToolCommand tests ---
+
+func TestExtractToolCommand_Bash(t *testing.T) {
+	assert.Equal(t, "echo test", extractToolCommand("Bash", `{"command":"echo test"}`))
+}
+
+func TestExtractToolCommand_Read(t *testing.T) {
+	assert.Equal(t, "/src/main.go", extractToolCommand("Read", `{"file_path":"/src/main.go"}`))
+}
+
+func TestExtractToolCommand_Edit(t *testing.T) {
+	assert.Equal(t, "app.ts", extractToolCommand("Edit", `{"file_path":"app.ts","old_string":"x"}`))
+}
+
+func TestExtractToolCommand_UnknownTool(t *testing.T) {
+	assert.Equal(t, "", extractToolCommand("Skill", `{"skill":"forge"}`))
+}
+
+func TestExtractToolCommand_InvalidJSON(t *testing.T) {
+	assert.Equal(t, "", extractToolCommand("Bash", "not json"))
+}
+
+func TestExtractToolCommand_MissingField(t *testing.T) {
+	assert.Equal(t, "", extractToolCommand("Bash", `{"timeout":30}`))
+}
+
+// --- findCommandForHook tests ---
+
+func TestFindCommandForHook_WithTarget(t *testing.T) {
+	hd := parser.HookDetail{HookType: "PreToolUse", Target: "Bash", FullID: "PreToolUse::Bash"}
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"ls -la"}`},
+	}
+	assert.Equal(t, "ls -la", findCommandForHook(hd, entries, nil))
+}
+
+func TestFindCommandForHook_NoTargetWithPrevTurn(t *testing.T) {
+	hd := parser.HookDetail{HookType: "Stop", Target: "", FullID: "Stop"}
+	entries := []parser.TurnEntry{}
+	prevEntries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"ls"}`},
+	}
+	assert.Equal(t, "ls", findCommandForHook(hd, entries, prevEntries))
+}
+
+func TestFindCommandForHook_NoTargetNoPrevTurn(t *testing.T) {
+	hd := parser.HookDetail{HookType: "Stop", Target: "", FullID: "Stop"}
+	assert.Equal(t, "", findCommandForHook(hd, nil, nil))
+}
+
+func TestFindCommandForHook_NoMatchingTool(t *testing.T) {
+	hd := parser.HookDetail{HookType: "PreToolUse", Target: "Edit", FullID: "PreToolUse::Edit"}
+	entries := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"ls"}`},
+	}
+	assert.Equal(t, "", findCommandForHook(hd, entries, nil))
+}
+
+// bug: Stop hooks show no command even when a tool_use exists in the previous turn
+func TestCalculateStats_HookDetails_StopHookGetsCommandFromPrevTurn(t *testing.T) {
+	session := &parser.Session{
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryToolUse, ToolName: "Bash", Input: `{"command":"npm test"}`},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{Type: parser.EntryMessage, Output: "Stop hook triggered"},
+				},
+			},
+		},
+	}
+
+	s := CalculateStats(session)
+	require.Len(t, s.HookDetails, 1)
+	assert.Equal(t, "Stop", s.HookDetails[0].HookType)
+	assert.Equal(t, "npm test", s.HookDetails[0].Command, "Stop hook should extract command from previous turn's tool_use")
+	assert.Contains(t, s.HookDetails[0].Output, "Stop hook triggered")
 }
 
 // --- ExtractFilePaths tests ---

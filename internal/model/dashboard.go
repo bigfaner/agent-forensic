@@ -39,6 +39,7 @@ type DashboardModel struct {
 	height       int
 	focused      bool
 	focusSection DashboardSection
+	hookCursor   int
 	errMsg       string
 }
 
@@ -68,6 +69,7 @@ func (m DashboardModel) IsVisible() bool {
 // Refresh recalculates stats from the current session.
 func (m *DashboardModel) Refresh(session *parser.Session) {
 	m.session = session
+	m.hookCursor = 0
 	if session == nil || len(session.Turns) == 0 {
 		m.state = StateEmpty
 		m.stats = stats.CalculateStats(session)
@@ -145,13 +147,28 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 		return m, nil
 	case "tab":
 		m.focusSection = m.nextSection()
+		if m.focusSection == SectionHookAnalysis {
+			m.hookCursor = 0
+		}
 		return m, nil
 	case "down", "j":
-		m.scrollPos++
+		if m.focusSection == SectionHookAnalysis && m.stats != nil && len(m.stats.HookDetails) > 0 {
+			if m.hookCursor < len(m.stats.HookDetails)-1 {
+				m.hookCursor++
+			}
+		} else {
+			m.scrollPos++
+		}
 		return m, nil
 	case "up", "k":
-		if m.scrollPos > 0 {
-			m.scrollPos--
+		if m.focusSection == SectionHookAnalysis && m.stats != nil && len(m.stats.HookDetails) > 0 {
+			if m.hookCursor > 0 {
+				m.hookCursor--
+			}
+		} else {
+			if m.scrollPos > 0 {
+				m.scrollPos--
+			}
 		}
 		return m, nil
 	}
@@ -432,7 +449,7 @@ func (m DashboardModel) renderDashboard() string {
 		statsPanel := NewHookStatsPanel()
 		timelinePanel := NewHookTimelinePanel()
 		hookStatsBlock := statsPanel.Render(m.stats.HookDetails, contentWidth)
-		hookTimelineBlock := timelinePanel.Render(m.stats.HookDetails, contentWidth)
+		hookTimelineBlock := timelinePanel.Render(m.stats.HookDetails, contentWidth, m.hookCursor, m.focused && m.focusSection == SectionHookAnalysis)
 
 		if hookStatsBlock != "" || hookTimelineBlock != "" {
 			b.WriteString("\n\n")
@@ -445,6 +462,7 @@ func (m DashboardModel) renderDashboard() string {
 				b.WriteString(hookStatsBlock)
 			}
 			if hookTimelineBlock != "" {
+				b.WriteString("\n")
 				b.WriteString(hookTimelineBlock)
 			}
 		}

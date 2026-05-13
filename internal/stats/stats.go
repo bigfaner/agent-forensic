@@ -114,6 +114,49 @@ func extractFilePath(rawInput string) string {
 	return fp
 }
 
+// extractToolCommand returns a human-readable command from a tool_use input JSON.
+// Bash → "command" field, Read/Write/Edit → "file_path" field, others → "".
+func extractToolCommand(toolName, rawInput string) string {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(rawInput), &m); err != nil {
+		return ""
+	}
+	switch toolName {
+	case "Bash":
+		if cmd, ok := m["command"].(string); ok {
+			return cmd
+		}
+	case "Read", "Write", "Edit":
+		if fp, ok := m["file_path"].(string); ok {
+			return fp
+		}
+	}
+	return ""
+}
+
+// findCommandForHook searches turn entries for a tool_use matching the hook's
+// Target tool name and returns its extracted command.
+// For hooks without a Target (e.g., Stop), falls back to the last tool_use
+// in prevEntries (the previous turn's entries).
+// Returns "" if no match.
+func findCommandForHook(hd parser.HookDetail, entries []parser.TurnEntry, prevEntries []parser.TurnEntry) string {
+	if hd.Target != "" {
+		for i := range entries {
+			if entries[i].Type == parser.EntryToolUse && entries[i].ToolName == hd.Target {
+				return extractToolCommand(entries[i].ToolName, entries[i].Input)
+			}
+		}
+		return ""
+	}
+	// No Target: look for last tool_use in previous turn
+	for i := len(prevEntries) - 1; i >= 0; i-- {
+		if prevEntries[i].Type == parser.EntryToolUse {
+			return extractToolCommand(prevEntries[i].ToolName, prevEntries[i].Input)
+		}
+	}
+	return ""
+}
+
 // CalculateStats aggregates session data for dashboard display.
 // Returns SessionStats with tool call counts, time percentages, peak step, and total duration.
 // Returns zero-value stats for nil or empty sessions.
@@ -136,7 +179,11 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 	toolDurations := make(map[string]time.Duration)
 	var peakStep *parser.ToolCallSummary
 
-	for _, turn := range session.Turns {
+	for turnIdx, turn := range session.Turns {
+		var prevEntries []parser.TurnEntry
+		if turnIdx > 0 {
+			prevEntries = session.Turns[turnIdx-1].Entries
+		}
 		for _, entry := range turn.Entries {
 			switch entry.Type {
 			case parser.EntryToolUse:
@@ -175,6 +222,8 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 				// HookDetails extraction: parse full HookType::Target with turn index
 				if fullID := ParseHookWithTarget(entry.Output); fullID != "" && fullID != entry.Output {
 					hd := buildHookDetail(fullID, turn.Index)
+					hd.Output = entry.Output
+					hd.Command = findCommandForHook(hd, turn.Entries, prevEntries)
 					stats.HookDetails = append(stats.HookDetails, hd)
 				} else if marker := parseHookMarker(entry.Output); marker != "" {
 					hd := parser.HookDetail{
@@ -182,6 +231,7 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 						Target:    "",
 						TurnIndex: turn.Index,
 						FullID:    marker,
+						Output:    entry.Output,
 					}
 					stats.HookDetails = append(stats.HookDetails, hd)
 				}

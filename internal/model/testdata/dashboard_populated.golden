@@ -11,9 +11,9 @@
 │                                                                              │
 │File Operations (top 20)                                                      │
 │────────────────────────────────────────────────────────────────────────────  │
-│/project/config/production.yml           ██████████  R×1  1                   │
-│/project/src/fix.ts                      ██████████  E×1  1                   │
-│/project/src/index.ts                    ██████████  R×1  1                   │
+│/project/config/production.yml              ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪  R×1        1     │
+│/project/src/fix.ts                         ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪        E×1  1     │
+│/project/src/index.ts                       ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪  R×1        1     │
 │                                                                              │
 │                                                                              │
 │                                                                              │

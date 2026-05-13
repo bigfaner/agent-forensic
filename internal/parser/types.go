@@ -97,6 +97,8 @@ type HookDetail struct {
 	Target    string // target tool name or command (may be empty)
 	TurnIndex int    // 1-based turn number when the hook fired
 	FullID    string // "HookType::Target" or "HookType" (Target empty)
+	Command   string // extracted tool command (e.g., "echo test", "/path/to/file")
+	Output    string // raw hook output text from EntryMessage
 }
 
 // SubAgentStats holds aggregated statistics for a sub-agent session.
