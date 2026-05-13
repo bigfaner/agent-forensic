@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/parser"
 )
 
@@ -72,7 +73,7 @@ func (p *HookTimelinePanel) Render(details []parser.HookDetail, width int, curso
 
 // renderHookStatsSection renders the Hook Statistics block.
 // Returns lines: header, divider, then HookType::Target ×N rows sorted by count desc.
-func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
+func renderHookStatsSection(details []parser.HookDetail, width int) []string {
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
 	secondary := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 
@@ -100,7 +101,17 @@ func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
 	var lines []string
 	lines = append(lines, primary.Render("Hook Statistics"))
 	for _, e := range entries {
-		lines = append(lines, secondary.Render(fmt.Sprintf("%s  ×%d", e.fullID, e.count)))
+		suffix := fmt.Sprintf("  ×%d", e.count)
+		suffixW := runewidth.StringWidth(suffix)
+		labelBudget := width - suffixW
+		if labelBudget < 4 {
+			labelBudget = 4
+		}
+		label := e.fullID
+		if runewidth.StringWidth(label) > labelBudget {
+			label = truncRunes(label, labelBudget)
+		}
+		lines = append(lines, secondary.Render(label+suffix))
 	}
 	return lines
 }
@@ -219,7 +230,7 @@ func renderHookMarker(h parser.HookDetail) string {
 }
 
 // renderHookMarkerSelected renders a marker with reverse-video highlight.
-func renderHookMarkerSelected(h parser.HookDetail, _ int) string {
+func renderHookMarkerSelected(h parser.HookDetail, width int) string {
 	color, ok := hookTypeColors[h.HookType]
 	if !ok {
 		color = "252"
@@ -227,6 +238,10 @@ func renderHookMarkerSelected(h parser.HookDetail, _ int) string {
 	baseLabel := "●" + h.FullID
 	if h.Command != "" {
 		baseLabel += " " + dimBracket(h.Command)
+	}
+	// Truncate at width boundary using display-width-aware truncation
+	if runewidth.StringWidth(baseLabel) > width {
+		baseLabel = truncRunes(baseLabel, width)
 	}
 	// Render base label in its hook color, then apply reverse highlight
 	colored := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(baseLabel)
@@ -263,13 +278,4 @@ func formatHookOutput(output string, maxWidth int) string {
 // dimBracket renders text in dim gray square brackets.
 func dimBracket(s string) string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[" + s + "]")
-}
-
-// truncateStr truncates a string to maxLen runes, appending "…" if truncated.
-func truncateStr(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen-1]) + "…"
 }
