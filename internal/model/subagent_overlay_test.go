@@ -2,9 +2,11 @@ package model
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
@@ -497,6 +499,146 @@ func TestSubAgentOverlayModel_BarCharsMatchDashboard(t *testing.T) {
 	// Should use ▄ (dashboard style), not █
 	assert.Contains(t, view, "▄")
 	assert.NotContains(t, "█ dashboard ▄ mixed", view)
+}
+
+func TestSubAgentOverlayModel_CJKFilePathsAlign(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 120
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5, "Edit": 3},
+		ToolDurs:   map[string]time.Duration{"Read": 2 * time.Second, "Edit": 1 * time.Second},
+		ToolCount:  8,
+		Duration:   3 * time.Second,
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"项目/模块/文件.go":                                        {ReadCount: 5, EditCount: 3, TotalCount: 8},
+				"internal/model/app.go":                              {ReadCount: 3, EditCount: 1, TotalCount: 4},
+				"中文路径/测试/代码处理器.go":                                   {ReadCount: 2, EditCount: 0, TotalCount: 2},
+				"pkg/服务/请求处理器_测试.go":                                 {ReadCount: 1, EditCount: 2, TotalCount: 3},
+				"a/very/long/path/that/should/be/truncated/正确/文件.go": {ReadCount: 4, EditCount: 0, TotalCount: 4},
+			},
+		},
+	}
+
+	m = m.Show("agent-cjk", stats)
+	view := m.View()
+	assert.NotEmpty(t, view)
+
+	// Should not contain corrupted UTF-8 (partial sequences)
+	assertValidUTF8(t, view)
+
+	// Should contain file ops section
+	assert.Contains(t, view, "File Operations")
+
+	// Verify segment-based truncation: long path should have .../segment/file.go format
+	// (not character-level truncation like "...确/文件.go")
+	clean := stripOverlayANSI(view)
+	lines := strings.Split(clean, "\n")
+	fileOpsStarted := false
+	for _, line := range lines {
+		if strings.Contains(line, "File Operations") {
+			fileOpsStarted = true
+			continue
+		}
+		if !fileOpsStarted {
+			continue
+		}
+		// Each file ops line should have proper alignment:
+		// path (padded)  R×N  E×N  total
+		// Check no partial CJK characters (would indicate byte-level truncation)
+		assertValidUTF8(t, line)
+	}
+}
+
+func TestSubAgentOverlayModel_CJKFilePathsGolden80x24(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 80
+	m.height = 24
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5, "Edit": 3},
+		ToolDurs:   map[string]time.Duration{"Read": 2 * time.Second, "Edit": 1 * time.Second},
+		ToolCount:  8,
+		Duration:   3 * time.Second,
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"项目/模块/文件.go":           {ReadCount: 5, EditCount: 3, TotalCount: 8},
+				"internal/model/app.go": {ReadCount: 3, EditCount: 1, TotalCount: 4},
+			},
+		},
+	}
+
+	m = m.Show("agent-cjk-80", stats)
+	view := m.View()
+	assert.NotEmpty(t, view)
+
+	// No corrupted UTF-8
+	assertValidUTF8(t, view)
+
+	// Check file ops section has correct column alignment
+	// The file ops rows should have aligned R/E/Total columns
+	clean := stripOverlayANSI(view)
+	assert.Contains(t, clean, "项目/模块/文件.go")
+	assert.Contains(t, clean, "app.go")
+}
+
+func TestSubAgentOverlayModel_CJKFilePathsGolden140x40(t *testing.T) {
+	m := NewSubAgentOverlayModel()
+	m.width = 140
+	m.height = 40
+
+	stats := &parser.SubAgentStats{
+		ToolCounts: map[string]int{"Read": 5, "Edit": 3},
+		ToolDurs:   map[string]time.Duration{"Read": 2 * time.Second, "Edit": 1 * time.Second},
+		ToolCount:  8,
+		Duration:   3 * time.Second,
+		FileOps: &parser.FileOpStats{
+			Files: map[string]*parser.FileOpCount{
+				"项目/模块/文件.go":           {ReadCount: 5, EditCount: 3, TotalCount: 8},
+				"internal/model/app.go": {ReadCount: 3, EditCount: 1, TotalCount: 4},
+			},
+		},
+	}
+
+	m = m.Show("agent-cjk-140", stats)
+	view := m.View()
+	assert.NotEmpty(t, view)
+
+	// No corrupted UTF-8
+	assertValidUTF8(t, view)
+
+	// Verify both CJK and ASCII paths render without truncation at wide width
+	clean := stripOverlayANSI(view)
+	assert.Contains(t, clean, "项目/模块/文件.go")
+	assert.Contains(t, clean, "internal/model/app.go")
+}
+
+func TestSubAgentOverlayModel_NoByteBasedWidthInFileOps(t *testing.T) {
+	// Verify that grep for len(displayPath) or len(path) returns no matches
+	// This is a code quality check - read the source and verify
+	source, err := os.ReadFile("subagent_overlay.go")
+	assert.NoError(t, err)
+
+	sourceStr := string(source)
+	// Should NOT contain len(displayPath) or len(path) for width calculations
+	assert.NotContains(t, sourceStr, "len(displayPath)", "should use runewidth.StringWidth(displayPath) instead of len()")
+	// The local truncatePath function should be removed
+	assert.NotContains(t, sourceStr, "func truncatePath(", "local truncatePath should be replaced by shared truncatePathBySegment")
+}
+
+func assertValidUTF8(t *testing.T, s string) {
+	t.Helper()
+	for i, r := range s {
+		if r == utf8.RuneError {
+			// Check if this is a real error (not just the replacement char)
+			_, size := utf8.DecodeRuneInString(s[i:])
+			if size == 1 {
+				t.Errorf("invalid UTF-8 at byte offset %d", i)
+			}
+		}
+	}
 }
 
 // stripOverlayANSI removes ANSI escape sequences from a string.

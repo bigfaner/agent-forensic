@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/parser"
 )
 
@@ -102,9 +103,9 @@ func (p *FileOpsPanel) Render(stats *parser.FileOpStats, width int) string {
 // renderRow renders a single file row with padded columns for alignment.
 func (p *FileOpsPanel) renderRow(path string, readCount, editCount, pathWidth, maxRWidth, maxEWidth, maxTotalVis int) string {
 	// Truncate and pad path to pathWidth
-	displayPath := truncatePath(path, pathWidth)
-	if len(displayPath) < pathWidth {
-		displayPath += strings.Repeat(" ", pathWidth-len(displayPath))
+	displayPath := truncatePathBySegment(path, pathWidth)
+	if pw := runewidth.StringWidth(displayPath); pw < pathWidth {
+		displayPath += strings.Repeat(" ", pathWidth-pw)
 	}
 
 	greenStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("82"))

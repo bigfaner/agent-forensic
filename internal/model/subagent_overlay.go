@@ -616,9 +616,9 @@ func (m SubAgentOverlayModel) renderFileOps(maxLines, width int) string {
 	for i := start; i < end; i++ {
 		e := entries[i]
 
-		displayPath := truncatePath(e.path, pathWidth)
-		if len(displayPath) < pathWidth {
-			displayPath += strings.Repeat(" ", pathWidth-len(displayPath))
+		displayPath := truncatePathBySegment(e.path, pathWidth)
+		if pw := runewidth.StringWidth(displayPath); pw < pathWidth {
+			displayPath += strings.Repeat(" ", pathWidth-pw)
 		}
 
 		rStr := ""
@@ -727,12 +727,4 @@ func (m SubAgentOverlayModel) maxScrollForSection(section int) int {
 		maxScroll = 0
 	}
 	return maxScroll
-}
-
-// truncatePath truncates a file path to maxLen characters with "..." prefix.
-func truncatePath(path string, maxLen int) string {
-	if len(path) <= maxLen {
-		return path
-	}
-	return "..." + path[len(path)-maxLen+3:]
 }
