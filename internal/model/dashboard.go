@@ -175,6 +175,53 @@ func (m DashboardModel) handleKey(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 	return m, nil
 }
 
+func (m *DashboardModel) clampScroll(totalLines int) {
+	vh := m.visibleHeight()
+	if vh <= 0 || totalLines <= vh {
+		m.scrollPos = 0
+		return
+	}
+	maxScroll := totalLines - vh
+	if m.scrollPos > maxScroll {
+		m.scrollPos = maxScroll
+	}
+	if m.scrollPos < 0 {
+		m.scrollPos = 0
+	}
+}
+
+func (m DashboardModel) visibleHeight() int {
+	// Panel interior = height - 2 (border). Title takes 1 line. Content = height - 5.
+	h := m.height - 5
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+func (m DashboardModel) renderScrollbar(height, total int) string {
+	thumbPos := 0
+	if total > height {
+		thumbPos = m.scrollPos * (height - 1) / (total - height)
+	}
+
+	trackStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	thumbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
+
+	var b strings.Builder
+	for i := 0; i < height; i++ {
+		if i == thumbPos {
+			b.WriteString(thumbStyle.Render("┃"))
+		} else {
+			b.WriteString(trackStyle.Render("│"))
+		}
+		if i < height-1 {
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
 // nextSection cycles to the next available focusable section.
 func (m DashboardModel) nextSection() DashboardSection {
 	hasCustomTools := m.stats != nil && (len(m.stats.SkillCounts) > 0 || len(m.stats.MCPServers) > 0)
@@ -260,10 +307,7 @@ func (m DashboardModel) View() string {
 
 	content := m.renderContent()
 
-	rendered := lipgloss.NewStyle().
-		Width(m.width - 4).
-		Height(m.height - 4).
-		Render(content)
+	rendered := m.renderScrollableContent(content)
 
 	titleStr := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
 
@@ -288,6 +332,44 @@ func (m DashboardModel) renderContent() string {
 		return m.renderDashboard()
 	}
 	return ""
+}
+
+// renderScrollableContent splits content into lines, applies scrollPos,
+// and adds a scrollbar when content overflows the viewport.
+func (m DashboardModel) renderScrollableContent(content string) string {
+	// Trim trailing newlines to avoid counting phantom empty lines
+	content = strings.TrimRight(content, "\n")
+	lines := strings.Split(content, "\n")
+	totalLines := len(lines)
+	vh := m.visibleHeight()
+
+	// Clamp scroll position to valid range
+	m.clampScroll(totalLines)
+
+	if totalLines <= vh {
+		// Content fits — no scrolling needed
+		return lipgloss.NewStyle().
+			Width(m.width - 4).
+			Height(vh).
+			Render(content)
+	}
+
+	// Content overflows — slice visible window
+	start := m.scrollPos
+	end := start + vh
+	if end > totalLines {
+		end = totalLines
+	}
+	visible := strings.Join(lines[start:end], "\n")
+
+	contentWidth := m.width - 5 // 4 for panel padding + 1 for scrollbar
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+
+	fixed := lipgloss.NewStyle().Width(contentWidth).Height(vh).Render(visible)
+	scrollbar := m.renderScrollbar(vh, totalLines)
+	return lipgloss.JoinHorizontal(lipgloss.Top, fixed, scrollbar)
 }
 
 // toolBarEntry is used for sorted bar chart rendering.
