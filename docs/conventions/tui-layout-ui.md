@@ -11,14 +11,18 @@ keywords: [lipgloss, tui, bubbletea, layout, bar-chart, scrollbar, color, overla
 
 | 面板类型 | 边框样式 | 外框 | 内容区 |
 |---|---|---|---|
-| 主面板 | `lipgloss.RoundedBorder()` | `W-2, H-2` | `W - 4` |
-| Overlay | `lipgloss.NormalBorder()` | `W-2, H-2` | `W - 4` |
-| 含滚动条 | — | — | 再减 1 → `W - 5` |
+| 主面板 | `lipgloss.RoundedBorder()` | `W-2, H-2` | `W - 5`（悲观含 scrollbar） |
+| Overlay | `lipgloss.NormalBorder()` | `W-2, H-2` | `W - 5` |
+| 子块（含缩进） | — | — | `W - 5 - indentLevel` |
+
+> **原则**: 默认使用 `W - 5`（含 scrollbar 的悲观宽度）。仅在确认内容永不溢出时才用 `W - 4`。统一的窄宽度避免 scrollbar 出现时重新换行。
 
 ```go
 panelStyle.Width(m.width - 2).Height(m.height - 2)
-contentWidth := m.width - 4
-if hasScrollbar { contentWidth-- }
+contentWidth := m.width - 5  // 悲观默认，含 scrollbar
+
+// 子块：detail 面板内缩进 2 的 file list
+subContentWidth := m.width - 7  // -4 border, -1 scrollbar, -2 indent
 ```
 
 **最小宽度守卫**: 主面板 `width < 25` 返回空串；overlay `width < 40 || height < 12` 返回空串。
@@ -33,6 +37,8 @@ callTreeHeight = contentHeight * 67/100 // 上下 67/33 分割
 Overlay 使用全屏尺寸（不使用百分比缩放）。
 
 ## 3. 紧凑柱状图
+
+> **适用范围**: 仅 Tool Statistics 面板。File Operations 使用表格布局（无柱状图）。
 
 半高柱状图，行间无需空行：
 
@@ -97,15 +103,27 @@ lipgloss.JoinHorizontal(lipgloss.Top, content, scrollbar)
 
 ## 7. 宽度测量方式
 
-按场景选用，不可混用：
+**决策树**（同一文件内必须使用同一种方法）：
+
+```
+字符串含 ANSI 转义？
+├─ 是 → lipgloss.Width(s)
+└─ 否 → 含 CJK 或混合宽度字符？
+         ├─ 是 → runewidth.StringWidth(s)    ← 默认选择
+         └─ 否 → 纯 ASCII 数字格式化？
+                  ├─ 是 → utf8.RuneCountInString(s)
+                  └─ 否 → runewidth.StringWidth(s)
+```
 
 | 方式 | 适用场景 | 说明 |
 |---|---|---|
-| `lipgloss.Width(s)` | 含 ANSI 转义的内容 | 正确忽略转义序列 |
-| `runewidth.StringWidth(s)` | CJK 混排 | 标题、overlay 标签对齐 |
-| `utf8.RuneCountInString(s)` | 纯 ASCII/简单 Unicode | 列计数对齐 |
+| `runewidth.StringWidth(s)` | **默认**：路径、标签、对齐计算 | 正确处理 CJK 和 ambiguous-width 字符 |
+| `lipgloss.Width(s)` | 已样式化的内容（含 ANSI 转义） | 正确忽略转义序列 |
+| `utf8.RuneCountInString(s)` | 纯 ASCII 数字对齐 | 性能优于 runewidth，但仅限纯 ASCII |
 
-**路径截断**: 保留尾部 `"..." + path[len-maxLen+3:]`
+**禁止**: `len(s)` 不能用于任何可见宽度计算。
+
+**路径截断**: 按段截断，保留尾部组件 → 见 `tui-dynamic-content.md` §4。
 
 ## 8. Inline 样式
 
