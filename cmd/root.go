@@ -32,11 +32,14 @@ func NewRootCmd() *cobra.Command {
 Keyboard shortcuts:
   Tab     Switch panel focus
   1/2/3   Jump to Sessions/CallTree/Detail
-  j/k     Navigate up/down
+  ↑/↓     Navigate up/down
   Enter   Select/Expand
   /       Search sessions
   s       Toggle dashboard
   d       Open diagnosis
+  a       SubAgent drill-down overlay
+  n/p     Next/previous turn
+  m       Toggle real-time monitoring
   L       Switch language (zh/en)
   q       Quit`,
 		RunE: run,
