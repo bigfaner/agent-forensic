@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/parser"
 )
 
@@ -39,7 +40,7 @@ func (p *HookStatsPanel) Render(details []parser.HookDetail, width int) string {
 	if len(details) == 0 {
 		return ""
 	}
-	lines := renderHookStatsSection(details, width)
+	lines := renderHookStatsSection(details, width, 0, len(details))
 	if len(lines) == 0 {
 		return ""
 	}
@@ -72,7 +73,10 @@ func (p *HookTimelinePanel) Render(details []parser.HookDetail, width int, curso
 
 // renderHookStatsSection renders the Hook Statistics block.
 // Returns lines: header, divider, then HookType::Target ×N rows sorted by count desc.
-func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
+// scrollOff: starting index for scrolling (0 = no scroll).
+// maxLines: maximum number of content lines to render (excluding header).
+// When total entries > maxLines, a scrollbar is rendered.
+func renderHookStatsSection(details []parser.HookDetail, width int, scrollOff, maxLines int) []string {
 	primary := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15"))
 	secondary := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 
@@ -99,9 +103,70 @@ func renderHookStatsSection(details []parser.HookDetail, _ int) []string {
 
 	var lines []string
 	lines = append(lines, primary.Render("Hook Statistics"))
-	for _, e := range entries {
-		lines = append(lines, secondary.Render(fmt.Sprintf("%s  ×%d", e.fullID, e.count)))
+
+	totalEntries := len(entries)
+	needsScrollbar := totalEntries > maxLines && maxLines > 0
+
+	// Content width: reserve 1 col for scrollbar if needed
+	contentWidth := width
+	if needsScrollbar {
+		contentWidth = width - 1
 	}
+
+	// Clamp scroll offset
+	maxScroll := 0
+	if needsScrollbar {
+		maxScroll = totalEntries - maxLines
+	}
+	if scrollOff > maxScroll {
+		scrollOff = maxScroll
+	}
+	if scrollOff < 0 {
+		scrollOff = 0
+	}
+
+	// Calculate visible range
+	start := scrollOff
+	end := start + maxLines
+	if end > totalEntries {
+		end = totalEntries
+	}
+
+	for i := start; i < end; i++ {
+		e := entries[i]
+		suffix := fmt.Sprintf("  ×%d", e.count)
+		suffixW := runewidth.StringWidth(suffix)
+		labelBudget := contentWidth - suffixW
+		if labelBudget < 4 {
+			labelBudget = 4
+		}
+		label := e.fullID
+		if runewidth.StringWidth(label) > labelBudget {
+			label = truncRunes(label, labelBudget)
+		}
+		row := secondary.Render(label + suffix)
+
+		if needsScrollbar {
+			// Calculate scrollbar position for this row
+			rowIdx := i - start
+			thumbPos := 0
+			if maxLines > 1 && maxScroll > 0 {
+				thumbPos = scrollOff * (maxLines - 1) / maxScroll
+			}
+			trackChar := "│"
+			thumbChar := "┃"
+			var sbChar string
+			if rowIdx == thumbPos {
+				sbChar = lipgloss.NewStyle().Foreground(lipgloss.Color("248")).Render(thumbChar)
+			} else {
+				sbChar = lipgloss.NewStyle().Foreground(lipgloss.Color("238")).Render(trackChar)
+			}
+			row = row + sbChar
+		}
+
+		lines = append(lines, row)
+	}
+
 	return lines
 }
 
@@ -219,7 +284,7 @@ func renderHookMarker(h parser.HookDetail) string {
 }
 
 // renderHookMarkerSelected renders a marker with reverse-video highlight.
-func renderHookMarkerSelected(h parser.HookDetail, _ int) string {
+func renderHookMarkerSelected(h parser.HookDetail, width int) string {
 	color, ok := hookTypeColors[h.HookType]
 	if !ok {
 		color = "252"
@@ -227,6 +292,10 @@ func renderHookMarkerSelected(h parser.HookDetail, _ int) string {
 	baseLabel := "●" + h.FullID
 	if h.Command != "" {
 		baseLabel += " " + dimBracket(h.Command)
+	}
+	// Truncate at width boundary using display-width-aware truncation
+	if runewidth.StringWidth(baseLabel) > width {
+		baseLabel = truncRunes(baseLabel, width)
 	}
 	// Render base label in its hook color, then apply reverse highlight
 	colored := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Render(baseLabel)
@@ -263,31 +332,4 @@ func formatHookOutput(output string, maxWidth int) string {
 // dimBracket renders text in dim gray square brackets.
 func dimBracket(s string) string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("[" + s + "]")
-}
-
-// truncateStr truncates a string to maxLen runes, appending "…" if truncated.
-func truncateStr(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen-1]) + "…"
-}
-
-// wrapText wraps a string into lines of at most width runes.
-func wrapText(s string, width int) []string {
-	if width <= 0 || len([]rune(s)) <= width {
-		return []string{s}
-	}
-	runes := []rune(s)
-	var result []string
-	for len(runes) > 0 {
-		if len(runes) <= width {
-			result = append(result, string(runes))
-			break
-		}
-		result = append(result, string(runes[:width]))
-		runes = runes[width:]
-	}
-	return result
 }

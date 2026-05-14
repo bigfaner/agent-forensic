@@ -82,7 +82,7 @@ func ExtractFilePaths(entries []parser.TurnEntry) *FileOpStats {
 			continue
 		}
 
-		filePath := extractFilePath(entry.Input)
+		filePath := ExtractFilePath(entry.Input)
 		if filePath == "" {
 			continue
 		}
@@ -104,9 +104,9 @@ func ExtractFilePaths(entries []parser.TurnEntry) *FileOpStats {
 	return result
 }
 
-// extractFilePath parses the input JSON and returns the file_path field.
+// ExtractFilePath parses the input JSON and returns the file_path field.
 // Returns "" if the field is missing, not a string, or JSON is malformed.
-func extractFilePath(rawInput string) string {
+func ExtractFilePath(rawInput string) string {
 	var m map[string]interface{}
 	if err := json.Unmarshal([]byte(rawInput), &m); err != nil {
 		return ""
@@ -118,9 +118,9 @@ func extractFilePath(rawInput string) string {
 	return fp
 }
 
-// extractToolCommand returns a human-readable command from a tool_use input JSON.
+// ExtractToolCommand returns a human-readable command from a tool_use input JSON.
 // Bash → "command" field, Read/Write/Edit → "file_path" field, others → "".
-func extractToolCommand(toolName, rawInput string) string {
+func ExtractToolCommand(toolName, rawInput string) string {
 	var m map[string]interface{}
 	if err := json.Unmarshal([]byte(rawInput), &m); err != nil {
 		return ""
@@ -148,7 +148,7 @@ func findCommandByToolUseID(toolUseID string, lookup map[string]*parser.TurnEntr
 	if !ok {
 		return ""
 	}
-	return extractToolCommand(te.ToolName, te.Input)
+	return ExtractToolCommand(te.ToolName, te.Input)
 }
 
 // findCommandForHook searches turn entries for a tool_use matching the hook's
@@ -160,14 +160,14 @@ func findCommandForHook(hd parser.HookDetail, entries []parser.TurnEntry, prevEn
 	if hd.Target != "" {
 		for i := range entries {
 			if entries[i].Type == parser.EntryToolUse && entries[i].ToolName == hd.Target {
-				return extractToolCommand(entries[i].ToolName, entries[i].Input)
+				return ExtractToolCommand(entries[i].ToolName, entries[i].Input)
 			}
 		}
 		// Hook may be in a different turn from the tool_use (attachment/progress hooks
 		// are EntryMessage entries which act as turn delimiters).
 		for i := len(prevEntries) - 1; i >= 0; i-- {
 			if prevEntries[i].Type == parser.EntryToolUse && prevEntries[i].ToolName == hd.Target {
-				return extractToolCommand(prevEntries[i].ToolName, prevEntries[i].Input)
+				return ExtractToolCommand(prevEntries[i].ToolName, prevEntries[i].Input)
 			}
 		}
 		return ""
@@ -175,7 +175,7 @@ func findCommandForHook(hd parser.HookDetail, entries []parser.TurnEntry, prevEn
 	// No Target: look for last tool_use in previous turn
 	for i := len(prevEntries) - 1; i >= 0; i-- {
 		if prevEntries[i].Type == parser.EntryToolUse {
-			return extractToolCommand(prevEntries[i].ToolName, prevEntries[i].Input)
+			return ExtractToolCommand(prevEntries[i].ToolName, prevEntries[i].Input)
 		}
 	}
 	return ""
@@ -255,19 +255,19 @@ func CalculateStats(session *parser.Session) *parser.SessionStats {
 					continue
 				}
 				// Hook aggregation: scan Output field for known hook markers
-				if marker := parseHookMarker(entry.Output); marker != "" {
+				if marker := ParseHookMarker(entry.Output); marker != "" {
 					stats.HookCounts[marker]++
 				}
 				// HookDetails extraction: parse full HookType::Target with turn index
 				if fullID := ParseHookWithTarget(entry.Output); fullID != "" && fullID != entry.Output {
-					hd := buildHookDetail(fullID, turn.Index)
+					hd := BuildHookDetail(fullID, turn.Index)
 					hd.Output = entry.Output
 					hd.Command = findCommandByToolUseID(entry.ToolUseID, toolUseByID)
 					if hd.Command == "" {
 						hd.Command = findCommandForHook(hd, turn.Entries, prevEntries)
 					}
 					stats.HookDetails = append(stats.HookDetails, hd)
-				} else if marker := parseHookMarker(entry.Output); marker != "" {
+				} else if marker := ParseHookMarker(entry.Output); marker != "" {
 					hd := parser.HookDetail{
 						HookType:  marker,
 						Target:    "",
@@ -343,9 +343,9 @@ func parseMCPToolName(toolName string) (server, tool string) {
 	return rest[:idx], rest[idx+2:]
 }
 
-// buildHookDetail constructs a HookDetail from a FullID string and turn index.
+// BuildHookDetail constructs a HookDetail from a FullID string and turn index.
 // FullID format is "HookType::Target" or just "HookType" when no target.
-func buildHookDetail(fullID string, turnIndex int) parser.HookDetail {
+func BuildHookDetail(fullID string, turnIndex int) parser.HookDetail {
 	hookType := fullID
 	target := ""
 	if idx := strings.Index(fullID, "::"); idx >= 0 {
@@ -360,11 +360,11 @@ func buildHookDetail(fullID string, turnIndex int) parser.HookDetail {
 	}
 }
 
-// parseHookMarker returns the hook type name if the text starts with a known
+// ParseHookMarker returns the hook type name if the text starts with a known
 // hook marker, or "" if no known marker is found.
 // Matches text that begins with the marker (e.g., "Stop\n..." or "PostToolUse hook for ...").
 // Also matches angle-bracket form: "<user-prompt-submit-hook>".
-func parseHookMarker(text string) string {
+func ParseHookMarker(text string) string {
 	for _, marker := range []string{"PreToolUse", "PostToolUse", "Stop", "user-prompt-submit-hook"} {
 		if strings.HasPrefix(text, marker) {
 			return marker

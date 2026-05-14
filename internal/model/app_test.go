@@ -1169,6 +1169,80 @@ func TestComputeSubAgentStats_NoFileOpsForNonFileTools(t *testing.T) {
 	assert.Empty(t, stats.FileOps.Files)
 }
 
+// --- Command field tests ---
+
+func TestComputeSubAgentStats_CommandFromFirstToolUse(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Edit", Duration: time.Second, Input: `{"file_path":"internal/model/app.go"}`},
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: time.Second, Input: `{"command":"go test"}`},
+	}
+	stats := computeSubAgentStats(children)
+
+	assert.Equal(t, "Edit: internal/model/app.go", stats.Command)
+}
+
+func TestComputeSubAgentStats_CommandBashTool(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Bash", Duration: time.Second, Input: `{"command":"go build ./..."}`},
+	}
+	stats := computeSubAgentStats(children)
+
+	assert.Equal(t, "Bash: go build ./...", stats.Command)
+}
+
+func TestComputeSubAgentStats_CommandEmptyWhenNoToolUse(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryMessage, Output: "hello"},
+	}
+	stats := computeSubAgentStats(children)
+
+	assert.Equal(t, "", stats.Command)
+}
+
+func TestComputeSubAgentStats_CommandEmptyWhenNil(t *testing.T) {
+	stats := computeSubAgentStats(nil)
+
+	assert.Equal(t, "", stats.Command)
+}
+
+func TestComputeSubAgentStats_CommandEmptyWhenUnknownTool(t *testing.T) {
+	children := []parser.TurnEntry{
+		{Type: parser.EntryToolUse, ToolName: "Skill", Duration: time.Second, Input: `{"skill":"forge:git-commit"}`},
+	}
+	stats := computeSubAgentStats(children)
+
+	assert.Equal(t, "", stats.Command)
+}
+
+func TestComputeSubAgentStatsFromTurns_CommandFromFirstToolUse(t *testing.T) {
+	turns := []parser.Turn{
+		{
+			Index: 1,
+			Entries: []parser.TurnEntry{
+				{Type: parser.EntryToolUse, ToolName: "Read", Duration: time.Second, Input: `{"file_path":"/tmp/test.go"}`},
+				{Type: parser.EntryToolUse, ToolName: "Edit", Duration: time.Second, Input: `{"file_path":"/tmp/test.go"}`},
+			},
+		},
+	}
+	stats := computeSubAgentStatsFromTurns(turns)
+
+	assert.Equal(t, "Read: /tmp/test.go", stats.Command)
+}
+
+func TestComputeSubAgentStatsFromTurns_CommandEmptyWhenNoToolUse(t *testing.T) {
+	turns := []parser.Turn{
+		{
+			Index: 1,
+			Entries: []parser.TurnEntry{
+				{Type: parser.EntryMessage, Output: "thinking"},
+			},
+		},
+	}
+	stats := computeSubAgentStatsFromTurns(turns)
+
+	assert.Equal(t, "", stats.Command)
+}
+
 // --- UF-4 Integration: updateDetailFromCallTree SubAgent stats detection ---
 
 func TestApp_UpdateDetailFromCallTree_SubAgentChildShowsStats(t *testing.T) {

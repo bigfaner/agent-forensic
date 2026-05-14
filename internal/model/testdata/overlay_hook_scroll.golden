@@ -1,0 +1,40 @@
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│SubAgent: Bash: run tests                                                                                5 tools, 5s  │
+│────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  │
+│工具调用统计                                               耗时统计                                                   │
+│Bash  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 5        Bash  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 100%     │
+│────────────────────────────────────────────────────────────────────────────────────────────────────────────────────  │
+│Hook Analysis                                                                                                         │
+│Hook Statistics                                                                                                       │
+│PreToolUse::Tool0  ×1┃                                                                                                │
+│PreToolUse::Tool1  ×1│                                                                                                │
+│PreToolUse::Tool10  ×1│                                                                                               │
+│PreToolUse::Tool11  ×1│                                                                                               │
+│PreToolUse::Tool12  ×1│                                                                                               │
+│PreToolUse::Tool13  ×1│                                                                                               │
+│PreToolUse::Tool14  ×1│                                                                                               │
+│PreToolUse::Tool15  ×1│                                                                                               │
+│Hook Timeline (by Turn)                                                                                               │
+│Legend: ●PreToolUse  ●PostToolUse  ●Stop  ●user-prompt                                                                │
+│ T1  ●PreToolUse::Tool0 ●PreToolUse::Tool1 ●PreToolUse::Tool2 ●PreToolUse::Tool3 ●PreToolUse::Tool4                   │
+│ T2  ●PreToolUse::Tool5 ●PreToolUse::Tool6 ●PreToolUse::Tool7 ●PreToolUse::Tool8 ●PreToolUse::Tool9                   │
+│ T3  ●PreToolUse::Tool10 ●PreToolUse::Tool11 ●PreToolUse::Tool12 ●PreToolUse::Tool13 ●PreToolUse::Tool14              │
+│ T4  ●PreToolUse::Tool15 ●PreToolUse::Tool16 ●PreToolUse::Tool17 ●PreToolUse::Tool18 ●PreToolUse::Tool19              │
+│ T5  ●PreToolUse::Tool20 ●PreToolUse::Tool21 ●PreToolUse::Tool22 ●PreToolUse::Tool23 ●PreToolUse::Tool24              │
+│Esc:close  ↑/↓:scroll  Tab:sections                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

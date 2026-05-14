@@ -103,13 +103,14 @@ type HookDetail struct {
 
 // SubAgentStats holds aggregated statistics for a sub-agent session.
 type SubAgentStats struct {
-	ToolCounts map[string]int           // tool name → call count
-	ToolDurs   map[string]time.Duration // tool name → total duration
-	FileOps    *FileOpStats             // file operation statistics
-	ToolCount  int                      // total number of tool calls
-	Duration   time.Duration            // total session duration
-	HookCounts map[string]int           // hook type → trigger count
-	HookDetails []HookDetail            // detailed hook invocations
+	ToolCounts  map[string]int           // tool name → call count
+	ToolDurs    map[string]time.Duration // tool name → total duration
+	FileOps     *FileOpStats             // file operation statistics
+	ToolCount   int                      // total number of tool calls
+	Duration    time.Duration            // total session duration
+	HookCounts  map[string]int           // hook type → trigger count
+	HookDetails []HookDetail             // detailed hook invocations
+	Command     string                   // first tool call summary, e.g. "Edit: internal/model/app.go"
 }
 
 // SessionStats holds computed statistics for a session.

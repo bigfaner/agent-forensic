@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mattn/go-runewidth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/user/agent-forensic/internal/parser"
@@ -250,7 +251,7 @@ func TestRenderHookStatsSection_GroupsByFullID(t *testing.T) {
 		{FullID: "PreToolUse::Bash", HookType: "PreToolUse", Target: "Bash", TurnIndex: 2},
 		{FullID: "PostToolUse::Edit", HookType: "PostToolUse", Target: "Edit", TurnIndex: 1},
 	}
-	lines := renderHookStatsSection(details, 80)
+	lines := renderHookStatsSection(details, 80, 0, len(details))
 	found := false
 	for _, l := range lines {
 		if strings.Contains(l, "PreToolUse::Bash") && strings.Contains(l, "×2") {
@@ -294,4 +295,105 @@ func goFirstNonEmptyLineWith(s, substr string) string {
 		}
 	}
 	return ""
+}
+
+// --- Task 2.3: Hook panel overflow + CJK wrapping ---
+
+func TestHookStatsPanel_LongLabelTruncates(t *testing.T) {
+	// Hook label >30 chars should truncate at panel boundary
+	panel := NewHookStatsPanel()
+	longFullID := "PreToolUse::VeryLongTargetNameThatExceedsThirtyCharacters"
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "VeryLongTargetNameThatExceedsThirtyCharacters", TurnIndex: 1, FullID: longFullID},
+	}
+	got := panel.Render(details, 30)
+	t.Logf("Rendered output:\n%s", got)
+
+	// The stat line (FullID + "  ×1") must not extend past 30 display columns
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "×1") {
+			// Strip ANSI sequences to measure visible width
+			visible := stripAnsi(line)
+			assert.LessOrEqual(t, runewidth.StringWidth(visible), 30, "stat line should not extend past 30 columns: %q", visible)
+			// Should contain truncation indicator
+			assert.Contains(t, got, "PreToolUse", "should contain hook type prefix")
+		}
+	}
+}
+
+func TestHookStatsPanel_ZeroEntriesEmptyState(t *testing.T) {
+	panel := NewHookStatsPanel()
+	got := panel.Render([]parser.HookDetail{}, 80)
+	assert.Equal(t, "", got, "empty details should return empty string")
+}
+
+func TestHookStatsPanel_OneEntryRendersCorrectly(t *testing.T) {
+	panel := NewHookStatsPanel()
+	details := []parser.HookDetail{
+		{HookType: "Stop", Target: "", TurnIndex: 1, FullID: "Stop"},
+	}
+	got := panel.Render(details, 80)
+	assert.Contains(t, got, "Hook Statistics")
+	assert.Contains(t, got, "Stop")
+	assert.Contains(t, got, "×1")
+}
+
+func TestHookTimeline_CJKOutputWrapsAtDisplayWidth(t *testing.T) {
+	// CJK characters are 2 display columns each; wrapping must respect display width
+	panel := NewHookTimelinePanel()
+	cjkOutput := strings.Repeat("你", 50) // 50 CJK chars = 100 display columns
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "Bash", TurnIndex: 1, FullID: "PreToolUse::Bash", Output: cjkOutput},
+	}
+	// At width=80, contentWidth = 80 - 3 - 6 = 71, so each output line should be <= 71 display columns
+	got := panel.Render(details, 80, 0, true)
+	t.Logf("Rendered output:\n%s", got)
+
+	// Verify output lines contain the │ prefix and wrap correctly
+	outputLines := 0
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "│") {
+			outputLines++
+			// The visible part (after "│ ") should respect display width
+			visible := stripAnsi(line)
+			assert.LessOrEqual(t, runewidth.StringWidth(visible), 80, "output line should not exceed 80 columns: %q", visible)
+		}
+	}
+	assert.GreaterOrEqual(t, outputLines, 2, "CJK output should wrap across multiple lines")
+}
+
+func TestHookTimeline_SelectedMarkerUsesWidth(t *testing.T) {
+	// renderHookMarkerSelected should truncate at width boundary
+	details := []parser.HookDetail{
+		{
+			HookType:  "PreToolUse",
+			Target:    "VeryLongTargetNameThatExceedsThirtyCharacters",
+			TurnIndex: 1,
+			FullID:    "PreToolUse::VeryLongTargetNameThatExceedsThirtyCharacters",
+			Command:   "some-very-long-command-name-here",
+		},
+	}
+	// Width 40 — narrow panel should truncate selected marker
+	got := renderHookMarkerSelected(details[0], 40)
+	t.Logf("Selected marker: %q", got)
+
+	// Strip ANSI to measure visible width
+	visible := stripAnsi(got)
+	assert.LessOrEqual(t, runewidth.StringWidth(visible), 40, "selected marker should not exceed 40 columns: %q", visible)
+}
+
+func TestHookStatsSection_UsesWidthParam(t *testing.T) {
+	// renderHookStatsSection must use its width parameter for truncation
+	longFullID := "PreToolUse::VeryLongTargetNameThatExceedsPanelWidthByALot"
+	details := []parser.HookDetail{
+		{HookType: "PreToolUse", Target: "VeryLongTargetNameThatExceedsPanelWidthByALot", TurnIndex: 1, FullID: longFullID},
+	}
+	lines := renderHookStatsSection(details, 25, 0, len(details))
+	t.Logf("Lines: %v", lines)
+	for _, line := range lines {
+		if strings.Contains(line, "×1") {
+			visible := stripAnsi(line)
+			assert.LessOrEqual(t, runewidth.StringWidth(visible), 25, "stat line should respect width=25: %q", visible)
+		}
+	}
 }

@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-runewidth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/mattn/go-runewidth"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -948,9 +948,9 @@ func TestRenderFileList_TruncatePathKeepsFilename(t *testing.T) {
 
 func TestTruncateFilePath(t *testing.T) {
 	tests := []struct {
-		path    string
-		maxLen  int
-		want    string
+		path   string
+		maxLen int
+		want   string
 	}{
 		{"short.go", 20, "short.go"},
 		{"/a/b/c.go", 8, ".../c.go"},

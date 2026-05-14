@@ -1,0 +1,26 @@
+[
+  {
+    "phase": 1,
+    "name": "Foundation — Shared Utilities",
+    "source": "PRD-heuristic",
+    "gates": [
+      {"afterPhase": 1, "description": "All shared utilities compile, unit tests pass, edge case contracts verified"}
+    ]
+  },
+  {
+    "phase": 2,
+    "name": "Bug Fixes & Conventions",
+    "source": "PRD-heuristic",
+    "gates": [
+      {"afterPhase": 2, "description": "All P0+P1 fixes verified via golden tests, no regressions in existing tests"}
+    ]
+  },
+  {
+    "phase": 3,
+    "name": "Polish & Spec Alignment",
+    "source": "PRD-heuristic",
+    "gates": [
+      {"afterPhase": 3, "description": "All P2 items complete, full test suite passes, specs aligned"}
+    ]
+  }
+]

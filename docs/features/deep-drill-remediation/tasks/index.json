@@ -1,0 +1,369 @@
+{
+  "feature": "deep-drill-remediation",
+  "prd": "prd/prd-spec.md",
+  "design": "design/tech-design.md",
+  "proposal": "docs\\proposals\\deep-drill-remediation\\proposal.md",
+  "created": "2026-05-14",
+  "tasks": {
+    "1-gate": {
+      "id": "1.gate",
+      "title": "Phase 1 Gate — Foundation Verification",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.summary"
+      ],
+      "status": "completed",
+      "file": "1-gate.md",
+      "record": "records/1-gate.md",
+      "breaking": true,
+      "type": "gate"
+    },
+    "1-summary": {
+      "id": "1.summary",
+      "title": "Phase 1 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "1.x"
+      ],
+      "status": "completed",
+      "file": "1-summary.md",
+      "record": "records/1-summary.md",
+      "type": "doc-generation.summary"
+    },
+    "1.1-truncate-utilities": {
+      "id": "1.1",
+      "title": "Create shared truncation utilities (truncate.go)",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "status": "completed",
+      "file": "1.1-truncate-utilities.md",
+      "record": "records/1.1-truncate-utilities.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "1.2-tool-accessors-stats-api": {
+      "id": "1.2",
+      "title": "Create tool accessor functions + promote stats API",
+      "priority": "P1",
+      "estimatedTime": "1h",
+      "status": "completed",
+      "file": "1.2-tool-accessors-stats-api.md",
+      "record": "records/1.2-tool-accessors-stats-api.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "1.3-command-field-dead-code": {
+      "id": "1.3",
+      "title": "Add Command field to SubAgentStats + remove SubAgentLoadMsg",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.2"
+      ],
+      "status": "completed",
+      "file": "1.3-command-field-dead-code.md",
+      "record": "records/1.3-command-field-dead-code.md",
+      "breaking": true,
+      "scope": "all",
+      "type": "implementation"
+    },
+    "2-gate": {
+      "id": "2.gate",
+      "title": "Phase 2 Gate — Bug Fixes \u0026 Conventions Verification",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "2.summary"
+      ],
+      "status": "completed",
+      "file": "2-gate.md",
+      "record": "records/2-gate.md",
+      "breaking": true,
+      "type": "gate"
+    },
+    "2-summary": {
+      "id": "2.summary",
+      "title": "Phase 2 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "2.x"
+      ],
+      "status": "completed",
+      "file": "2-summary.md",
+      "record": "records/2-summary.md",
+      "type": "doc-generation.summary"
+    },
+    "2.1-cjk-subagent-overlay": {
+      "id": "2.1",
+      "title": "Fix CJK rendering in SubAgent overlay",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.1-cjk-subagent-overlay.md",
+      "record": "records/2.1-cjk-subagent-overlay.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "2.2-cjk-dashboard": {
+      "id": "2.2",
+      "title": "Fix CJK rendering in Dashboard (FileOps + Tool Stats)",
+      "priority": "P0",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.2-cjk-dashboard.md",
+      "record": "records/2.2-cjk-dashboard.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "2.3-hook-panel-overflow": {
+      "id": "2.3",
+      "title": "Fix hook panel overflow + CJK wrapping",
+      "priority": "P0",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.3-hook-panel-overflow.md",
+      "record": "records/2.3-hook-panel-overflow.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "2.4-tool-accessors-arrow-keys": {
+      "id": "2.4",
+      "title": "Replace hardcoded tool names + standardize arrow keys",
+      "priority": "P1",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.4-tool-accessors-arrow-keys.md",
+      "record": "records/2.4-tool-accessors-arrow-keys.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "2.5-duplicate-code-removal": {
+      "id": "2.5",
+      "title": "Remove duplicate code from app.go",
+      "priority": "P1",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.5-duplicate-code-removal.md",
+      "record": "records/2.5-duplicate-code-removal.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "2.6-hook-scroll-overlay-title": {
+      "id": "2.6",
+      "title": "Add hook section scroll + meaningful overlay title",
+      "priority": "P1",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "1.gate"
+      ],
+      "status": "completed",
+      "file": "2.6-hook-scroll-overlay-title.md",
+      "record": "records/2.6-hook-scroll-overlay-title.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "3-gate": {
+      "id": "3.gate",
+      "title": "Phase 3 Gate — Final Verification",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "dependencies": [
+        "3.summary"
+      ],
+      "status": "completed",
+      "file": "3-gate.md",
+      "record": "records/3-gate.md",
+      "breaking": true,
+      "type": "gate"
+    },
+    "3-summary": {
+      "id": "3.summary",
+      "title": "Phase 3 Summary",
+      "priority": "P0",
+      "estimatedTime": "15min",
+      "dependencies": [
+        "3.x"
+      ],
+      "status": "completed",
+      "file": "3-summary.md",
+      "record": "records/3-summary.md",
+      "type": "doc-generation.summary"
+    },
+    "3.1-summary-mode": {
+      "id": "3.1",
+      "title": "Summary mode for \u003e50 sub-sessions",
+      "priority": "P2",
+      "estimatedTime": "1.5h",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.1-summary-mode.md",
+      "record": "records/3.1-summary-mode.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "3.2-spec-reconciliation": {
+      "id": "3.2",
+      "title": "Spec reconciliation (min-width + truncation format)",
+      "priority": "P2",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "2.gate"
+      ],
+      "status": "completed",
+      "file": "3.2-spec-reconciliation.md",
+      "record": "records/3.2-spec-reconciliation.md",
+      "scope": "all",
+      "type": "implementation"
+    },
+    "consolidate-specs": {
+      "id": "T-test-5",
+      "title": "Consolidate Specs",
+      "priority": "P2",
+      "estimatedTime": "20min",
+      "dependencies": [
+        "T-test-4.5"
+      ],
+      "status": "pending",
+      "file": "consolidate-specs.md",
+      "record": "records/consolidate-specs.md",
+      "scope": "all",
+      "noTest": true,
+      "type": "doc-generation.consolidate"
+    },
+    "eval-test-cases": {
+      "id": "T-test-1b",
+      "title": "Evaluate e2e Test Cases",
+      "priority": "P1",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "T-test-1"
+      ],
+      "status": "in_progress",
+      "file": "eval-test-cases.md",
+      "record": "records/eval-test-cases.md",
+      "scope": "all",
+      "mainSession": true,
+      "noTest": true,
+      "type": "test-pipeline.eval-cases"
+    },
+    "fix-1": {
+      "id": "fix-1",
+      "title": "Fix: golden test header alignment (detail panel)",
+      "priority": "P0",
+      "estimatedTime": "30min",
+      "status": "completed",
+      "file": "fix-1.md",
+      "record": "records/fix-1.md",
+      "breaking": true,
+      "sourceTaskID": "1.3",
+      "type": "fix"
+    },
+    "gen-test-cases": {
+      "id": "T-test-1",
+      "title": "Generate e2e Test Cases",
+      "priority": "P1",
+      "estimatedTime": "1-2h",
+      "dependencies": [
+        "3.gate"
+      ],
+      "status": "completed",
+      "file": "gen-test-cases.md",
+      "record": "records/gen-test-cases.md",
+      "scope": "all",
+      "noTest": true,
+      "type": "test-pipeline.gen-cases"
+    },
+    "gen-test-scripts-go-test": {
+      "id": "T-test-2",
+      "title": "Generate Test Scripts (go-test)",
+      "priority": "P1",
+      "estimatedTime": "1-2h",
+      "dependencies": [
+        "T-test-1b"
+      ],
+      "status": "pending",
+      "file": "gen-test-scripts-go-test.md",
+      "record": "records/gen-test-scripts-go-test.md",
+      "scope": "all",
+      "type": "test-pipeline.gen-scripts",
+      "profile": "go-test"
+    },
+    "graduate-tests-go-test": {
+      "id": "T-test-4",
+      "title": "Graduate Test Scripts (go-test)",
+      "priority": "P1",
+      "estimatedTime": "30min",
+      "dependencies": [
+        "T-test-3"
+      ],
+      "status": "pending",
+      "file": "graduate-tests-go-test.md",
+      "record": "records/graduate-tests-go-test.md",
+      "scope": "all",
+      "type": "test-pipeline.graduate",
+      "profile": "go-test"
+    },
+    "run-e2e-tests-go-test": {
+      "id": "T-test-3",
+      "title": "Run e2e Tests (go-test)",
+      "priority": "P1",
+      "estimatedTime": "30min-1h",
+      "dependencies": [
+        "T-test-2"
+      ],
+      "status": "pending",
+      "file": "run-e2e-tests-go-test.md",
+      "record": "records/run-e2e-tests-go-test.md",
+      "scope": "all",
+      "type": "test-pipeline.run",
+      "profile": "go-test"
+    },
+    "verify-regression": {
+      "id": "T-test-4.5",
+      "title": "Verify Full E2E Regression",
+      "priority": "P1",
+      "estimatedTime": "15-30min",
+      "dependencies": [
+        "T-test-4"
+      ],
+      "status": "pending",
+      "file": "verify-regression.md",
+      "record": "records/verify-regression.md",
+      "scope": "all",
+      "type": "test-pipeline.verify-regression"
+    }
+  },
+  "statusEnum": [
+    "pending",
+    "in_progress",
+    "completed",
+    "blocked",
+    "skipped",
+    "rejected"
+  ],
+  "priorityEnum": [
+    "P0",
+    "P1",
+    "P2"
+  ]
+}

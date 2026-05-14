@@ -39,7 +39,7 @@ ViewMain ──s──→ ViewDashboard ──s/esc──→ ViewMain
 **Sessions**: `↑↓` 移动 / `enter` 选择 / `/` 搜索 / `G` 加载更多
 **CallTree**: `↑↓` 移动 / `enter` 展开折叠 / `n/p` 上下 turn / `a` SubAgent overlay / `m` 监控开关
 **Detail**: `↑↓` 滚动 / `enter` 展开/折叠 / `tab` 统计/详情切换（SubAgent 节点）
-**Dashboard**: `↑↓`/`jk` 滚动 / `tab` 区块跳转 / `1` session picker
+**Dashboard**: `↑↓` 滚动 / `tab` 区块跳转 / `1` session picker
 **SubAgent Overlay**: `tab` 区块跳转 / `↑↓` 区块内滚动
 
 ### 原则

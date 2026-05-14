@@ -351,32 +351,32 @@ func TestParseMCPToolName_ToolWithUnderscores(t *testing.T) {
 // --- parseHookMarker tests ---
 
 func TestParseHookMarker_PreToolUse(t *testing.T) {
-	assert.Equal(t, "PreToolUse", parseHookMarker("PreToolUse hook ran"))
+	assert.Equal(t, "PreToolUse", ParseHookMarker("PreToolUse hook ran"))
 }
 
 func TestParseHookMarker_PostToolUse(t *testing.T) {
-	assert.Equal(t, "PostToolUse", parseHookMarker("PostToolUse hook ran"))
+	assert.Equal(t, "PostToolUse", ParseHookMarker("PostToolUse hook ran"))
 }
 
 func TestParseHookMarker_Stop(t *testing.T) {
-	assert.Equal(t, "Stop", parseHookMarker("Stop hook triggered"))
+	assert.Equal(t, "Stop", ParseHookMarker("Stop hook triggered"))
 }
 
 func TestParseHookMarker_UserPromptSubmitHook(t *testing.T) {
-	assert.Equal(t, "user-prompt-submit-hook", parseHookMarker("user-prompt-submit-hook fired"))
+	assert.Equal(t, "user-prompt-submit-hook", ParseHookMarker("user-prompt-submit-hook fired"))
 }
 
 func TestParseHookMarker_AngleBrackets(t *testing.T) {
 	// <user-prompt-submit-hook> contains the marker string, so it matches
-	assert.Equal(t, "user-prompt-submit-hook", parseHookMarker("<user-prompt-submit-hook>"))
+	assert.Equal(t, "user-prompt-submit-hook", ParseHookMarker("<user-prompt-submit-hook>"))
 }
 
 func TestParseHookMarker_NoMatch(t *testing.T) {
-	assert.Equal(t, "", parseHookMarker("some random output text"))
+	assert.Equal(t, "", ParseHookMarker("some random output text"))
 }
 
 func TestParseHookMarker_Empty(t *testing.T) {
-	assert.Equal(t, "", parseHookMarker(""))
+	assert.Equal(t, "", ParseHookMarker(""))
 }
 
 // --- CalculateStats aggregation tests (Story ACs) ---
@@ -571,27 +571,27 @@ func TestCalculateStats_HookDetails_EmptyWhenNoHooks(t *testing.T) {
 // --- extractToolCommand tests ---
 
 func TestExtractToolCommand_Bash(t *testing.T) {
-	assert.Equal(t, "echo test", extractToolCommand("Bash", `{"command":"echo test"}`))
+	assert.Equal(t, "echo test", ExtractToolCommand("Bash", `{"command":"echo test"}`))
 }
 
 func TestExtractToolCommand_Read(t *testing.T) {
-	assert.Equal(t, "/src/main.go", extractToolCommand("Read", `{"file_path":"/src/main.go"}`))
+	assert.Equal(t, "/src/main.go", ExtractToolCommand("Read", `{"file_path":"/src/main.go"}`))
 }
 
 func TestExtractToolCommand_Edit(t *testing.T) {
-	assert.Equal(t, "app.ts", extractToolCommand("Edit", `{"file_path":"app.ts","old_string":"x"}`))
+	assert.Equal(t, "app.ts", ExtractToolCommand("Edit", `{"file_path":"app.ts","old_string":"x"}`))
 }
 
 func TestExtractToolCommand_UnknownTool(t *testing.T) {
-	assert.Equal(t, "", extractToolCommand("Skill", `{"skill":"forge"}`))
+	assert.Equal(t, "", ExtractToolCommand("Skill", `{"skill":"forge"}`))
 }
 
 func TestExtractToolCommand_InvalidJSON(t *testing.T) {
-	assert.Equal(t, "", extractToolCommand("Bash", "not json"))
+	assert.Equal(t, "", ExtractToolCommand("Bash", "not json"))
 }
 
 func TestExtractToolCommand_MissingField(t *testing.T) {
-	assert.Equal(t, "", extractToolCommand("Bash", `{"timeout":30}`))
+	assert.Equal(t, "", ExtractToolCommand("Bash", `{"timeout":30}`))
 }
 
 // --- findCommandForHook tests ---

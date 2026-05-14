@@ -12,3 +12,4 @@ bin/
 agent-forensic
 agent-forensic.exe
 **/.DS_Store
+.forge/state.json

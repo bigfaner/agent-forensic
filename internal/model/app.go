@@ -1,17 +1,15 @@
 package model
 
 import (
-	"encoding/json"
 	"fmt"
-	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
+	stats2 "github.com/user/agent-forensic/internal/stats"
 )
 
 // ActivePanel identifies which panel has keyboard focus.
@@ -386,7 +384,7 @@ func (m AppModel) handleCallTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Intercept 'a' key for SubAgent overlay
 	if msg.String() == "a" {
 		entry := m.callTree.SelectedEntry()
-		if entry != nil && isAgentTool(entry.ToolName) {
+		if entry != nil && parser.IsAgentTool(entry.ToolName) {
 			return m.handleSubAgentOverlayOpen()
 		}
 		// 'a' on non-SubAgent node is a no-op
@@ -483,7 +481,7 @@ func (m AppModel) handleDiagnosisKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // handleSubAgentOverlayOpen opens the SubAgent full-screen overlay.
 func (m AppModel) handleSubAgentOverlayOpen() (tea.Model, tea.Cmd) {
 	entry := m.callTree.SelectedEntry()
-	if entry == nil || !isAgentTool(entry.ToolName) {
+	if entry == nil || !parser.IsAgentTool(entry.ToolName) {
 		return m, nil
 	}
 
@@ -591,9 +589,8 @@ func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
 		totalDur += child.Duration
 		stats.ToolCount++
 
-		switch child.ToolName {
-		case "Read":
-			fp := extractFilePathFromInput(child.Input)
+		if parser.IsReadTool(child.ToolName) {
+			fp := stats2.ExtractFilePath(child.Input)
 			if fp != "" {
 				fc := stats.FileOps.Files[fp]
 				if fc == nil {
@@ -603,8 +600,8 @@ func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
 				fc.ReadCount++
 				fc.TotalCount++
 			}
-		case "Write", "Edit":
-			fp := extractFilePathFromInput(child.Input)
+		} else if parser.IsEditTool(child.ToolName) {
+			fp := stats2.ExtractFilePath(child.Input)
 			if fp != "" {
 				fc := stats.FileOps.Files[fp]
 				if fc == nil {
@@ -618,6 +615,18 @@ func computeSubAgentStats(children []parser.TurnEntry) *parser.SubAgentStats {
 	}
 
 	stats.Duration = totalDur
+
+	// Derive Command from first tool_use entry
+	for i := range children {
+		if children[i].Type == parser.EntryToolUse {
+			cmd := stats2.ExtractToolCommand(children[i].ToolName, children[i].Input)
+			if cmd != "" {
+				stats.Command = children[i].ToolName + ": " + cmd
+			}
+			break
+		}
+	}
+
 	return stats
 }
 
@@ -657,9 +666,8 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 				totalDur += e.Duration
 				stats.ToolCount++
 
-				switch e.ToolName {
-				case "Read":
-					fp := extractFilePathFromInput(e.Input)
+				if parser.IsReadTool(e.ToolName) {
+					fp := stats2.ExtractFilePath(e.Input)
 					if fp != "" {
 						fc := stats.FileOps.Files[fp]
 						if fc == nil {
@@ -669,8 +677,8 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 						fc.ReadCount++
 						fc.TotalCount++
 					}
-				case "Write", "Edit":
-					fp := extractFilePathFromInput(e.Input)
+				} else if parser.IsEditTool(e.ToolName) {
+					fp := stats2.ExtractFilePath(e.Input)
 					if fp != "" {
 						fc := stats.FileOps.Files[fp]
 						if fc == nil {
@@ -685,22 +693,22 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 
 			// Hook detection from message entries
 			if e.Type == parser.EntryMessage {
-				fullID := parseHookFullID(e.Output)
+				fullID := stats2.ParseHookWithTarget(e.Output)
 				if fullID == "" || fullID == e.Output {
 					continue
 				}
-				marker := parseHookMarker(e.Output)
+				marker := stats2.ParseHookMarker(e.Output)
 				if marker == "" {
 					continue
 				}
 
 				stats.HookCounts[marker]++
-				hd := buildHookDetail(fullID, turn.Index)
+				hd := stats2.BuildHookDetail(fullID, turn.Index)
 				hd.Output = e.Output
 
 				// Find command via ToolUseID lookup
 				if tu, ok := toolUseByID[e.ToolUseID]; ok && tu != nil {
-					hd.Command = extractToolCommand(tu.ToolName, tu.Input)
+					hd.Command = stats2.ExtractToolCommand(tu.ToolName, tu.Input)
 				}
 
 				stats.HookDetails = append(stats.HookDetails, hd)
@@ -709,20 +717,21 @@ func computeSubAgentStatsFromTurns(turns []parser.Turn) *parser.SubAgentStats {
 	}
 
 	stats.Duration = totalDur
-	return stats
-}
 
-// extractFilePathFromInput extracts file_path from a tool_use input JSON string.
-func extractFilePathFromInput(input string) string {
-	var m map[string]interface{}
-	if err := json.Unmarshal([]byte(input), &m); err != nil {
-		return ""
+	// Derive Command from first tool_use entry across all turns
+	for ti := range turns {
+		for ei := range turns[ti].Entries {
+			if turns[ti].Entries[ei].Type == parser.EntryToolUse {
+				cmd := stats2.ExtractToolCommand(turns[ti].Entries[ei].ToolName, turns[ti].Entries[ei].Input)
+				if cmd != "" {
+					stats.Command = turns[ti].Entries[ei].ToolName + ": " + cmd
+				}
+				return stats
+			}
+		}
 	}
-	fp, ok := m["file_path"].(string)
-	if !ok {
-		return ""
-	}
-	return fp
+
+	return stats
 }
 
 // handleSessionSelect processes a session selection event.
@@ -1099,73 +1108,4 @@ func (m AppModel) renderSubAgentOverlayView() string {
 
 	statusBar := m.statusBar.View()
 	return lipgloss.JoinVertical(lipgloss.Left, overlayView, statusBar)
-}
-
-// parseHookMarker returns the hook type name if text starts with a known hook marker.
-func parseHookMarker(text string) string {
-	for _, marker := range []string{"PreToolUse", "PostToolUse", "Stop", "user-prompt-submit-hook"} {
-		if strings.HasPrefix(text, marker) {
-			return marker
-		}
-		if strings.Contains(text, "<"+marker+">") {
-			return marker
-		}
-	}
-	return ""
-}
-
-// buildHookDetail constructs a HookDetail from a FullID string and turn index.
-func buildHookDetail(fullID string, turnIndex int) parser.HookDetail {
-	hookType := fullID
-	target := ""
-	if idx := strings.Index(fullID, "::"); idx >= 0 {
-		hookType = fullID[:idx]
-		target = fullID[idx+2:]
-	}
-	return parser.HookDetail{
-		HookType:  hookType,
-		Target:    target,
-		TurnIndex: turnIndex,
-		FullID:    fullID,
-	}
-}
-
-// extractToolCommand returns a human-readable command from a tool_use input JSON.
-func extractToolCommand(toolName, rawInput string) string {
-	var input map[string]interface{}
-	if err := json.Unmarshal([]byte(rawInput), &input); err != nil {
-		return ""
-	}
-	switch toolName {
-	case "Bash":
-		if cmd, ok := input["command"].(string); ok && cmd != "" {
-			if len(cmd) > 60 {
-				return cmd[:59] + "…"
-			}
-			return cmd
-		}
-	case "Read", "Write", "Edit":
-		if fp, ok := input["file_path"].(string); ok && fp != "" {
-			return fp
-		}
-	}
-	return ""
-}
-
-var hookTargetRe = regexp.MustCompile(`^(PreToolUse|PostToolUse)\s+hook\s+for\s+(\w+)`)
-
-// parseHookFullID parses hook trigger text to extract "HookType::Target".
-func parseHookFullID(text string) string {
-	if m := hookTargetRe.FindStringSubmatch(text); len(m) == 3 {
-		return m[1] + "::" + m[2]
-	}
-	for _, prefix := range []string{"PreToolUse", "PostToolUse", "Stop"} {
-		if strings.HasPrefix(text, prefix) {
-			return prefix
-		}
-	}
-	if strings.Contains(text, "<user-prompt-submit-hook>") {
-		return "user-prompt-submit-hook"
-	}
-	return ""
 }
