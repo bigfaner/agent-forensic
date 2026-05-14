@@ -71,6 +71,43 @@ func DetectAnomalies(entries []parser.TurnEntry, projectDir string) []parser.Ano
 	return anomalies
 }
 
+// EnrichSession runs anomaly detection on all entries in a session and assigns
+// detected anomalies back to the corresponding TurnEntry.Anomaly fields.
+// Uses session.Cwd as the project directory for unauthorized access checks.
+func EnrichSession(session *parser.Session) {
+	if session == nil {
+		return
+	}
+
+	projectDir := session.Cwd
+	if projectDir == "" {
+		projectDir = ResolveProjectDir()
+	}
+
+	var allEntries []parser.TurnEntry
+	for _, turn := range session.Turns {
+		allEntries = append(allEntries, turn.Entries...)
+	}
+
+	anomalies := DetectAnomalies(allEntries, projectDir)
+	if len(anomalies) == 0 {
+		return
+	}
+
+	anomalyMap := make(map[int]*parser.Anomaly, len(anomalies))
+	for i := range anomalies {
+		anomalyMap[anomalies[i].LineNum] = &anomalies[i]
+	}
+
+	for ti := range session.Turns {
+		for ei := range session.Turns[ti].Entries {
+			if a, ok := anomalyMap[session.Turns[ti].Entries[ei].LineNum]; ok {
+				session.Turns[ti].Entries[ei].Anomaly = a
+			}
+		}
+	}
+}
+
 // ResolveProjectDir determines the project directory using git rev-parse --show-toplevel,
 // falling back to the current working directory if not in a git repo.
 func ResolveProjectDir() string {

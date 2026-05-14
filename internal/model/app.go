@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/user/agent-forensic/internal/detector"
 	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/parser"
 	stats2 "github.com/user/agent-forensic/internal/stats"
@@ -154,6 +155,7 @@ func parseFiles(files []parser.FileMeta) []parser.Session {
 		if err != nil {
 			continue
 		}
+		detector.EnrichSession(s)
 		sessions = append(sessions, *s)
 	}
 	sortSessionsByDateDesc(sessions)

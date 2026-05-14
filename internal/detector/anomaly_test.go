@@ -493,3 +493,80 @@ func TestNormalizePath(t *testing.T) {
 	abs, _ := filepath.Abs(".")
 	assert.Equal(t, filepath.Clean(abs), result)
 }
+
+func TestEnrichSession_SetsAnomalyOnEntries(t *testing.T) {
+	projectDir := absPath("testdata/project")
+	session := &parser.Session{
+		FilePath: filepath.Join(projectDir, "session.jsonl"),
+		Cwd:      projectDir,
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{
+						Type:     parser.EntryToolUse,
+						LineNum:  10,
+						ToolName: "Bash",
+						Duration: 45 * time.Second,
+						Input:    `{"command":"npm build"}`,
+					},
+				},
+			},
+			{
+				Index: 2,
+				Entries: []parser.TurnEntry{
+					{
+						Type:     parser.EntryToolUse,
+						LineNum:  20,
+						ToolName: "Read",
+						Duration: 5 * time.Second,
+						Input:    makeToolInput(filepath.Join(projectDir, "src/main.go")),
+					},
+				},
+			},
+		},
+	}
+
+	// Before enrichment: no anomalies
+	assert.Nil(t, session.Turns[0].Entries[0].Anomaly)
+	assert.Nil(t, session.Turns[1].Entries[0].Anomaly)
+
+	EnrichSession(session)
+
+	// After enrichment: slow call (45s >= 30s) should have AnomalySlow
+	assert.NotNil(t, session.Turns[0].Entries[0].Anomaly)
+	assert.Equal(t, parser.AnomalySlow, session.Turns[0].Entries[0].Anomaly.Type)
+	assert.Equal(t, 10, session.Turns[0].Entries[0].Anomaly.LineNum)
+
+	// Normal call (5s, inside project) should NOT have anomaly
+	assert.Nil(t, session.Turns[1].Entries[0].Anomaly)
+}
+
+func TestEnrichSession_NilSession(t *testing.T) {
+	EnrichSession(nil) // should not panic
+}
+
+func TestEnrichSession_NoAnomalies(t *testing.T) {
+	projectDir := absPath("testdata/project")
+	session := &parser.Session{
+		Cwd: projectDir,
+		Turns: []parser.Turn{
+			{
+				Index: 1,
+				Entries: []parser.TurnEntry{
+					{
+						Type:     parser.EntryToolUse,
+						LineNum:  1,
+						ToolName: "Read",
+						Duration: 2 * time.Second,
+						Input:    makeToolInput(filepath.Join(projectDir, "file.go")),
+					},
+				},
+			},
+		},
+	}
+
+	EnrichSession(session)
+
+	assert.Nil(t, session.Turns[0].Entries[0].Anomaly)
+}
