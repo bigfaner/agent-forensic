@@ -14,3 +14,4 @@
 14、详情页面中的json文本支持结构化解析？
 15、会话列表切换不同的会话时，自动更新调用树面板的内容。done
 16、选中会话的某一个turn时，要展示user message和assistant message。
+17、增加flag参数，分析指定会话
