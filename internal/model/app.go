@@ -1087,18 +1087,15 @@ func (m AppModel) renderDashboardView() string {
 	return lipgloss.JoinVertical(lipgloss.Left, dashboardView, statusBar)
 }
 
-// renderDiagnosisView renders the main view with diagnosis modal overlay.
+// renderDiagnosisView renders the diagnosis full-screen panel with status bar.
 func (m AppModel) renderDiagnosisView() string {
-	// Render main view as background
-	mainView := m.renderMainView()
-
-	// Overlay diagnosis modal on top
 	diagView := m.diagnosis.View()
 	if diagView == "" {
-		return mainView
+		return m.renderMainView()
 	}
 
-	return diagView
+	statusBar := m.statusBar.View()
+	return lipgloss.JoinVertical(lipgloss.Left, diagView, statusBar)
 }
 
 // renderSubAgentOverlayView renders the SubAgent full-screen overlay with status bar.

@@ -10,7 +10,7 @@ import (
 	"github.com/user/agent-forensic/internal/parser"
 )
 
-// DiagnosisState represents the display state of the diagnosis modal.
+// DiagnosisState represents the display state of the diagnosis panel.
 type DiagnosisState int
 
 const (
@@ -28,29 +28,28 @@ type JumpBackMsg struct {
 	TurnIdx int // index of the parent turn to auto-expand
 }
 
-// DiagnosisModal is a Bubble Tea model for the Diagnosis Summary modal overlay.
+// DiagnosisModal is a full-screen panel for the Diagnosis Summary view.
 // Triggered by pressing 'd' on a selected TurnEntry in the call tree.
-// Displays all anomaly evidence with type, tool name, duration, line number,
-// call chain context, and thinking fragments.
+// Displays all anomaly evidence with scrolling support.
 type DiagnosisModal struct {
 	visible   bool
 	anomalies []parser.Anomaly
 	thinkings map[int]string // lineNum -> thinking content
-	scrollPos int
+	scrollPos int            // anomaly cursor index (0..len-1)
 	state     DiagnosisState
 	width     int
 	height    int
 	errMsg    string
 }
 
-// NewDiagnosisModal creates a hidden diagnosis modal.
+// NewDiagnosisModal creates a hidden diagnosis panel.
 func NewDiagnosisModal() DiagnosisModal {
 	return DiagnosisModal{
 		state: DiagnosisNoAnomalies,
 	}
 }
 
-// Show makes the modal visible and loads anomaly data for the given session.
+// Show makes the panel visible and loads anomaly data for the given session.
 func (m *DiagnosisModal) Show(session *parser.Session) {
 	m.visible = true
 	m.scrollPos = 0
@@ -62,7 +61,6 @@ func (m *DiagnosisModal) Show(session *parser.Session) {
 		return
 	}
 
-	// Collect all anomalies and thinking fragments from all turns
 	var anomalies []parser.Anomaly
 	thinkings := make(map[int]string)
 	for _, turn := range session.Turns {
@@ -86,25 +84,25 @@ func (m *DiagnosisModal) Show(session *parser.Session) {
 	}
 }
 
-// Hide hides the modal and clears state.
+// Hide hides the panel and resets cursor.
 func (m *DiagnosisModal) Hide() {
 	m.visible = false
 	m.scrollPos = 0
 }
 
-// IsVisible returns whether the modal is currently displayed.
+// IsVisible returns whether the panel is currently displayed.
 func (m DiagnosisModal) IsVisible() bool {
 	return m.visible
 }
 
-// SetError transitions the modal to error state.
+// SetError transitions the panel to error state.
 func (m DiagnosisModal) SetError(msg string) DiagnosisModal {
 	m.state = DiagnosisError
 	m.errMsg = msg
 	return m
 }
 
-// SetSize sets the modal dimensions.
+// SetSize sets the panel dimensions.
 func (m DiagnosisModal) SetSize(width, height int) DiagnosisModal {
 	m.width = width
 	m.height = height
@@ -158,43 +156,164 @@ func (m DiagnosisModal) handleKey(msg tea.KeyMsg) (DiagnosisModal, tea.Cmd) {
 	return m, nil
 }
 
+// --- Layout helpers ---
+
+// visibleHeight returns the number of content lines visible in the panel.
+// Panel layout: 2 border + 1 title + 1 sep + content + 1 sep + 1 footer = height.
+func (m DiagnosisModal) visibleHeight() int {
+	h := m.height - 6
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// renderScrollbar renders a scrollbar with thumb indicator.
+func (m DiagnosisModal) renderScrollbar(height, total, viewStart int) string {
+	thumbPos := 0
+	if total > height {
+		thumbPos = viewStart * (height - 1) / (total - height)
+	}
+
+	trackStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	thumbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
+
+	var b strings.Builder
+	for i := 0; i < height; i++ {
+		if i == thumbPos {
+			b.WriteString(thumbStyle.Render("┃"))
+		} else {
+			b.WriteString(trackStyle.Render("│"))
+		}
+		if i < height-1 {
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+// renderContentLines renders all anomaly blocks and returns individual lines
+// plus the start/end line indices for each anomaly block (for viewport tracking).
+func (m DiagnosisModal) renderContentLines() (lines []string, starts []int, ends []int) {
+	if m.state != DiagnosisHasAnomalies || len(m.anomalies) == 0 {
+		return []string{m.renderContentText()}, nil, nil
+	}
+
+	for i, anomaly := range m.anomalies {
+		starts = append(starts, len(lines))
+		block := m.renderEvidenceBlock(i, anomaly)
+		blockLines := strings.Split(block, "\n")
+		lines = append(lines, blockLines...)
+		ends = append(ends, len(lines))
+
+		if i < len(m.anomalies)-1 {
+			lines = append(lines, "", "")
+		}
+	}
+
+	return lines, starts, ends
+}
+
+// computeViewStart returns the viewport line offset that keeps the selected anomaly visible.
+func (m DiagnosisModal) computeViewStart(starts, ends []int, totalLines int) int {
+	vh := m.visibleHeight()
+	if len(starts) == 0 || m.scrollPos >= len(starts) || totalLines <= vh {
+		return 0
+	}
+
+	curStart := starts[m.scrollPos]
+	curEnd := ends[m.scrollPos]
+
+	center := (curStart + curEnd) / 2
+	vs := center - vh/2
+	if vs < 0 {
+		vs = 0
+	}
+	maxVS := totalLines - vh
+	if maxVS < 0 {
+		maxVS = 0
+	}
+	if vs > maxVS {
+		vs = maxVS
+	}
+	return vs
+}
+
+// renderScrollableContent handles the scrollable content area with optional scrollbar.
+func (m DiagnosisModal) renderScrollableContent(lines []string, starts, ends []int) string {
+	vh := m.visibleHeight()
+	totalLines := len(lines)
+
+	if totalLines <= vh {
+		content := strings.Join(lines, "\n")
+		return lipgloss.NewStyle().
+			Width(m.width - 4).
+			Height(vh).
+			Render(content)
+	}
+
+	viewStart := m.computeViewStart(starts, ends, totalLines)
+
+	end := viewStart + vh
+	if end > totalLines {
+		end = totalLines
+	}
+
+	contentWidth := m.width - 5
+	if contentWidth < 1 {
+		contentWidth = 1
+	}
+
+	style := lipgloss.NewStyle().Width(contentWidth)
+	var visualLines []string
+	for i := viewStart; i < end; i++ {
+		rendered := style.Render(lines[i])
+		for _, rl := range strings.Split(rendered, "\n") {
+			visualLines = append(visualLines, rl)
+			if len(visualLines) == vh {
+				break
+			}
+		}
+		if len(visualLines) == vh {
+			break
+		}
+	}
+	for len(visualLines) < vh {
+		visualLines = append(visualLines, strings.Repeat(" ", contentWidth))
+	}
+
+	fixed := strings.Join(visualLines, "\n")
+	scrollbar := m.renderScrollbar(vh, totalLines, viewStart)
+	return lipgloss.JoinHorizontal(lipgloss.Top, fixed, scrollbar)
+}
+
+// --- View ---
+
 // View implements tea.Model.
 func (m DiagnosisModal) View() string {
-	if !m.visible || m.width < 20 {
+	if !m.visible || m.width < 25 {
 		return ""
 	}
 
-	// Modal dimensions: 80% width x 60% height, centered
-	modalW := m.width * 80 / 100
-	modalH := m.height * 60 / 100
-	if modalW < 20 {
-		modalW = 20
-	}
-	if modalH < 8 {
-		modalH = 8
-	}
+	panelStyle := lipgloss.NewStyle().
+		BorderForeground(lipgloss.Color("51")).
+		Border(lipgloss.RoundedBorder()).
+		Width(m.width - 2).
+		Height(m.height - 2)
 
-	// Double-line border for modal distinction
-	borderStyle := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(lipgloss.Color("15")). // white border
-		Width(modalW - 4).
-		Height(modalH - 4)
+	contentWidth := m.width - 4
+	sep := lipgloss.NewStyle().Foreground(lipgloss.Color("239")).Render(
+		strings.Repeat("─", contentWidth))
 
 	title := m.renderTitle()
-	content := m.renderContent()
-	footer := m.renderFooter()
 
-	rendered := lipgloss.NewStyle().
-		Width(modalW - 6).
-		Height(modalH - 6).
-		Render(content)
+	lines, starts, ends := m.renderContentLines()
+	scrollable := m.renderScrollableContent(lines, starts, ends)
 
-	body := title + "\n" + rendered + "\n" + footer
-	boxed := borderStyle.Render(body)
+	footer := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("↑↓:select  Enter:jump  Esc:close")
 
-	// Center the modal on the screen
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, boxed)
+	body := title + "\n" + sep + "\n" + scrollable + "\n" + sep + "\n" + footer
+	return panelStyle.Render(body)
 }
 
 func (m DiagnosisModal) renderTitle() string {
@@ -210,58 +329,40 @@ func (m DiagnosisModal) renderTitle() string {
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Render(title)
 }
 
-func (m DiagnosisModal) renderContent() string {
+// renderContentText returns a plain content string for non-anomaly states.
+func (m DiagnosisModal) renderContentText() string {
 	switch m.state {
 	case DiagnosisNoAnomalies:
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(i18n.T("diagnosis.no_anomalies"))
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Inline(true).Render(i18n.T("diagnosis.no_anomalies"))
 	case DiagnosisError:
 		errText := fmt.Sprintf("%s: %s", i18n.T("status.error"), m.errMsg)
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render(errText)
-	case DiagnosisHasAnomalies:
-		return m.renderAnomalies()
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Inline(true).Render(errText)
 	}
 	return ""
 }
 
-func (m DiagnosisModal) renderAnomalies() string {
-	var b strings.Builder
-
-	for i, anomaly := range m.anomalies {
-		block := m.renderEvidenceBlock(i, anomaly)
-		if i < len(m.anomalies)-1 {
-			b.WriteString(block + "\n\n")
-		} else {
-			b.WriteString(block)
-		}
-	}
-
-	return b.String()
-}
-
+// renderEvidenceBlock renders a single anomaly evidence block.
 func (m DiagnosisModal) renderEvidenceBlock(idx int, anomaly parser.Anomaly) string {
 	var b strings.Builder
 
-	// Icon + type tag
 	var icon, tag string
 	var tagColor lipgloss.Color
 	switch anomaly.Type {
 	case parser.AnomalySlow:
 		icon = "🟡"
 		tag = "[slow]"
-		tagColor = lipgloss.Color("226") // bright yellow
+		tagColor = lipgloss.Color("226")
 	case parser.AnomalyUnauthorized:
 		icon = "🔴"
 		tag = "[unauthorized]"
-		tagColor = lipgloss.Color("196") // bright red
+		tagColor = lipgloss.Color("196")
 	}
 
-	tagStyled := lipgloss.NewStyle().Foreground(tagColor).Render(tag)
+	tagStyled := lipgloss.NewStyle().Foreground(tagColor).Inline(true).Render(tag)
 
-	// Tool name + duration + line number
 	durStr := formatDuration(anomaly.Duration)
 	toolLine := fmt.Sprintf("%s %s %s (%s) — line %d", icon, tagStyled, anomaly.ToolName, durStr, anomaly.LineNum)
 
-	// Call chain
 	chainLine := ""
 	if len(anomaly.Context) > 0 {
 		chainLine = "   " + strings.Join(anomaly.Context, " → ")
@@ -272,20 +373,19 @@ func (m DiagnosisModal) renderEvidenceBlock(idx int, anomaly parser.Anomaly) str
 		chainLine = "   " + anomaly.ToolName
 	}
 
-	// Thinking fragment
 	thinkingLine := ""
 	if thinking, ok := m.thinkings[anomaly.LineNum]; ok && thinking != "" {
 		truncated := thinking
 		if len(truncated) > maxThinkingLen {
 			truncated = truncated[:maxThinkingLen] + "..."
 		}
-		thinkingLine = lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Render("   " + truncated)
+		thinkingLine = lipgloss.NewStyle().Foreground(lipgloss.Color("51")).Inline(true).Render("   " + truncated)
 	}
 
 	b.WriteString(toolLine)
 	if chainLine != "" {
 		b.WriteString("\n")
-		chainStyled := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render(chainLine)
+		chainStyled := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Inline(true).Render(chainLine)
 		b.WriteString(chainStyled)
 	}
 	if thinkingLine != "" {
@@ -295,20 +395,14 @@ func (m DiagnosisModal) renderEvidenceBlock(idx int, anomaly parser.Anomaly) str
 
 	block := b.String()
 
-	// Selected evidence: reverse video highlight
 	if idx == m.scrollPos {
 		return lipgloss.NewStyle().
-			Foreground(lipgloss.Color("16")).  // black text
-			Background(lipgloss.Color("252")). // white bg
+			Foreground(lipgloss.Color("16")).
+			Background(lipgloss.Color("252")).
 			Render(block)
 	}
 
 	return block
-}
-
-func (m DiagnosisModal) renderFooter() string {
-	hints := lipgloss.NewStyle().Foreground(lipgloss.Color("242")).Render("↑↓:select  Enter:jump  Esc:close")
-	return hints
 }
 
 // Anomalies returns the current anomaly list (for testing).

@@ -1,24 +1,24 @@
-                                                                                
-                                                                                
-                                                                                
-                                                                                
-         ╔════════════════════════════════════════════════════════════╗         
-         ║诊断摘要 — 3 异常类型                                       ║         
-         ║🟡 [slow] Bash (45s) — line 100                             ║         
-         ║   Bash                                                     ║         
-         ║   需要重新编译以验证更改                                   ║         
-         ║                                                            ║         
-         ║🔴 [unauthorized] Bash (44s) — line 200                     ║         
-         ║   Read → Edit → Bash                                       ║         
-         ║                                                            ║         
-         ║🟡 [slow] Write (32s) — line 300                            ║         
-         ║   Read → Write                                             ║         
-         ║   I need to update the production configuration to         ║         
-         ║reflect the new deployment settings and ensure the service  ║         
-         ║endpoints are correct for the staging environment.          ║         
-         ║↑↓:select  Enter:jump  Esc:close                            ║         
-         ╚════════════════════════════════════════════════════════════╝         
-                                                                                
-                                                                                
-                                                                                
-                                                                                
+╭──────────────────────────────────────────────────────────────────────────────╮
+│诊断摘要 — 3 异常类型                                                         │
+│────────────────────────────────────────────────────────────────────────────  │
+│🟡 [slow] Bash (45s) — line 100                                               │
+│   Bash                                                                       │
+│   需要重新编译以验证更改                                                     │
+│                                                                              │
+│                                                                              │
+│🔴 [unauthorized] Bash (44s) — line 200                                       │
+│   Read → Edit → Bash                                                         │
+│                                                                              │
+│                                                                              │
+│🟡 [slow] Write (32s) — line 300                                              │
+│   Read → Write                                                               │
+│   I need to update the production configuration to reflect the new           │
+│deployment settings and ensure the service endpoints are correct for the      │
+│staging environment.                                                          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│────────────────────────────────────────────────────────────────────────────  │
+│↑↓:select  Enter:jump  Esc:close                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯

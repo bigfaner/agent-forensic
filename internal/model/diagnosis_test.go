@@ -300,14 +300,14 @@ func TestDiagView_Error(t *testing.T) {
 	assert.Contains(t, view, "session unavailable")
 }
 
-func TestDiagView_DoubleBorder(t *testing.T) {
+func TestDiagView_RoundedBorder(t *testing.T) {
 	m := newTestDiagnosisModal(testSessionWithAnomalies())
 	view := m.View()
-	// Double-line border uses ╔ ╗ ╚ ╝
-	assert.Contains(t, view, "╔")
-	assert.Contains(t, view, "╗")
-	assert.Contains(t, view, "╚")
-	assert.Contains(t, view, "╝")
+	// Full-screen panel uses rounded border
+	assert.Contains(t, view, "╭")
+	assert.Contains(t, view, "╮")
+	assert.Contains(t, view, "╰")
+	assert.Contains(t, view, "╯")
 }
 
 func TestDiagView_ToolNameAndLine(t *testing.T) {
@@ -377,7 +377,7 @@ func TestDiagView_Footer(t *testing.T) {
 
 func TestDiagView_NarrowTerminal(t *testing.T) {
 	m := NewDiagnosisModal()
-	m = m.SetSize(15, 10)
+	m = m.SetSize(24, 10)
 	m.Show(testSessionWithAnomalies())
 	view := m.View()
 	assert.Empty(t, view)
