@@ -1,2 +1,30 @@
-test-profiles:
-    - go-test
+version: "1"
+auto:
+  test:
+    quick: true
+    full: true
+  consolidateSpecs:
+    quick: true
+    full: true
+  cleanCode:
+    quick: false
+    full: true
+  validation:
+    quick: false
+    full: false
+  runTasks:
+    quick: true
+    full: true
+  gitPush: true
+  knowledgeSave:
+    quick: true
+    full: true
+  eval:
+    proposal: true
+    prd: true
+    uiDesign: true
+    techDesign: true
+worktree:
+  source-branch: main
+  copy-files: []
+surfaces: tui
