@@ -1,0 +1,17 @@
+{"type":"message","role":"user","timestamp":"2024-05-12T10:00:00Z","content":{"type":"text","text":"Testing many MCP tools"}}
+{"type":"tool_use","name":"mcp__test-server__tool1","id":"toolu_01","input":{},"timestamp":"2024-05-12T10:00:01Z"}
+{"type":"tool_result","name":"mcp__test-server__tool1","id":"toolu_01","output":"result1","timestamp":"2024-05-12T10:00:02Z"}
+{"type":"tool_use","name":"mcp__test-server__tool2","id":"toolu_02","input":{},"timestamp":"2024-05-12T10:00:03Z"}
+{"type":"tool_result","name":"mcp__test-server__tool2","id":"toolu_02","output":"result2","timestamp":"2024-05-12T10:00:04Z"}
+{"type":"tool_use","name":"mcp__test-server__tool3","id":"toolu_03","input":{},"timestamp":"2024-05-12T10:00:05Z"}
+{"type":"tool_result","name":"mcp__test-server__tool3","id":"toolu_03","output":"result3","timestamp":"2024-05-12T10:00:06Z"}
+{"type":"tool_use","name":"mcp__test-server__tool4","id":"toolu_04","input":{},"timestamp":"2024-05-12T10:00:07Z"}
+{"type":"tool_result","name":"mcp__test-server__tool4","id":"toolu_04","output":"result4","timestamp":"2024-05-12T10:00:08Z"}
+{"type":"tool_use","name":"mcp__test-server__tool5","id":"toolu_05","input":{},"timestamp":"2024-05-12T10:00:09Z"}
+{"type":"tool_result","name":"mcp__test-server__tool5","id":"toolu_05","output":"result5","timestamp":"2024-05-12T10:00:10Z"}
+{"type":"tool_use","name":"mcp__test-server__tool6","id":"toolu_06","input":{},"timestamp":"2024-05-12T10:00:11Z"}
+{"type":"tool_result","name":"mcp__test-server__tool6","id":"toolu_06","output":"result6","timestamp":"2024-05-12T10:00:12Z"}
+{"type":"tool_use","name":"mcp__test-server__tool7","id":"toolu_07","input":{},"timestamp":"2024-05-12T10:00:13Z"}
+{"type":"tool_result","name":"mcp__test-server__tool7","id":"toolu_07","output":"result7","timestamp":"2024-05-12T10:00:14Z"}
+{"type":"tool_use","name":"mcp__test-server__tool8","id":"toolu_08","input":{},"timestamp":"2024-05-12T10:00:15Z"}
+{"type":"tool_result","name":"mcp__test-server__tool8","id":"toolu_08","output":"result8","timestamp":"2024-05-12T10:00:16Z"}

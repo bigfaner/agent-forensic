@@ -1,0 +1,21 @@
+{"type":"message","role":"user","timestamp":"2024-05-12T10:00:00Z","content":{"type":"text","text":"Testing MCP tools with same counts"}}
+{"type":"tool_use","name":"mcp__test__webReader","id":"toolu_01","input":{},"timestamp":"2024-05-12T10:00:01Z"}
+{"type":"tool_result","name":"mcp__test__webReader","id":"toolu_01","output":"result1","timestamp":"2024-05-12T10:00:02Z"}
+{"type":"tool_use","name":"mcp__test__webReader","id":"toolu_02","input":{},"timestamp":"2024-05-12T10:00:03Z"}
+{"type":"tool_result","name":"mcp__test__webReader","id":"toolu_02","output":"result2","timestamp":"2024-05-12T10:00:04Z"}
+{"type":"tool_use","name":"mcp__test__webReader","id":"toolu_03","input":{},"timestamp":"2024-05-12T10:00:05Z"}
+{"type":"tool_result","name":"mcp__test__webReader","id":"toolu_03","output":"result3","timestamp":"2024-05-12T10:00:06Z"}
+{"type":"tool_use","name":"mcp__test__webReader","id":"toolu_04","input":{},"timestamp":"2024-05-12T10:00:07Z"}
+{"type":"tool_result","name":"mcp__test__webReader","id":"toolu_04","output":"result4","timestamp":"2024-05-12T10:00:08Z"}
+{"type":"tool_use","name":"mcp__test__webReader","id":"toolu_05","input":{},"timestamp":"2024-05-12T10:00:09Z"}
+{"type":"tool_result","name":"mcp__test__webReader","id":"toolu_05","output":"result5","timestamp":"2024-05-12T10:00:10Z"}
+{"type":"tool_use","name":"mcp__test__search","id":"toolu_06","input":{},"timestamp":"2024-05-12T10:00:11Z"}
+{"type":"tool_result","name":"mcp__test__search","id":"toolu_06","output":"result6","timestamp":"2024-05-12T10:00:12Z"}
+{"type":"tool_use","name":"mcp__test__search","id":"toolu_07","input":{},"timestamp":"2024-05-12T10:00:13Z"}
+{"type":"tool_result","name":"mcp__test__search","id":"toolu_07","output":"result7","timestamp":"2024-05-12T10:00:14Z"}
+{"type":"tool_use","name":"mcp__test__search","id":"toolu_08","input":{},"timestamp":"2024-05-12T10:00:15Z"}
+{"type":"tool_result","name":"mcp__test__search","id":"toolu_08","output":"result8","timestamp":"2024-05-12T10:00:16Z"}
+{"type":"tool_use","name":"mcp__test__search","id":"toolu_09","input":{},"timestamp":"2024-05-12T10:00:17Z"}
+{"type":"tool_result","name":"mcp__test__search","id":"toolu_09","output":"result9","timestamp":"2024-05-12T10:00:18Z"}
+{"type":"tool_use","name":"mcp__test__search","id":"toolu_10","input":{},"timestamp":"2024-05-12T10:00:19Z"}
+{"type":"tool_result","name":"mcp__test__search","id":"toolu_10","output":"result10","timestamp":"2024-05-12T10:00:20Z"}

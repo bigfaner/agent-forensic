@@ -20,7 +20,7 @@
       "title": "Extract shared test helpers to internal/testutil",
       "priority": "P0",
       "estimatedTime": "1h",
-      "status": "pending",
+      "status": "completed",
       "file": "2-extract-test-helpers.md",
       "record": "records/2-extract-test-helpers.md",
       "surface-type": "tui",

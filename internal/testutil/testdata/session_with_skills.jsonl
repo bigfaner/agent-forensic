@@ -1,0 +1,11 @@
+{"type":"message","role":"user","timestamp":"2024-05-12T10:00:00Z","content":{"type":"text","text":"Let me brainstorm some ideas"}}
+{"type":"tool_use","name":"Skill","id":"toolu_01","input":{"skill":"forge:brainstorm","prompt":"Generate ideas for CLI tool"},"timestamp":"2024-05-12T10:00:01Z"}
+{"type":"tool_result","name":"Skill","id":"toolu_01","output":"Brainstorming complete","timestamp":"2024-05-12T10:00:02Z"}
+{"type":"tool_use","name":"Skill","id":"toolu_02","input":{"skill":"forge:brainstorm","prompt":"More ideas"},"timestamp":"2024-05-12T10:00:03Z"}
+{"type":"tool_result","name":"Skill","id":"toolu_02","output":"Brainstorming complete","timestamp":"2024-05-12T10:00:04Z"}
+{"type":"tool_use","name":"Skill","id":"toolu_03","input":{"skill":"forge:brainstorm","prompt":"Even more ideas"},"timestamp":"2024-05-12T10:00:05Z"}
+{"type":"tool_result","name":"Skill","id":"toolu_03","output":"Brainstorming complete","timestamp":"2024-05-12T10:00:06Z"}
+{"type":"tool_use","name":"Skill","id":"toolu_04","input":{"skill":"forge:execute-task","taskId":"task-1"},"timestamp":"2024-05-12T10:00:07Z"}
+{"type":"tool_result","name":"Skill","id":"toolu_04","output":"Task executing","timestamp":"2024-05-12T10:00:08Z"}
+{"type":"tool_use","name":"Skill","id":"toolu_05","input":{"skill":"forge:execute-task","taskId":"task-2"},"timestamp":"2024-05-12T10:00:09Z"}
+{"type":"tool_result","name":"Skill","id":"toolu_05","output":"Task executing","timestamp":"2024-05-12T10:00:10Z"}

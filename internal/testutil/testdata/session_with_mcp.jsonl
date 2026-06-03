@@ -1,0 +1,11 @@
+{"type":"message","role":"user","timestamp":"2024-05-12T10:00:00Z","content":{"type":"text","text":"Let me search the web"}}
+{"type":"tool_use","name":"mcp__web-reader__webReader","id":"toolu_01","input":{"url":"https://example.com"},"timestamp":"2024-05-12T10:00:01Z"}
+{"type":"tool_result","name":"mcp__web-reader__webReader","id":"toolu_01","output":"Page content","timestamp":"2024-05-12T10:00:02Z"}
+{"type":"tool_use","name":"mcp__web-reader__webReader","id":"toolu_02","input":{"url":"https://example2.com"},"timestamp":"2024-05-12T10:00:03Z"}
+{"type":"tool_result","name":"mcp__web-reader__webReader","id":"toolu_02","output":"Page content","timestamp":"2024-05-12T10:00:04Z"}
+{"type":"tool_use","name":"mcp__web-reader__search","id":"toolu_03","input":{"query":"test search"},"timestamp":"2024-05-12T10:00:05Z"}
+{"type":"tool_result","name":"mcp__web-reader__search","id":"toolu_03","output":"Search results","timestamp":"2024-05-12T10:00:06Z"}
+{"type":"tool_use","name":"mcp__web-reader__search","id":"toolu_04","input":{"query":"another search"},"timestamp":"2024-05-12T10:00:07Z"}
+{"type":"tool_result","name":"mcp__web-reader__search","id":"toolu_04","output":"Search results","timestamp":"2024-05-12T10:00:08Z"}
+{"type":"tool_use","name":"mcp__ones-mcp__addIssueComment","id":"toolu_05","input":{"issueId":"123","comment":"Test comment"},"timestamp":"2024-05-12T10:00:09Z"}
+{"type":"tool_result","name":"mcp__ones-mcp__addIssueComment","id":"toolu_05","output":"Comment added","timestamp":"2024-05-12T10:00:10Z"}
