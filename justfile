@@ -20,14 +20,36 @@ compile:
 build:
     @go build -ldflags "-X main.Version=$(cat version 2>/dev/null || echo dev)" .
 
+install:
+    go mod download
+
+clean:
+    go clean ./...
+
+ci: install compile build unit-test lint
+
+unit-test:
+    go test -json -v ./...
+
+lint:
+    golangci-lint run ./...
+
+fmt:
+    gofmt -w .
+
+check:
+    golangci-lint run ./... && go vet ./...
+
+# --- project-level convenience targets (not invoked by forge skills) ---
+
 run:
     @go run -ldflags "-X main.Version=$(cat version 2>/dev/null || echo dev)" .
 
 dev:
     @go run -ldflags "-X main.Version=$(cat version 2>/dev/null || echo dev)" .
 
-test:
-    go test ./...
+release:
+    bash scripts/build.sh
 
 [arg("feature", long)]
 test-e2e feature="":
@@ -39,23 +61,6 @@ test-e2e feature="":
         [ ! -d tests/e2e/node_modules ] && npm install --prefix tests/e2e
         cd tests/e2e && npx playwright test
     fi
-
-lint:
-    go vet ./...
-
-fmt:
-    gofmt -w .
-
-check:
-    go vet ./...
-
-clean:
-    go clean ./...
-
-install:
-    go mod download
-
-ci: install compile build test lint
 
 e2e-setup force="":
     #!/usr/bin/env bash
@@ -133,7 +138,44 @@ e2e-verify feature="":
         fi
     fi
 
-release:
-    bash scripts/build.sh
+# --- surface: tui (scalar) ---
+
+# Run terminal functional tests (optionally filter by journey)
+# user-customized
+[linux]
+test journey='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{journey}}" != "" ]; then
+        go test -v -tags=tui_functional -run "{{journey}}" ./tests/...
+    else
+        go test -v -tags=tui_functional ./tests/...
+    fi
+
+# user-customized
+[windows]
+test journey='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{journey}}" != "" ]; then
+        go test -v -tags=tui_functional -run "{{journey}}" ./tests/...
+    else
+        go test -v -tags=tui_functional ./tests/...
+    fi
+
+# Clean up TUI test artifacts
+# user-customized
+[linux]
+teardown:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "OK: no persistent resources to clean up"
+
+# user-customized
+[windows]
+teardown:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "OK: no persistent resources to clean up"
 
 # --- end forge standard recipes ---
