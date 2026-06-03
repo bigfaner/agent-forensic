@@ -1,7 +1,7 @@
 ---
 feature: "test-cleanup"
 created: "2026-06-03"
-status: tasks
+status: completed
 mode: quick
 ---
 
