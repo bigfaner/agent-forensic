@@ -1,0 +1,76 @@
+{
+  "feature": "test-cleanup",
+  "proposal": "docs/proposals/test-cleanup/proposal.md",
+  "created": "2026-06-03",
+  "tasks": {
+    "1-delete-legacy-artifacts": {
+      "id": "1",
+      "title": "Delete legacy TypeScript test suite and obsolete docs",
+      "priority": "P1",
+      "estimatedTime": "0.5h",
+      "status": "pending",
+      "file": "1-delete-legacy-artifacts.md",
+      "record": "records/1-delete-legacy-artifacts.md",
+      "surface-type": "tui",
+      "type": "coding.cleanup",
+      "complexity": "low"
+    },
+    "2-extract-test-helpers": {
+      "id": "2",
+      "title": "Extract shared test helpers to internal/testutil",
+      "priority": "P0",
+      "estimatedTime": "1h",
+      "status": "pending",
+      "file": "2-extract-test-helpers.md",
+      "record": "records/2-extract-test-helpers.md",
+      "surface-type": "tui",
+      "type": "coding.refactor",
+      "complexity": "medium"
+    },
+    "3-reorganize-tests-by-journey": {
+      "id": "3",
+      "title": "Reorganize tests into 5 Journey directories with build tags",
+      "priority": "P0",
+      "estimatedTime": "2h",
+      "dependencies": [
+        "2"
+      ],
+      "status": "pending",
+      "file": "3-reorganize-tests-by-journey.md",
+      "record": "records/3-reorganize-tests-by-journey.md",
+      "breaking": true,
+      "surface-type": "tui",
+      "type": "coding.refactor",
+      "complexity": "high"
+    },
+    "4-cleanup-gitignore": {
+      "id": "4",
+      "title": "Clean up .gitignore entries for deleted paths",
+      "priority": "P2",
+      "estimatedTime": "0.5h",
+      "dependencies": [
+        "1"
+      ],
+      "status": "pending",
+      "file": "4-cleanup-gitignore.md",
+      "record": "records/4-cleanup-gitignore.md",
+      "surface-type": "tui",
+      "type": "coding.cleanup",
+      "complexity": "low"
+    }
+  },
+  "statusEnum": [
+    "pending",
+    "in_progress",
+    "completed",
+    "blocked",
+    "suspended",
+    "skipped",
+    "rejected"
+  ],
+  "priorityEnum": [
+    "P0",
+    "P1",
+    "P2"
+  ]
+}
