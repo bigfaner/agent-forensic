@@ -19,7 +19,7 @@ func TestWatcher_DetectsAppend(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// Append a new line
 	file, err := os.OpenFile(f, os.O_APPEND|os.O_WRONLY, 0644)
@@ -47,7 +47,7 @@ func TestWatcher_DetectsMultipleAppends(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	for i := 0; i < 3; i++ {
 		file, err := os.OpenFile(f, os.O_APPEND|os.O_WRONLY, 0644)
@@ -76,7 +76,7 @@ func TestWatcher_OffsetTracking(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	appended := "{\"type\":\"tool_use\"}\n"
 	file, err := os.OpenFile(f, os.O_APPEND|os.O_WRONLY, 0644)
@@ -115,7 +115,7 @@ func TestWatcher_NewFileInDirectory(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// Create a new file
 	f := filepath.Join(dir, "new.jsonl")
@@ -135,7 +135,7 @@ func TestWatcher_StartTwiceDoesNotPanic(t *testing.T) {
 	dir := t.TempDir()
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// Second start should be a no-op
 	require.NoError(t, w.Start())
@@ -154,7 +154,7 @@ func TestWatcher_OnlyJSONLFiles(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// Create a non-JSONL file
 	f := filepath.Join(dir, "test.txt")
@@ -180,7 +180,7 @@ func TestWatcher_EmptyDirectoryDoesNotProduceEvents(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// No files in the directory; no events should fire
 	select {
@@ -200,7 +200,7 @@ func TestWatcher_RenameAndRemoveIgnored(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// Consume the initial create event (if any)
 	select {
@@ -235,7 +235,7 @@ func TestWatcher_ExistingFilesOnInit(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	// Append to existing file - should only emit the new line
 	file, err := os.OpenFile(f1, os.O_APPEND|os.O_WRONLY, 0644)
@@ -263,7 +263,7 @@ func TestWatcher_MultipleLinesInOneAppend(t *testing.T) {
 
 	w := NewWatcher(dir)
 	require.NoError(t, w.Start())
-	defer w.Stop()
+	defer func() { _ = w.Stop() }()
 
 	file, err := os.OpenFile(f, os.O_APPEND|os.O_WRONLY, 0644)
 	require.NoError(t, err)

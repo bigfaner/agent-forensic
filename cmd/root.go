@@ -131,7 +131,7 @@ func validateDataDir(dir string) error {
 	if err != nil {
 		return fmt.Errorf("%s: permission denied", dir)
 	}
-	f.Close()
+	_ = f.Close()
 
 	return nil
 }

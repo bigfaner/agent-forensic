@@ -699,7 +699,7 @@ func TestWatcherEvent_AddsNodesToCallTree(t *testing.T) {
 	// Create a temp JSONL file for ParseIncremental
 	tmpFile, err := os.CreateTemp("", "test_session_*.jsonl")
 	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Write existing content (matching the session's file path)
 	session.FilePath = tmpFile.Name()
@@ -707,7 +707,7 @@ func TestWatcherEvent_AddsNodesToCallTree(t *testing.T) {
 
 	// Write a valid JSONL line
 	_, _ = tmpFile.WriteString(`{"type":"tool_use","name":"Read","input":{},"content":"","timestamp":"2026-05-09T12:01:00Z"}`)
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Send watcher event
 	updated, _ = m.Update(WatcherEventMsg{

@@ -410,7 +410,7 @@ func (m DashboardModel) renderDashboard() string {
 	// Header: Total Duration and Peak Step
 	totalDurLabel := i18n.T("dashboard.total_duration")
 	totalDur := formatDuration(m.stats.TotalDuration)
-	b.WriteString(fmt.Sprintf("%s: %s", totalDurLabel, totalDur))
+	fmt.Fprintf(&b, "%s: %s", totalDurLabel, totalDur)
 
 	peakLabel := i18n.T("dashboard.peak_step")
 	peak := m.stats.PeakStep
@@ -423,7 +423,7 @@ func (m DashboardModel) renderDashboard() string {
 		if peak.Duration >= 30*time.Second {
 			peakStr = lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Render(peakStr)
 		}
-		b.WriteString(fmt.Sprintf("          %s: %s", peakLabel, peakStr))
+		fmt.Fprintf(&b, "          %s: %s", peakLabel, peakStr)
 	}
 	b.WriteString("\n\n")
 
@@ -505,7 +505,7 @@ func (m DashboardModel) renderDashboard() string {
 		if barLen < 1 && entry.Count > 0 {
 			barLen = 1
 		}
-		leftBuf.WriteString(fmt.Sprintf("%-*s %s %d", labelWidth, displayName, strings.Repeat("▄", barLen), entry.Count))
+		fmt.Fprintf(&leftBuf, "%-*s %s %d", labelWidth, displayName, strings.Repeat("▄", barLen), entry.Count)
 
 		filled := int(entry.Pct / 100 * float64(barWidth))
 		if filled < 1 && entry.Pct > 0 {
@@ -515,7 +515,7 @@ func (m DashboardModel) renderDashboard() string {
 			filled = barWidth
 		}
 		pctBar := strings.Repeat("▄", filled) + strings.Repeat("_", barWidth-filled)
-		rightBuf.WriteString(fmt.Sprintf("%-*s %s %3.0f%%", labelWidth, displayName, pctBar, entry.Pct))
+		fmt.Fprintf(&rightBuf, "%-*s %s %3.0f%%", labelWidth, displayName, pctBar, entry.Pct)
 
 		if i < len(entries)-1 {
 			leftBuf.WriteString("\n")

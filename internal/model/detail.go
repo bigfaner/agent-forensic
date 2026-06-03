@@ -660,7 +660,6 @@ func wrapLineToWidth(line string, width int) []string {
 
 	// Split line into segments of (ansi_prefix, visible_char) pairs
 	type segment struct {
-		ansi    string // preceding ANSI codes
 		char    rune
 		charW   int
 		isANSI  bool
@@ -1016,7 +1015,7 @@ func compactBlankLines(s string) string {
 		if b.Len() > 0 {
 			b.WriteByte('\n')
 		}
-		if !(isBlank && b.Len() == 0) {
+		if !isBlank || b.Len() != 0 {
 			b.WriteString(line)
 		}
 		prevBlank = isBlank

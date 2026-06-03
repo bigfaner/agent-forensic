@@ -414,7 +414,7 @@ func TestDetail_WindowSizeMsg(t *testing.T) {
 
 func TestDetailView_EnglishEmpty(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewDetailModel()
 	m = m.SetSize(120, 12)

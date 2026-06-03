@@ -794,10 +794,6 @@ func (m CallTreeModel) renderSubAgentNode(b *strings.Builder, cursorIdx int, nod
 			errIcon = "!"
 		}
 		line += fmt.Sprintf(" %s %s", errIcon, errLabel)
-	} else if m.subAgentExpanded[key] {
-		// Expanded state — no suffix needed (children are visible)
-	} else if count > 0 {
-		// Collapsed state — the 📦 icon is already shown
 	}
 
 	cw := m.width - 4

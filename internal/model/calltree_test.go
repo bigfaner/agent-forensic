@@ -602,7 +602,7 @@ func TestCallTree_WindowSizeMsg(t *testing.T) {
 
 func TestCallTreeView_EnglishLocale(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewCallTreeModel()
 	m = m.SetSize(80, 20)

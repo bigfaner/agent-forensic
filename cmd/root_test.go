@@ -36,8 +36,8 @@ func TestValidateDataDir_NotExist(t *testing.T) {
 func TestValidateDataDir_NotDirectory(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "agent-forensic-test-*")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
 
 	err = validateDataDir(tmpFile.Name())
 	assert.Error(t, err)
@@ -47,7 +47,7 @@ func TestValidateDataDir_NotDirectory(t *testing.T) {
 func TestValidateDataDir_Valid(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "agent-forensic-test-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	err = validateDataDir(tmpDir)
 	assert.NoError(t, err)
@@ -66,8 +66,8 @@ func TestValidateDataDir_NotReadable(t *testing.T) {
 	// Remove read permission
 	err = os.Chmod(tmpDir, 0000)
 	require.NoError(t, err)
-	defer os.Chmod(tmpDir, 0755) // restore for cleanup
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.Chmod(tmpDir, 0755) }() // restore for cleanup
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	err = validateDataDir(tmpDir)
 	assert.Error(t, err)
@@ -149,7 +149,7 @@ func TestPrepare_ValidDir(t *testing.T) {
 	// Create a temp dir to use as a mock ~/.claude/
 	tmpDir, err := os.MkdirTemp("", "agent-forensic-prepare-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Test validateDataDir + validateLang integration
 	err = validateDataDir(tmpDir)

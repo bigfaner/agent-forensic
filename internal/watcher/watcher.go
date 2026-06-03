@@ -60,7 +60,7 @@ func (w *Watcher) Start() error {
 	w.fsw = fsw
 
 	if err := w.fsw.Add(w.dir); err != nil {
-		fsw.Close()
+		_ = fsw.Close()
 		return fmt.Errorf("watch directory %s: %w", w.dir, err)
 	}
 
@@ -84,7 +84,7 @@ func (w *Watcher) Stop() error {
 
 	close(w.stopCh)
 	if w.fsw != nil {
-		w.fsw.Close()
+		_ = w.fsw.Close()
 	}
 	close(w.events)
 	w.started = false
@@ -215,7 +215,7 @@ func (w *Watcher) readLinesFromOffset(path string, offset int64) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if _, err := f.Seek(offset, 0); err != nil {
 		return nil, err

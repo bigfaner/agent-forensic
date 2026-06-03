@@ -121,8 +121,8 @@ func TestBoundary_ErrorState(t *testing.T) {
 	// Access the sessions sub-model and set error
 	sessionsModel := model.NewSessionsModel()
 	sessionsModel = sessionsModel.SetSessions([]parser.Session{})
-	sessionsModel = sessionsModel.SetError("测试错误")
-	m = m.SetSessions([]parser.Session{})
+	_ = sessionsModel.SetError("测试错误")
+	_ = m.SetSessions([]parser.Session{})
 
 	// Alternative: create an AppModel that renders the error state.
 	// We test by constructing the sessions model in error state directly.

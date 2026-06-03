@@ -380,8 +380,8 @@ func TestParseIncremental_ReadsNewLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	newLine := makeToolResultJSON("Bash", "file1\nfile2", nil, "2025-01-01T10:00:02Z")
-	f.WriteString(newLine + "\n")
-	f.Close()
+	_, _ = f.WriteString(newLine + "\n")
+	_ = f.Close()
 
 	// Get file size as initial offset
 	info, _ := os.Stat(path)
@@ -431,10 +431,10 @@ func TestParseIncremental_FileNotFound(t *testing.T) {
 func TestScanDir_FindsJSONLFiles(t *testing.T) {
 	dir := t.TempDir()
 	// Create some JSONL files
-	os.WriteFile(filepath.Join(dir, "session1.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
-	os.WriteFile(filepath.Join(dir, "session2.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "session1.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "session2.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
 	// Create a non-JSONL file
-	os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not jsonl"), 0644)
+	_ = os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not jsonl"), 0644)
 
 	files, err := ScanDir(dir)
 	if err != nil {
@@ -469,7 +469,7 @@ func TestScanDir_EmptyDir(t *testing.T) {
 func TestScanDir_FileInsteadOfDir(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "not-a-dir.txt")
-	os.WriteFile(filePath, []byte("hi"), 0644)
+	_ = os.WriteFile(filePath, []byte("hi"), 0644)
 
 	_, err := ScanDir(filePath)
 	if err == nil {
@@ -486,10 +486,10 @@ func TestScanProjectsDir_FindsNestedJSONL(t *testing.T) {
 	dir := t.TempDir()
 	// Simulate: projects/<project>/<session>.jsonl
 	projectDir := filepath.Join(dir, "projects", "my-project")
-	os.MkdirAll(projectDir, 0755)
+	_ = os.MkdirAll(projectDir, 0755)
 
 	sessionFile := filepath.Join(projectDir, "abc-123.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"type":"message","content":"hi"}`), 0644)
+	_ = os.WriteFile(sessionFile, []byte(`{"type":"message","content":"hi"}`), 0644)
 
 	files, err := ScanProjectsDir(dir)
 	if err != nil {
@@ -507,14 +507,14 @@ func TestScanProjectsDir_SkipsSubagents(t *testing.T) {
 	dir := t.TempDir()
 	projectDir := filepath.Join(dir, "projects", "my-project")
 	subagentsDir := filepath.Join(projectDir, "abc-123", "subagents")
-	os.MkdirAll(subagentsDir, 0755)
+	_ = os.MkdirAll(subagentsDir, 0755)
 
 	// Main session file — should be found
 	mainFile := filepath.Join(projectDir, "abc-123.jsonl")
-	os.WriteFile(mainFile, []byte(`{"type":"message"}`), 0644)
+	_ = os.WriteFile(mainFile, []byte(`{"type":"message"}`), 0644)
 
 	// Subagent file — should be skipped
-	os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`), 0644)
+	_ = os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`), 0644)
 
 	files, err := ScanProjectsDir(dir)
 	if err != nil {
@@ -595,9 +595,9 @@ func TestParseIncremental_CorruptLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.WriteString("not json\n")
-	f.WriteString(makeToolUseJSON("Bash", `{"command":"ls"}`, "2025-01-01T10:00:01Z") + "\n")
-	f.Close()
+	_, _ = f.WriteString("not json\n")
+	_, _ = f.WriteString(makeToolUseJSON("Bash", `{"command":"ls"}`, "2025-01-01T10:00:01Z") + "\n")
+	_ = f.Close()
 
 	entries, _, err := ParseIncremental(path, 0)
 	if err != nil {
@@ -803,14 +803,14 @@ func TestScanSubagentsDir_FindsJSONLFiles(t *testing.T) {
 	dir := t.TempDir()
 	// Simulate: <dir>/session.jsonl and <dir>/subagents/agent-001.jsonl
 	sessionFile := filepath.Join(dir, "session.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
 
 	subagentsDir := filepath.Join(dir, "subagents")
-	os.MkdirAll(subagentsDir, 0755)
-	os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
-	os.WriteFile(filepath.Join(subagentsDir, "agent-002.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.MkdirAll(subagentsDir, 0755)
+	_ = os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(filepath.Join(subagentsDir, "agent-002.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
 	// Non-JSONL file should be ignored
-	os.WriteFile(filepath.Join(subagentsDir, "notes.txt"), []byte("not jsonl"), 0644)
+	_ = os.WriteFile(filepath.Join(subagentsDir, "notes.txt"), []byte("not jsonl"), 0644)
 
 	files, err := ScanSubagentsDir(sessionFile)
 	if err != nil {
@@ -833,7 +833,7 @@ func TestScanSubagentsDir_FindsJSONLFiles(t *testing.T) {
 func TestScanSubagentsDir_MissingDir(t *testing.T) {
 	dir := t.TempDir()
 	sessionFile := filepath.Join(dir, "session.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
 
 	// No subagents/ directory — should return empty slice, no error
 	files, err := ScanSubagentsDir(sessionFile)
@@ -851,13 +851,13 @@ func TestScanSubagentsDir_ClaudeCodeLayout(t *testing.T) {
 	// e.g. ~/.claude/projects/{encoded}/{id}.jsonl → subagents at {encoded}/{id}/subagents/
 	dir := t.TempDir()
 	sessionFile := filepath.Join(dir, "abc123.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
 
 	// Real Claude Code layout: {dir}/{sessionId}/subagents/*.jsonl
 	sessionDir := filepath.Join(dir, "abc123")
 	subagentsDir := filepath.Join(sessionDir, "subagents")
-	os.MkdirAll(subagentsDir, 0755)
-	os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.MkdirAll(subagentsDir, 0755)
+	_ = os.WriteFile(filepath.Join(subagentsDir, "agent-001.jsonl"), []byte(`{"type":"message"}`+"\n"), 0644)
 
 	files, err := ScanSubagentsDir(sessionFile)
 	if err != nil {
@@ -875,10 +875,10 @@ func TestScanSubagentsDir_ClaudeCodeLayout(t *testing.T) {
 func TestScanSubagentsDir_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	sessionFile := filepath.Join(dir, "session.jsonl")
-	os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
+	_ = os.WriteFile(sessionFile, []byte(`{"type":"message"}`+"\n"), 0644)
 
 	subagentsDir := filepath.Join(dir, "subagents")
-	os.MkdirAll(subagentsDir, 0755)
+	_ = os.MkdirAll(subagentsDir, 0755)
 
 	files, err := ScanSubagentsDir(sessionFile)
 	if err != nil {
@@ -917,7 +917,7 @@ func TestParseSubAgent_HappyPath(t *testing.T) {
 func TestParseSubAgent_EmptyFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.jsonl")
-	os.WriteFile(path, []byte{}, 0644)
+	_ = os.WriteFile(path, []byte{}, 0644)
 
 	_, err := ParseSubAgent(path, 0)
 	if err == nil {
