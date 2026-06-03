@@ -8,7 +8,7 @@
       "title": "Delete legacy TypeScript test suite and obsolete docs",
       "priority": "P1",
       "estimatedTime": "0.5h",
-      "status": "pending",
+      "status": "completed",
       "file": "1-delete-legacy-artifacts.md",
       "record": "records/1-delete-legacy-artifacts.md",
       "surface-type": "tui",
