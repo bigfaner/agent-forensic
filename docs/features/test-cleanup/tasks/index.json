@@ -35,7 +35,7 @@
       "dependencies": [
         "2"
       ],
-      "status": "pending",
+      "status": "completed",
       "file": "3-reorganize-tests-by-journey.md",
       "record": "records/3-reorganize-tests-by-journey.md",
       "breaking": true,

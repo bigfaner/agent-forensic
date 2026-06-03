@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/user/agent-forensic/internal/i18n"
 	"github.com/user/agent-forensic/internal/model"
 	"github.com/user/agent-forensic/internal/parser"
 )
@@ -137,6 +138,13 @@ func InitAppWithSession(t *testing.T, sessions []parser.Session) (model.AppModel
 		m = m.SetCurrentSession(&sessions[0])
 	}
 	return m, cleanup
+}
+
+// ResetLocale ensures the locale is zh and defers reset back to zh on cleanup.
+func ResetLocale(t *testing.T) {
+	t.Helper()
+	_ = i18n.SetLocale("zh")
+	t.Cleanup(func() { _ = i18n.SetLocale("zh") })
 }
 
 // testdataDir returns the absolute path to the testdata directory
