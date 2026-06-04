@@ -60,9 +60,6 @@ func (m DashboardModel) renderCustomToolsBlock(width int) string {
 	colWidth := (width - 4) / 2
 	wide := width >= 60 && colWidth >= ctMinColWidth
 
-	colWidth = (width - 4) / 2
-	wide = width >= 60 && colWidth >= ctMinColWidth
-
 	if wide {
 		skillLines := renderSkillCol(s, colWidth)
 		mcpLines := renderMCPCol(s, colWidth)

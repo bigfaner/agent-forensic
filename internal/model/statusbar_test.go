@@ -100,7 +100,7 @@ func TestStatusBarSetLocale_Zh(t *testing.T) {
 
 func TestStatusBarView_NormalMode_ContainsNavHints(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -112,7 +112,7 @@ func TestStatusBarView_NormalMode_ContainsNavHints(t *testing.T) {
 
 func TestStatusBarView_NormalMode_ContainsQuit(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -122,7 +122,7 @@ func TestStatusBarView_NormalMode_ContainsQuit(t *testing.T) {
 
 func TestStatusBarView_NormalMode_LanguageIndicator(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -133,7 +133,7 @@ func TestStatusBarView_NormalMode_LanguageIndicator(t *testing.T) {
 
 func TestStatusBarView_NormalMode_EnglishLocale(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
@@ -146,7 +146,7 @@ func TestStatusBarView_NormalMode_EnglishLocale(t *testing.T) {
 
 func TestStatusBarView_SearchMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -157,7 +157,7 @@ func TestStatusBarView_SearchMode(t *testing.T) {
 
 func TestStatusBarView_SearchMode_English(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
@@ -172,7 +172,7 @@ func TestStatusBarView_SearchMode_English(t *testing.T) {
 
 func TestStatusBarView_DiagnosisMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -187,7 +187,7 @@ func TestStatusBarView_DiagnosisMode(t *testing.T) {
 
 func TestStatusBarView_DashboardMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -201,7 +201,7 @@ func TestStatusBarView_DashboardMode(t *testing.T) {
 
 func TestStatusBarView_ErrorMode(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -215,7 +215,7 @@ func TestStatusBarView_ErrorMode(t *testing.T) {
 
 func TestStatusBarView_MonitoringOn(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -228,7 +228,7 @@ func TestStatusBarView_MonitoringOn(t *testing.T) {
 
 func TestStatusBarView_MonitoringOff(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -241,7 +241,7 @@ func TestStatusBarView_MonitoringOff(t *testing.T) {
 
 func TestStatusBarView_MonitoringOn_English(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
@@ -256,7 +256,7 @@ func TestStatusBarView_MonitoringOn_English(t *testing.T) {
 
 func TestStatusBarView_Narrow60_ShowsPriority1(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(60, 24)
@@ -269,7 +269,7 @@ func TestStatusBarView_Narrow60_ShowsPriority1(t *testing.T) {
 
 func TestStatusBarView_Narrow60_HidesPriority2(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(60, 24)
@@ -280,7 +280,7 @@ func TestStatusBarView_Narrow60_HidesPriority2(t *testing.T) {
 
 func TestStatusBarView_Width80_ShowsPriority2(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(80, 24)
@@ -292,7 +292,7 @@ func TestStatusBarView_Width80_ShowsPriority2(t *testing.T) {
 
 func TestStatusBarView_Width100_ShowsPriority3(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(100, 24)
@@ -303,7 +303,7 @@ func TestStatusBarView_Width100_ShowsPriority3(t *testing.T) {
 
 func TestStatusBarView_VeryNarrow_StillShowsEssential(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(40, 24)
@@ -371,7 +371,7 @@ func TestStatusBarLocale_Accessor(t *testing.T) {
 
 func TestStatusBarView_DashboardMode_MonitoringRetained(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -387,7 +387,7 @@ func TestStatusBarView_DashboardMode_MonitoringRetained(t *testing.T) {
 
 func TestStatusBarView_EnglishNormalMode(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetLocale("en")
@@ -401,7 +401,7 @@ func TestStatusBarView_EnglishNormalMode(t *testing.T) {
 
 func TestStatusBarView_DoesNotExceedWidth(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(60, 24)
@@ -424,7 +424,7 @@ func TestStatusBarUpdate_ReturnsModel(t *testing.T) {
 
 func TestStatusBarView_DashboardMode_ContainsBack(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)
@@ -438,7 +438,7 @@ func TestStatusBarView_DashboardMode_ContainsBack(t *testing.T) {
 
 func TestStatusBarView_ErrorMode_ContainsRetry(t *testing.T) {
 	_ = i18n.SetLocale("zh")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewStatusBarModel("dev")
 	m.SetSize(120, 24)

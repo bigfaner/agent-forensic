@@ -70,7 +70,7 @@ func ParseSession(filePath string, maxLines int) (*Session, error) {
 	if err != nil {
 		return nil, NewFileReadError(filePath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info, err := f.Stat()
 	if err != nil {
@@ -90,7 +90,7 @@ func ParseIncremental(filePath string, lastOffset int64) ([]TurnEntry, int64, er
 	if err != nil {
 		return nil, lastOffset, NewFileReadError(filePath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	info, err := f.Stat()
 	if err != nil {

@@ -40,7 +40,7 @@ func TestRenderCustomToolsBlock_ColumnAlignment_WideLayout(t *testing.T) {
 	lines := strings.Split(out, "\n")
 
 	// Find the header line with both column headers (Skill + MCP)
-	var headerLineIdx int = -1
+	var headerLineIdx = -1
 	for i, line := range lines {
 		if strings.Contains(line, "Skill") && strings.Contains(line, "MCP") {
 			headerLineIdx = i

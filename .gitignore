@@ -3,10 +3,8 @@
 *.out
 *~
 .claude/settings.local.json
-node_modules/
 docs/features/*/tasks/process/
 docs/forensics/
-tests/e2e/results/
 tmp/
 bin/
 agent-forensic

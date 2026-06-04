@@ -395,9 +395,6 @@ func (m SubAgentOverlayModel) renderToolTimeSection(maxLines, width int) string 
 	})
 
 	// Scroll
-	if contentLines := maxLines - 2; contentLines < 1 {
-		contentLines = 1
-	}
 	start := 0
 	if m.focusedSection == 0 {
 		start = m.scrollOff
@@ -491,7 +488,7 @@ func (m SubAgentOverlayModel) renderToolTimeSection(maxLines, width int) string 
 		if barLen < 1 && e.count > 0 {
 			barLen = 1
 		}
-		leftBuf.WriteString(fmt.Sprintf("%s %s %d", padName(displayName), strings.Repeat("▄", barLen), e.count))
+		fmt.Fprintf(&leftBuf, "%s %s %d", padName(displayName), strings.Repeat("▄", barLen), e.count)
 
 		// Right: time percentage bar (▄/_
 		filled := int(e.pct / 100 * float64(barWidth))
@@ -502,7 +499,7 @@ func (m SubAgentOverlayModel) renderToolTimeSection(maxLines, width int) string 
 			filled = barWidth
 		}
 		pctBar := strings.Repeat("▄", filled) + strings.Repeat("_", barWidth-filled)
-		rightBuf.WriteString(fmt.Sprintf("%s %s %3.0f%%", padName(displayName), pctBar, e.pct))
+		fmt.Fprintf(&rightBuf, "%s %s %3.0f%%", padName(displayName), pctBar, e.pct)
 
 		if i < end-1 {
 			leftBuf.WriteString("\n")
@@ -670,7 +667,7 @@ func (m SubAgentOverlayModel) renderFileOps(maxLines, width int) string {
 			totalStr = strings.Repeat(" ", maxTotalVis-tv) + totalStr
 		}
 
-		b.WriteString(fmt.Sprintf("%s  %s  %s  %s", displayPath, rStr, eStr, totalStr))
+		fmt.Fprintf(&b, "%s  %s  %s  %s", displayPath, rStr, eStr, totalStr)
 		if i < end-1 {
 			b.WriteByte('\n')
 		}

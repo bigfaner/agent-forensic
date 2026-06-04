@@ -870,16 +870,6 @@ func TestDashboardView_LongToolNames(t *testing.T) {
 	assert.Contains(t, view, "▄")
 }
 
-// Helper to find first index of substring
-func indexOf(s, substr string) int {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
-}
-
 func TestDashboardView_PeakStepSlow(t *testing.T) {
 	m := newTestDashboardModel()
 	m.Show()
@@ -900,7 +890,7 @@ func TestDashboardView_PercentageBars(t *testing.T) {
 
 func TestDashboardView_EnglishLocale(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewDashboardModel()
 	m = m.SetSize(80, 24)
@@ -910,7 +900,7 @@ func TestDashboardView_EnglishLocale(t *testing.T) {
 
 func TestDashboardView_EnglishLocale_Populated(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := newTestDashboardModel()
 	m.Show()

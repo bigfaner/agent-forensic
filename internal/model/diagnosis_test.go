@@ -404,7 +404,7 @@ func TestDiagWindowSizeMsg(t *testing.T) {
 
 func TestDiagView_EnglishLocale(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := newTestDiagnosisModal(testSessionWithAnomalies())
 	view := m.View()
@@ -413,7 +413,7 @@ func TestDiagView_EnglishLocale(t *testing.T) {
 
 func TestDiagView_EnglishNoAnomalies(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := newTestDiagnosisModal(testSessionNoAnomalies())
 	view := m.View()

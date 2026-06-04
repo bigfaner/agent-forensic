@@ -543,10 +543,6 @@ func (m SessionsModel) renderRowWidth(b *strings.Builder, idx int, contentWidth 
 	}
 }
 
-func (m SessionsModel) renderRow(b *strings.Builder, idx int) {
-	m.renderRowWidth(b, idx, m.width-4)
-}
-
 // truncateToWidth truncates s to fit within maxWidth terminal columns,
 // appending "…" if truncated. Handles CJK double-width characters correctly.
 func truncateToWidth(s string, maxWidth int) string {

@@ -140,16 +140,16 @@ e2e-verify feature="":
 
 # --- surface: tui (scalar) ---
 
-# Run terminal functional tests (optionally filter by journey)
+# Run terminal functional tests (per-journey or all)
 # user-customized
 [linux]
 test journey='':
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{journey}}" != "" ]; then
-        go test -v -tags=tui_functional -run "{{journey}}" ./tests/...
+        go test -v -json -tags=tui_functional ./tests/{{journey}}/...
     else
-        go test -v -tags=tui_functional ./tests/...
+        go test -v -json -tags=tui_functional ./tests/...
     fi
 
 # user-customized
@@ -158,9 +158,9 @@ test journey='':
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{journey}}" != "" ]; then
-        go test -v -tags=tui_functional -run "{{journey}}" ./tests/...
+        go test -v -json -tags=tui_functional ./tests/{{journey}}/...
     else
-        go test -v -tags=tui_functional ./tests/...
+        go test -v -json -tags=tui_functional ./tests/...
     fi
 
 # Clean up TUI test artifacts

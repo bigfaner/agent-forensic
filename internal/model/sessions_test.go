@@ -514,7 +514,7 @@ func TestSearchFilterRealtime(t *testing.T) {
 
 func TestView_EnglishLocale(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := NewSessionsModel()
 	m = m.SetSize(40, 12)
@@ -524,7 +524,7 @@ func TestView_EnglishLocale(t *testing.T) {
 
 func TestView_EnglishEmptyState(t *testing.T) {
 	_ = i18n.SetLocale("en")
-	defer i18n.SetLocale("zh")
+	defer func() { _ = i18n.SetLocale("zh") }()
 
 	m := newTestModel([]parser.Session{})
 	view := m.View()
